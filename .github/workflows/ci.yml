@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main, master ]
 
+env:
+  CARGO_TERM_COLOR: never
+
 jobs:
   contracts:
     name: Smart Contracts (Rust)
@@ -15,11 +18,20 @@ jobs:
         working-directory: code
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: code/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+
       - name: Run Contract Tests
         run: cargo test --workspace --verbose
+
       - name: Build Contracts to WASM
         run: |
           for c in vault nft treasury dao market; do
@@ -34,10 +46,19 @@ jobs:
         working-directory: code/services/api
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - name: Install Dependencies
         run: npm install
+
       - name: Run Test Suite
         run: npm test

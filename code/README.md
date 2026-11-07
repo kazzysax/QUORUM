@@ -35,7 +35,7 @@ Built for the NEAR Hackathon 2026, NFT track ("NFTs That Do Something").
 | **Not built** | Frontend (built separately against `docs/API.md`) |
 | **Not verified** | Nothing has run on a chain. Contract tests use mocked promises. **The Rhea swap is built from published docs and SDK examples and has never been run against the real DEX.** Gas amounts are estimates. The indexer is tested on block fixtures I shaped from memory of the real format. The NEP-413 check is tested against our own signer, not a real wallet. |
 
-Run everything: `cargo test --workspace` and `cd services/api && npm test`.
+Run everything: `cd code && cargo test --workspace` and `cd services/api && npm test`.
 
 ## Going live
 
