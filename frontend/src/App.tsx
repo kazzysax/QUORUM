@@ -29,6 +29,7 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [backendOnline, setBackendOnline] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // App Data State
   const [wallet, setWallet] = useState<UserWallet>({
@@ -283,10 +284,22 @@ export function App() {
         onNavigate={setCurrentPage}
         onOpenWallet={() => setIsWalletOpen(true)}
         walletConnected={wallet.connected}
+        collapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       {/* Main Container */}
-      <main style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <main
+        style={{
+          flex: 1,
+          minWidth: 0,
+          marginLeft: isSidebarCollapsed ? '74px' : '100px',
+          transition: 'margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+        }}
+      >
         {/* Header Bar */}
         <Header
           searchQuery={searchQuery}

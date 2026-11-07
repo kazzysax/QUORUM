@@ -1,12 +1,24 @@
 import React from 'react';
 import type { Page } from '../types';
-import { PieChart, Rocket, CheckSquare, Tag, ArrowUpRight, LayoutGrid, Wallet } from 'lucide-react';
+import {
+  PieChart,
+  Rocket,
+  CheckSquare,
+  Tag,
+  ArrowUpRight,
+  LayoutGrid,
+  Wallet,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onOpenWallet: () => void;
   walletConnected: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -14,6 +26,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigate,
   onOpenWallet,
   walletConnected,
+  collapsed = false,
+  onToggleCollapse,
 }) => {
   const navItems = [
     { page: 'portfolio' as Page, label: 'Portfolio', icon: PieChart },
@@ -27,14 +41,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside
       style={{
-        position: 'sticky',
+        position: 'fixed',
+        left: '16px',
         top: '16px',
-        alignSelf: 'flex-start',
-        flex: '0 0 84px',
-        width: '84px',
-        maxWidth: '100%',
+        width: collapsed ? '58px' : '84px',
+        height: 'calc(100vh - 32px)',
+        maxHeight: 'calc(100vh - 32px)',
         boxSizing: 'border-box',
-        padding: '16px 8px',
+        padding: collapsed ? '14px 6px' : '16px 8px',
         background: '#15151B',
         border: '1px solid #2A2A33',
         borderRadius: '22px',
@@ -43,9 +57,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: '12px',
-        height: 'calc(100vh - 32px)',
-        maxHeight: 'calc(100vh - 32px)',
-        zIndex: 50,
+        zIndex: 100,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+        transition: 'width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s ease',
       }}
     >
       <div
@@ -53,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '12px',
+          gap: '10px',
           width: '100%',
           overflowY: 'auto',
           scrollbarWidth: 'none',
@@ -65,8 +79,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           aria-label="Quorum home"
           title="Quorum Overview"
           style={{
-            width: '46px',
-            height: '46px',
+            width: collapsed ? '40px' : '46px',
+            height: collapsed ? '40px' : '46px',
             borderRadius: '14px',
             background: currentPage === 'landing' ? 'rgba(245,165,36,0.18)' : '#1D1D25',
             border: currentPage === 'landing' ? '1px solid #F5A524' : '1px solid #2A2A33',
@@ -78,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             flexShrink: 0,
           }}
         >
-          <svg aria-hidden="true" width="26" height="26" viewBox="0 0 64 64">
+          <svg aria-hidden="true" width={collapsed ? 22 : 26} height={collapsed ? 22 : 26} viewBox="0 0 64 64">
             <defs>
               <linearGradient id="dg-side" x1="0.2" y1="0" x2="0.8" y2="1">
                 <stop offset="0" stopColor="#FFF4D6" />
@@ -99,6 +113,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </svg>
         </button>
 
+        {/* Collapse / Expand Toggle Button */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            style={{
+              width: collapsed ? '34px' : '44px',
+              height: '22px',
+              borderRadius: '999px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid #2A2A33',
+              color: '#A1A1AA',
+              display: 'grid',
+              placeItems: 'center',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+            }}
+          >
+            {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+          </button>
+        )}
+
         {/* Navigation Items */}
         <nav aria-label="App Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
           {navItems.map((item) => {
@@ -108,16 +148,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.page}
                 onClick={() => onNavigate(item.page)}
+                title={item.label}
                 style={{
-                  width: '66px',
-                  minHeight: '56px',
+                  width: collapsed ? '44px' : '66px',
+                  minHeight: collapsed ? '44px' : '56px',
                   boxSizing: 'border-box',
                   borderRadius: '14px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '3px',
+                  gap: collapsed ? '0' : '3px',
                   textDecoration: 'none',
                   fontSize: '10.5px',
                   fontWeight: 500,
@@ -126,18 +167,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   color: isActive ? '#F5A524' : '#A1A1AA',
                   border: isActive ? '1px solid rgba(245,165,36,0.45)' : '1px solid transparent',
                   transition: 'all 0.15s ease',
-                  padding: '6px 2px',
+                  padding: collapsed ? '8px' : '6px 2px',
                 }}
               >
-                <Icon size={19} strokeWidth={1.8} />
-                <span>{item.label}</span>
+                <Icon size={collapsed ? 20 : 19} strokeWidth={1.8} />
+                {!collapsed && <span>{item.label}</span>}
               </button>
             );
           })}
         </nav>
       </div>
 
-      {/* Wallet Trigger Button */}
+      {/* Wallet Trigger Button - Fixed at bottom of sidebar pill */}
       <button
         type="button"
         onClick={onOpenWallet}
@@ -145,8 +186,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         title={walletConnected ? 'Wallet Settings' : 'Connect NEAR Wallet'}
         style={{
           flexShrink: 0,
-          width: '48px',
-          height: '48px',
+          width: collapsed ? '42px' : '48px',
+          height: collapsed ? '42px' : '48px',
           borderRadius: '14px',
           border: '1px solid #2A2A33',
           background: walletConnected ? '#F5A524' : '#1D1D25',
@@ -155,9 +196,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           placeItems: 'center',
           cursor: 'pointer',
           transition: 'all 0.15s ease',
+          boxShadow: walletConnected ? '0 0 16px rgba(245,165,36,0.25)' : 'none',
         }}
       >
-        <Wallet size={20} strokeWidth={1.8} />
+        <Wallet size={collapsed ? 18 : 20} strokeWidth={2.2} />
       </button>
     </aside>
   );
