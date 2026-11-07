@@ -63,3 +63,23 @@ jobs:
       - name: Run Test Suite
         run: npm test
 
+  frontend:
+    name: Frontend App (React 19 + TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Type Check & Build
+        run: npm run build
+
+
