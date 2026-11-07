@@ -1,12 +1,12 @@
 import React from 'react';
-import { Search, Activity } from 'lucide-react';
+import { Search } from 'lucide-react';
 import type { UserWallet } from '../types';
 
 interface HeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   wallet: UserWallet;
-  backendOnline: boolean;
+  backendOnline?: boolean;
   onOpenWallet: () => void;
 }
 
@@ -14,7 +14,6 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
   wallet,
-  backendOnline,
   onOpenWallet,
 }) => {
   return (
@@ -69,26 +68,6 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Backend API status */}
-        <div
-          title={backendOnline ? 'Backend API connected (localhost:8080)' : 'Running on simulated local blockchain layer'}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12px',
-            color: backendOnline ? '#86EFAC' : '#A1A1AA',
-            background: '#15151B',
-            border: '1px solid #2A2A33',
-            borderRadius: '14px',
-            padding: '6px 12px',
-            height: '40px',
-          }}
-        >
-          <Activity size={14} color={backendOnline ? '#4ADE80' : '#71717A'} />
-          <span>{backendOnline ? 'API :8080' : 'Local Mock'}</span>
-        </div>
-
         {/* Account & Network Pill */}
         <button
           onClick={onOpenWallet}

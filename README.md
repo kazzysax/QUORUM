@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://quorumio.vercel.app"><img src="https://img.shields.io/badge/Live%20Demo-Vercel-success?style=for-the-badge&logo=vercel" alt="Live Demo" /></a>
+  <a href="https://quorum-io-app.vercel.app"><img src="https://img.shields.io/badge/Live%20Demo-Vercel-success?style=for-the-badge&logo=vercel" alt="Live Demo" /></a>
   <a href="https://near.org"><img src="https://img.shields.io/badge/NEAR-Protocol-black?style=for-the-badge&logo=near" alt="NEAR Protocol" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-orange?style=for-the-badge&logo=rust" alt="Rust" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22-green?style=for-the-badge&logo=node.js" alt="Node.js" /></a>
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  🌐 <strong>Live Web App:</strong> <a href="https://quorumio.vercel.app">https://quorumio.vercel.app</a>
+  🌐 <strong>Live Web App:</strong> <a href="https://quorum-io-app.vercel.app">https://quorum-io-app.vercel.app</a> &bull; <a href="https://quorumio.vercel.app">https://quorumio.vercel.app</a>
 </p>
 
 ---
