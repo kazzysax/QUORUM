@@ -1,0 +1,26 @@
+{
+  "name": "quorum-everything",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Quorum · Liquid NFTs with voting rights, on NEAR Protocol",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "api": "npm --prefix code/services/api start",
+    "test:contracts": "cargo test --manifest-path code/Cargo.toml"
+  },
+  "keywords": [
+    "near",
+    "nft",
+    "vault",
+    "dao",
+    "governance",
+    "defi",
+    "dex",
+    "rhea",
+    "web3"
+  ],
+  "author": "Quorum Protocol Team",
+  "license": "MIT"
+}
