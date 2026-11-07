@@ -19,8 +19,8 @@
 
 ## 📌 Executive Summary
 
-Every Quorum NFT is three things simultaneously:
-1. **Art:** A NEP-171 non-fungible token carrying unique traits and high-fidelity visuals.
+Every Quorum NFT is three things at once:
+1. **Art:** A NEP-171 non-fungible token carrying dynamic metadata and high-fidelity visuals.
 2. **A Vault:** An independent, keyless NEAR sub-account (`v<id>.<collection>`) holding real backing assets (USDC, wNEAR, etc.). Holders can withdraw 90% of backing at any time by burning the NFT.
 3. **A Vote:** Exactly one live vote per token in the decentralized autonomous organization (DAO) controlling the collection's shared treasury and settlement parameters.
 
@@ -40,7 +40,66 @@ Submitted to the **NEAR Hackathon 2026** (Track: *NFTs That Do Something*).
 
 ---
 
-## 🏗️ Architecture
+## 📸 Application UI Showcase
+
+The Quorum interface is built across eight end-to-end interactive canvas artboards. Below are direct captures from the build UI:
+
+### 1. Marketplace & Featured Drops
+The discovery hub displays active and upcoming drops, live secondary listings, floor prices, and collection treasury volumes.
+
+<p align="center">
+  <img src="assets/screenshots/ui-marketplace.png" alt="Quorum Marketplace Screen" width="100%" />
+</p>
+
+---
+
+### 2. Transparent Staged Minting
+Buyers mint with NEAR through presale Merkle allowlists or public stages. **50% of the purchase funds the DAO Treasury immediately**, and **50% is locked as escrow** backing the newly minted NFT's keyless vault.
+
+<p align="center">
+  <img src="assets/screenshots/ui-mint.png" alt="Quorum Mint Screen" width="100%" />
+</p>
+
+---
+
+### 3. Portfolio & Liquid Vault Redemptions
+Holders track their liquid floor value, view deposited FT balances, claim accumulated DAO distributions, and execute burn-to-redeem exits directly on-chain.
+
+<p align="center">
+  <img src="assets/screenshots/ui-portfolio.png" alt="Quorum Portfolio Screen" width="100%" />
+</p>
+
+---
+
+### 4. DAO Governance & Rhea Settlement Voting
+One live NFT equals one vote. Holders submit and vote on spending proposals, treasury asset swaps, and Rhea Finance DEX settlement routes with enforced slippage limits (`min_out`).
+
+<p align="center">
+  <img src="assets/screenshots/ui-governance.png" alt="Quorum Governance Screen" width="100%" />
+</p>
+
+---
+
+### 5. Creator Collection Launch Studio
+A guided six-step deployment workflow: define immutable round-robin asset plans, configure staged pricing, commit provenance hashes, and initialize keyless vault bytecode.
+
+<p align="center">
+  <img src="assets/screenshots/ui-launch.png" alt="Quorum Launch Screen" width="100%" />
+</p>
+
+---
+
+### 6. Non-Custodial Trading & Offers
+Fixed-price sales powered by NEP-178 approvals. Sellers retain asset custody until an exact price match occurs; 5% flows to the DAO pool, royalties to the creator, and the vault travels with the NFT automatically.
+
+<p align="center">
+  <img src="assets/screenshots/ui-sells.png" alt="Quorum Sells Screen" width="49%" />
+  <img src="assets/screenshots/ui-offers.png" alt="Quorum Offers Screen" width="49%" />
+</p>
+
+---
+
+## 🏗️ Protocol Architecture
 
 <p align="center">
   <img src="assets/architecture.png" alt="Quorum Architecture Diagram" width="95%" />
@@ -109,9 +168,9 @@ flowchart TD
 
 ---
 
-## 🎨 Generative Art Gallery
+## 🎨 Generative Art Collections
 
-Quorum features six original generative artwork collections created specifically for the platform:
+Quorum features six original generative artwork collections created specifically for demo deployments:
 
 | Collection | Preview | Asset Backing | Weight |
 |---|---|---|---|
@@ -121,31 +180,6 @@ Quorum features six original generative artwork collections created specifically
 | **Nocturne** | <img src="design/images/nocturne-0.jpg" width="180" /> <img src="design/images/nocturne-1.jpg" width="180" /> | `aurora` | 1 |
 | **Saltlight** | <img src="design/images/saltlight-0.jpg" width="180" /> <img src="design/images/saltlight-1.jpg" width="180" /> | `wrap.near` (wNEAR) | 2 |
 | **Currents** | <img src="design/images/currents-0.jpg" width="180" /> <img src="design/images/currents-1.jpg" width="180" /> | `172086...` (USDC) | 2 |
-
-### Collection Hero Banners
-
-<p align="center">
-  <img src="design/images/banner-tidewater.jpg" width="32%" alt="Tidewater Banner" />
-  <img src="design/images/banner-molten.jpg" width="32%" alt="Molten Banner" />
-  <img src="design/images/banner-orchard.jpg" width="32%" alt="Orchard Banner" />
-</p>
-
----
-
-## 🖥️ UI & Experience Artboards
-
-Eight end-to-end design artboards are provided in `design/artboards/`:
-
-| Screen | File | Description |
-|---|---|---|
-| **Landing** | [`Launch.dc.html`](design/artboards/Launch.dc.html) | Night-scene atmospheric landing page showcasing the Quorum value proposition |
-| **Marketplace** | [`Marketplace.dc.html`](design/artboards/Marketplace.dc.html) | Live drop countdowns, trending vaults, floor prices, secondary listings |
-| **Main View** | [`Main.dc.html`](design/artboards/Main.dc.html) | Master overview of user balances, treasury reserves, active proposals |
-| **Minting** | [`Mint.dc.html`](design/artboards/Mint.dc.html) | Staged mint modal with Merkle allowlist verification & transparent vault breakdown |
-| **Portfolio** | [`Portfolio.dc.html`](design/artboards/Portfolio.dc.html) | Holder dashboard: redeem floor value, claimable distributions, voting power |
-| **Governance** | [`Votings.dc.html`](design/artboards/Votings.dc.html) | DAO proposal portal: quorum tracker, live tallies, timelock indicators |
-| **Offers** | [`Offers.dc.html`](design/artboards/Offers.dc.html) | P2P marketplace offers and liquidity management |
-| **Sells** | [`Sells.dc.html`](design/artboards/Sells.dc.html) | NEP-178 seller interface with dynamic fee & net proceeds calculation |
 
 ---
 
