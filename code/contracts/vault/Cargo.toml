@@ -1,0 +1,16 @@
+[package]
+name = "quorum-vault"
+description = "Add-only vault deployed (as a by-hash global contract) on each Quorum NFT's keyless sub-account."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+quorum-common = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  contracts:
+    name: Smart Contracts (Rust)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: code
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Run Contract Tests
+        run: cargo test --workspace --verbose
+      - name: Build Contracts to WASM
+        run: |
+          for c in vault nft treasury dao market; do
+            cargo build -p quorum-$c --target wasm32-unknown-unknown --release
+          done
+
+  api:
+    name: Indexer & REST API (Node 22)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: code/services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Dependencies
+        run: npm install
+      - name: Run Test Suite
+        run: npm test

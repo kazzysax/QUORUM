@@ -1,0 +1,13 @@
+{
+  "name": "quorum-api",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test --no-warnings"
+  },
+  "dependencies": { "fastify": "5.2.1", "tweetnacl": "1.0.3", "@fastify/cors": "10.0.2" }
+}

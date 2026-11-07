@@ -1,0 +1,113 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-07T15:18:57Z"
+ },
+ "title": "Quorum App Design",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 2160,
+   "title": "Landing",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Marketplace.dc.html": {
+   "x": 0,
+   "y": 2600,
+   "w": 1440,
+   "h": 1500,
+   "title": "Marketplace (home)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Portfolio.dc.html": {
+   "x": 0,
+   "y": 4220,
+   "w": 1440,
+   "h": 1060,
+   "title": "Portfolio",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Launch.dc.html": {
+   "x": 3040,
+   "y": 2600,
+   "w": 1440,
+   "h": 1200,
+   "title": "Launch a collection (creators)",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Votings.dc.html": {
+   "x": 1520,
+   "y": 4220,
+   "w": 1440,
+   "h": 1100,
+   "title": "Votings",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Offers.dc.html": {
+   "x": 3040,
+   "y": 4220,
+   "w": 1440,
+   "h": 1100,
+   "title": "Offers",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Sells.dc.html": {
+   "x": 4560,
+   "y": 4220,
+   "w": 1440,
+   "h": 1100,
+   "title": "Sells",
+   "expand": "fill",
+   "is_interactive": true
+  },
+  "Mint.dc.html": {
+   "x": 1520,
+   "y": 2600,
+   "w": 1440,
+   "h": 1400,
+   "title": "Mint (opened from a drop)",
+   "expand": "fill",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Marketplace.dc.html",
+  "Mint.dc.html",
+  "Launch.dc.html",
+  "Portfolio.dc.html",
+  "Votings.dc.html",
+  "Offers.dc.html",
+  "Sells.dc.html"
+ ],
+ "notes": {
+  "app": {
+   "x": 0,
+   "y": 2300,
+   "text": "Inside the app",
+   "kind": "title1",
+   "maxW": 6000
+  },
+  "site": {
+   "x": 1560,
+   "y": 0,
+   "text": "Landing: an original night scene, a lone figure centred on a cliff under the moon, with the headline and description in the middle. Drawn 900px tall here; 100vh in the build.",
+   "w": 420,
+   "fill": "gray"
+  }
+ },
+ "designSystems": []
+}

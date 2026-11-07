@@ -1,0 +1,10 @@
+# docker compose up --build   (reads services/api/.env)
+services:
+  api:
+    build: ./services/api
+    env_file: ./services/api/.env
+    ports: ["8080:8080"]
+    volumes: ["quorum-data:/data"]
+    restart: unless-stopped
+volumes:
+  quorum-data:

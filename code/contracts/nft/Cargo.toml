@@ -1,0 +1,17 @@
+[package]
+name = "quorum-nft"
+description = "Quorum collection contract: NEP-171 token, quoted mint with 50/50 split, keyless vault factory, burn-to-redeem, vote and claim gate."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+near-contract-standards = { workspace = true }
+quorum-common = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

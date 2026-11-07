@@ -1,0 +1,12 @@
+[package]
+name = "quorum-common"
+description = "Shared constants, fee math, asset ids, events and cross-contract interfaces for Quorum."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+near-sdk = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }
