@@ -268,11 +268,11 @@ export function App() {
       style={{
         minHeight: '100vh',
         boxSizing: 'border-box',
-        padding: '20px',
+        padding: '16px',
         display: 'flex',
         flexWrap: 'wrap',
-        gap: '20px',
-        alignItems: 'stretch',
+        gap: '16px',
+        alignItems: 'flex-start',
         background: '#0A0A0D',
         color: '#F4F4F5',
       }}
@@ -286,7 +286,7 @@ export function App() {
       />
 
       {/* Main Container */}
-      <main style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <main style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Header Bar */}
         <Header
           searchQuery={searchQuery}

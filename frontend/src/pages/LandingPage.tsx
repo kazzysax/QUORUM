@@ -8,17 +8,17 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%', background: '#08080A', borderRadius: '24px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', background: '#08080A', borderRadius: '24px', overflow: 'hidden' }}>
       {/* Hero Skyline Section */}
       <section
         style={{
           position: 'relative',
-          minHeight: '520px',
+          minHeight: '340px',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          padding: '60px 40px',
+          padding: '36px 36px 28px',
           borderBottom: '1px solid #1F1F27',
         }}
       >
@@ -71,47 +71,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </svg>
 
         {/* Hero Copy */}
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '720px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="gold-badge">Built on NEAR Protocol</span>
-            <span className="neutral-badge">NEP-171 · Keyless Vaults · DAO</span>
+            <span className="gold-badge" style={{ fontSize: '11.5px', height: '24px', padding: '0 9px' }}>Built on NEAR Protocol</span>
+            <span className="neutral-badge" style={{ fontSize: '11.5px', height: '24px', padding: '0 9px' }}>NEP-171 · Keyless Vaults · DAO</span>
           </div>
 
           <h1
             style={{
               margin: 0,
-              fontSize: 'clamp(2.5rem, 5vw, 4.2rem)',
+              fontSize: 'clamp(1.85rem, 3.2vw, 2.75rem)',
               fontWeight: 700,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.05,
+              letterSpacing: '-0.025em',
+              lineHeight: 1.1,
             }}
           >
             Liquid NFTs with voting rights.
           </h1>
 
-          <p style={{ margin: 0, fontSize: '18px', lineHeight: 1.6, color: '#D4D4D8' }}>
+          <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.55, color: '#D4D4D8' }}>
             Every piece has a keyless vault, an on-chain floor exit at 90% backing, and exactly one live vote in the collection's DAO.
           </p>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginTop: '10px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '6px' }}>
             <button
               onClick={() => onNavigate('marketplace')}
               className="btn-primary"
-              style={{ minHeight: '52px', padding: '0 28px', fontSize: '16px' }}
+              style={{ minHeight: '42px', padding: '0 20px', fontSize: '14px' }}
             >
-              Enter Marketplace <ArrowRight size={18} />
+              Enter Marketplace <ArrowRight size={16} />
             </button>
             <button
               onClick={() => onNavigate('mint')}
               className="btn-secondary"
-              style={{ minHeight: '52px', padding: '0 24px', fontSize: '16px', background: 'rgba(29,29,37,0.7)' }}
+              style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
             >
               Mint Molten Hours
             </button>
             <button
               onClick={() => onNavigate('launch')}
               className="btn-secondary"
-              style={{ minHeight: '52px', padding: '0 24px', fontSize: '16px', background: 'rgba(29,29,37,0.7)' }}
+              style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
             >
               Launch Studio
             </button>
@@ -120,45 +120,45 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* 4 Pillars Section */}
-      <section style={{ padding: '0 40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <h2 style={{ margin: 0, fontSize: '28px', fontWeight: 600 }}>The Quorum Architecture</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <span style={{ width: '48px', height: '48px', borderRadius: '12px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
-              <Vault size={24} />
+      <section style={{ padding: '0 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>The Quorum Architecture</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
+          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '16px', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ width: '40px', height: '40px', borderRadius: '10px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
+              <Vault size={20} />
             </span>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>A vault in every NFT</h3>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>A vault in every NFT</h3>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               Each NFT owns a keyless NEAR sub-account (<code>v[id].[collection].near</code>). Its owner can add assets to it. Nothing leaves unless the NFT is burned.
             </p>
           </article>
 
-          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <span style={{ width: '48px', height: '48px', borderRadius: '12px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
-              <CheckSquare size={24} />
+          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '16px', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ width: '40px', height: '40px', borderRadius: '10px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
+              <CheckSquare size={20} />
             </span>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>One NFT, one vote</h3>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>One NFT, one vote</h3>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               Holders govern the treasury. Spending, distributions, and Rhea DEX rebalancing happen exclusively through timelocked holder votes.
             </p>
           </article>
 
-          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <span style={{ width: '48px', height: '48px', borderRadius: '12px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
-              <Flame size={24} />
+          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '16px', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ width: '40px', height: '40px', borderRadius: '10px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
+              <Flame size={20} />
             </span>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Liquid by design</h3>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Liquid by design</h3>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               Burn any NFT at any time to redeem 90% of what its vault holds. The other 10% returns to the collection DAO Treasury pool.
             </p>
           </article>
 
-          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <span style={{ width: '48px', height: '48px', borderRadius: '12px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
-              <RefreshCw size={24} />
+          <article style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '16px', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ width: '40px', height: '40px', borderRadius: '10px', border: '1px solid #3F3F46', display: 'grid', placeItems: 'center', color: '#F5A524', background: '#1D1D25' }}>
+              <RefreshCw size={20} />
             </span>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Settlement through Rhea</h3>
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Settlement through Rhea</h3>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               You mint in NEAR. Once the mint closes, holders vote to execute the DEX swap route for each asset group with enforced minimum output limits.
             </p>
           </article>
@@ -166,27 +166,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* Where your mint goes */}
-      <section style={{ padding: '0 40px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <h3 style={{ margin: 0, fontSize: '24px', fontWeight: 600 }}>Where your mint goes</h3>
-        <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-          <li style={{ padding: '24px', border: '1px solid #2A2A33', borderRadius: '18px', background: '#15151B', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontSize: '14px', color: '#F5A524', fontWeight: 700 }}>01</span>
-            <strong style={{ fontSize: '18px' }}>You pay in NEAR</strong>
-            <span style={{ fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+      <section style={{ padding: '0 36px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Where your mint goes</h3>
+        <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+          <li style={{ padding: '18px 20px', border: '1px solid #2A2A33', borderRadius: '16px', background: '#15151B', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#F5A524', fontWeight: 700 }}>01</span>
+            <strong style={{ fontSize: '16px' }}>You pay in NEAR</strong>
+            <span style={{ fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               The stage price, plus a small storage cost that opens your NFT's keyless vault account.
             </span>
           </li>
-          <li style={{ padding: '24px', border: '1px solid #2A2A33', borderRadius: '18px', background: '#15151B', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontSize: '14px', color: '#F5A524', fontWeight: 700 }}>02</span>
-            <strong style={{ fontSize: '18px' }}>Half goes to the DAO</strong>
-            <span style={{ fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+          <li style={{ padding: '18px 20px', border: '1px solid #2A2A33', borderRadius: '18px', background: '#15151B', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#F5A524', fontWeight: 700 }}>02</span>
+            <strong style={{ fontSize: '16px' }}>Half goes to the DAO</strong>
+            <span style={{ fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               Straight into the collection treasury, which only holder votes can disburse or swap.
             </span>
           </li>
-          <li style={{ padding: '24px', border: '1px solid #2A2A33', borderRadius: '18px', background: '#15151B', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontSize: '14px', color: '#F5A524', fontWeight: 700 }}>03</span>
-            <strong style={{ fontSize: '18px' }}>Half backs your NFT</strong>
-            <span style={{ fontSize: '14px', lineHeight: 1.6, color: '#A1A1AA' }}>
+          <li style={{ padding: '18px 20px', border: '1px solid #2A2A33', borderRadius: '18px', background: '#15151B', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#F5A524', fontWeight: 700 }}>03</span>
+            <strong style={{ fontSize: '16px' }}>Half backs your NFT</strong>
+            <span style={{ fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
               Held in escrow for your NFT, then swapped into its asset and credited to its vault.
             </span>
           </li>
@@ -194,36 +194,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* No Admin Keys Callout Banner */}
-      <section style={{ padding: '0 40px 40px' }}>
+      <section style={{ padding: '0 36px 36px' }}>
         <div
           style={{
             position: 'relative',
             overflow: 'hidden',
-            borderRadius: '24px',
+            borderRadius: '20px',
             border: '1px solid #2A2A33',
-            padding: '48px 40px',
+            padding: '36px 32px',
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '32px',
+            gap: '24px',
             alignItems: 'center',
             justifyContent: 'space-between',
             background: '#15151B',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '560px' }}>
-            <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 600 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '560px' }}>
+            <h2 style={{ margin: 0, fontSize: 'clamp(1.6rem, 2.5vw, 2.1rem)', fontWeight: 600 }}>
               No admin keys. Just the rules.
             </h2>
-            <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.6, color: '#A1A1AA' }}>
+            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.55, color: '#A1A1AA' }}>
               Vaults have no keys and the treasury has no owner. What is written into the smart contracts is what executes on NEAR Protocol.
             </p>
           </div>
+
           <button
             onClick={() => onNavigate('marketplace')}
             className="btn-primary"
-            style={{ minHeight: '52px', padding: '0 32px', fontSize: '16px' }}
+            style={{ minHeight: '44px', padding: '0 24px', fontSize: '14px' }}
           >
-            Enter the Marketplace <ArrowRight size={18} />
+            Enter the Marketplace <ArrowRight size={16} />
           </button>
         </div>
       </section>

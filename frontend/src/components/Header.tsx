@@ -35,16 +35,16 @@ export const Header: React.FC<HeaderProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          height: '52px',
+          height: '46px',
           boxSizing: 'border-box',
-          padding: '0 18px',
+          padding: '0 16px',
           background: '#15151B',
           border: '1px solid #2A2A33',
-          borderRadius: '16px',
+          borderRadius: '14px',
           color: '#A1A1AA',
         }}
       >
-        <Search size={20} strokeWidth={1.8} />
+        <Search size={18} strokeWidth={1.8} />
         <span style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
           Search
         </span>
@@ -61,13 +61,13 @@ export const Header: React.FC<HeaderProps> = ({
             outline: 'none',
             color: '#F4F4F5',
             font: 'inherit',
-            fontSize: '15px',
+            fontSize: '14px',
           }}
         />
       </label>
 
       {/* Right controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {/* Account & Network Pill */}
         <button
           onClick={onOpenWallet}
@@ -75,23 +75,23 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            height: '52px',
+            gap: '10px',
+            height: '46px',
             boxSizing: 'border-box',
-            padding: '0 8px 0 16px',
+            padding: '0 8px 0 14px',
             background: '#15151B',
             border: '1px solid #2A2A33',
-            borderRadius: '16px',
+            borderRadius: '14px',
             cursor: 'pointer',
             color: '#F4F4F5',
             font: 'inherit',
           }}
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#A1A1AA' }}>
             <span
               style={{
-                width: '8px',
-                height: '8px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
                 background: wallet.network === 'mainnet' ? '#4ADE80' : '#F5A524',
                 boxShadow: `0 0 8px ${wallet.network === 'mainnet' ? '#4ADE80' : '#F5A524'}`,
@@ -99,16 +99,16 @@ export const Header: React.FC<HeaderProps> = ({
             />
             NEAR {wallet.network}
           </span>
-          <span style={{ width: '1px', height: '24px', background: '#2A2A33' }} />
-          <span style={{ fontSize: '15px', fontWeight: 500 }}>
+          <span style={{ width: '1px', height: '20px', background: '#2A2A33' }} />
+          <span style={{ fontSize: '14px', fontWeight: 500 }}>
             {wallet.connected ? `Hi, ${wallet.accountId}` : 'Connect Wallet'}
           </span>
           <span
             aria-hidden="true"
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '12px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
               background: '#1D1D25',
               border: '1px solid #2A2A33',
               display: 'grid',
