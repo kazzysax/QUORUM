@@ -92,3 +92,4 @@ export interface UserWallet {
   balanceNear: number;
   network: 'mainnet' | 'testnet';
 }
+

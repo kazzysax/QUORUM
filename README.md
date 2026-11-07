@@ -7,12 +7,17 @@
 </p>
 
 <p align="center">
+  <a href="https://quorum-zeta-olive.vercel.app"><img src="https://img.shields.io/badge/Live%20Demo-Vercel-success?style=for-the-badge&logo=vercel" alt="Live Demo" /></a>
   <a href="https://near.org"><img src="https://img.shields.io/badge/NEAR-Protocol-black?style=for-the-badge&logo=near" alt="NEAR Protocol" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-orange?style=for-the-badge&logo=rust" alt="Rust" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22-green?style=for-the-badge&logo=node.js" alt="Node.js" /></a>
   <a href="https://fastify.dev/"><img src="https://img.shields.io/badge/Fastify-5.2-000000?style=for-the-badge&logo=fastify" alt="Fastify" /></a>
   <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-142%20Passed-brightgreen?style=for-the-badge" alt="Tests" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" /></a>
+</p>
+
+<p align="center">
+  🌐 <strong>Live Web App:</strong> <a href="https://quorum-zeta-olive.vercel.app">https://quorum-zeta-olive.vercel.app</a>
 </p>
 
 ---

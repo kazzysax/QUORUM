@@ -44,3 +44,7 @@ desktop.ini
 *.swp
 *.swo
 *~
+
+# Vercel
+.vercel
+**/.vercel
