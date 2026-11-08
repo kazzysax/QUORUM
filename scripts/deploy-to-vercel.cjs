@@ -139,8 +139,8 @@ async function main() {
       outputDirectory: 'dist'
     },
     meta: {
-      gitCommitSha: 'bee0072',
-      gitCommitMessage: 'feat(ui): static sidebar with fixed wallet button and collapsible toggle',
+      gitCommitSha: 'c33a32e',
+      gitCommitMessage: 'fix(onchain): route transactions to valid testnet accounts and assign user NFTs to malekoala9992.testnet',
       actor: 'antigravity'
     }
   };
