@@ -16,6 +16,7 @@ interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onOpenWallet: () => void;
+  onOpenConnect?: () => void;
   walletConnected: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentPage,
   onNavigate,
   onOpenWallet,
+  onOpenConnect,
   walletConnected,
   collapsed = false,
   onToggleCollapse,
@@ -252,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Wallet Trigger Button - Fixed at bottom of sidebar pill */}
       <button
         type="button"
-        onClick={onOpenWallet}
+        onClick={walletConnected ? onOpenWallet : (onOpenConnect || onOpenWallet)}
         aria-label="Connect wallet"
         title={walletConnected ? 'Wallet Settings' : 'Connect NEAR Wallet'}
         style={{

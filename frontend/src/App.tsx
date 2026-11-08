@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Page, TokenItem, CollectionItem, ProposalItem, UserWallet, OfferItem } from './types';
 import {
   INITIAL_COLLECTIONS,
@@ -13,6 +13,8 @@ import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
+import { fetchNearAccountBalance } from './near';
+import { subscribeToNearConnect, openNearConnect } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
 import { MintPage } from './pages/MintPage';
@@ -59,6 +61,45 @@ export function App() {
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Listen to official NearConnector events
+  useEffect(() => {
+    const unsubscribe = subscribeToNearConnect(
+      async ({ accountId, connectorName }) => {
+        const rpcBalance = await fetchNearAccountBalance(accountId);
+        setWallet((prev) => ({
+          ...prev,
+          connected: true,
+          accountId,
+          balanceNear: rpcBalance !== null ? rpcBalance : prev.balanceNear,
+          connector: connectorName,
+        }));
+        addToast('success', `Connected: ${connectorName}`, `Signed in as ${accountId}`);
+      },
+      () => {
+        setWallet((prev) => ({ ...prev, connected: false, connector: undefined }));
+        addToast('info', 'Disconnected', 'Wallet has been signed out.');
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  // Trigger the Official HOT Connector modal directly
+  const handleOpenOfficialConnect = async () => {
+    setIsWalletOpen(false);
+    const result = await openNearConnect();
+    if (result) {
+      const rpcBalance = await fetchNearAccountBalance(result.accountId);
+      setWallet((prev) => ({
+        ...prev,
+        connected: true,
+        accountId: result.accountId,
+        balanceNear: rpcBalance !== null ? rpcBalance : prev.balanceNear,
+        connector: result.connectorName,
+      }));
+      addToast('success', `Connected: ${result.connectorName}`, `Signed in as ${result.accountId}`);
+    }
   };
 
   // Active collection being viewed/minted
@@ -356,6 +397,7 @@ export function App() {
         currentPage={currentPage}
         onNavigate={setCurrentPage}
         onOpenWallet={() => setIsWalletOpen(true)}
+        onOpenConnect={handleOpenOfficialConnect}
         walletConnected={wallet.connected}
         collapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -379,6 +421,7 @@ export function App() {
           onSearchChange={setSearchQuery}
           wallet={wallet}
           onOpenWallet={() => setIsWalletOpen(true)}
+          onOpenConnect={handleOpenOfficialConnect}
         />
 
         {/* Dynamic Route Content */}
@@ -469,6 +512,7 @@ export function App() {
         onClose={() => setIsWalletOpen(false)}
         wallet={wallet}
         onUpdateWallet={(updated) => setWallet((prev) => ({ ...prev, ...updated }))}
+        onOpenConnect={handleOpenOfficialConnect}
       />
 
       {/* Toast Notification Container */}

@@ -20,6 +20,7 @@ interface WalletModalProps {
   onClose: () => void;
   wallet: UserWallet;
   onUpdateWallet: (updated: Partial<UserWallet>) => void;
+  onOpenConnect: () => void;
 }
 
 export const WalletModal: React.FC<WalletModalProps> = ({
@@ -27,10 +28,11 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   onClose,
   wallet,
   onUpdateWallet,
+  onOpenConnect,
 }) => {
   const [activeTab, setActiveTab] = useState<'connectors' | 'account'>('connectors');
-  const [selectedConnector, setSelectedConnector] = useState<'meteor' | 'hot' | 'mynearwallet' | 'custom' | null>(
-    wallet.connector || 'meteor'
+  const [selectedConnector, setSelectedConnector] = useState<string | null>(
+    wallet.connector || 'hot'
   );
   const [tempId, setTempId] = useState(wallet.accountId);
   const [isCheckingRpc, setIsCheckingRpc] = useState(false);
@@ -47,7 +49,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSyncWithRpc = async (accountToSync: string, connectorType?: 'meteor' | 'hot' | 'mynearwallet' | 'custom') => {
+  const handleSyncWithRpc = async (accountToSync: string, connectorType?: string) => {
     setIsCheckingRpc(true);
     setRpcStatus('Querying NEAR testnet RPC...');
     const balance = await fetchNearAccountBalance(accountToSync);
@@ -243,14 +245,73 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           </button>
         </div>
 
-        {/* TAB 1: CONNECTORS (Meteor Wallet & HOT Connector) */}
+        {/* TAB 1: CONNECTORS (Official HOT Connector & Wallets) */}
         {activeTab === 'connectors' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-              Select your NEAR wallet connector:
+            {/* 1. PRIMARY: OFFICIAL NEAR ECOSYSTEM SELECTOR (HOT CONNECTOR) */}
+            <div
+              onClick={() => {
+                onClose();
+                onOpenConnect();
+              }}
+              style={{
+                background: 'linear-gradient(135deg, rgba(245,165,36,0.18) 0%, rgba(255,87,34,0.12) 100%)',
+                border: '1.5px solid #F5A524',
+                borderRadius: '18px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: '0 4px 18px rgba(245,165,36,0.2)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #FF5722 0%, #F5A524 100%)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#111113',
+                    boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Flame size={24} strokeWidth={2.5} />
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ fontSize: '15px', color: '#F4F4F5' }}>Official HOT Connector</strong>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        background: '#F5A524',
+                        color: '#111113',
+                        padding: '1px 7px',
+                        borderRadius: '999px',
+                      }}
+                    >
+                      RECOMMENDED
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#D4D4D8' }}>
+                    HOT Wallet, Meteor, Intear, Ledger, MyNear, NEAR Mobile, Nightly &amp; WalletConnect
+                  </span>
+                </div>
+              </div>
+              <ArrowRight size={20} color="#F5A524" />
+            </div>
+
+            <span style={{ fontSize: '12px', color: '#71717A', marginTop: '4px' }}>
+              Or connect directly via individual provider:
             </span>
 
-            {/* 1. METEOR WALLET CONNECTOR */}
+            {/* 2. METEOR WALLET CONNECTOR */}
             <div
               onClick={handleConnectMeteor}
               style={{
@@ -522,6 +583,32 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                 )}
               </span>
             </div>
+
+            {/* Switch via Official HOT Connector */}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenConnect();
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                minHeight: '44px',
+                borderRadius: '14px',
+                background: 'linear-gradient(135deg, #FF5722 0%, #F5A524 100%)',
+                border: 0,
+                color: '#111113',
+                fontWeight: 600,
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(245, 165, 36, 0.3)',
+              }}
+            >
+              <Flame size={17} strokeWidth={2.5} /> Open Official Wallet Selector (HOT Connector)
+            </button>
 
             {/* Current Balance Card */}
             <div
