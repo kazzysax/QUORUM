@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { UserWallet } from '../types';
-import { X, Check, RefreshCw, KeyRound, Globe } from 'lucide-react';
+import { X, Check, RefreshCw, KeyRound, Globe, ExternalLink, Activity } from 'lucide-react';
+import { fetchNearAccountBalance, NEAR_TESTNET_EXPLORER, NEAR_TESTNET_RPC } from '../near';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -16,15 +17,40 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   onUpdateWallet,
 }) => {
   const [tempId, setTempId] = useState(wallet.accountId);
+  const [isCheckingRpc, setIsCheckingRpc] = useState(false);
+  const [rpcStatus, setRpcStatus] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleSyncWithRpc = async (accountToSync: string) => {
+    setIsCheckingRpc(true);
+    setRpcStatus('Querying NEAR testnet RPC...');
+    const balance = await fetchNearAccountBalance(accountToSync);
+    setIsCheckingRpc(false);
+
+    if (balance !== null) {
+      onUpdateWallet({ accountId: accountToSync, balanceNear: balance, connected: true });
+      setRpcStatus(`Synced on-chain: ${balance.toFixed(2)} test NEAR`);
+    } else {
+      onUpdateWallet({ accountId: accountToSync, connected: true });
+      setRpcStatus(`Connected to ${accountToSync} (testnet mode)`);
+    }
+  };
+
+  const handleSaveAccount = () => {
+    const trimmed = tempId.trim();
+    if (!trimmed) return;
+    const finalId = trimmed.includes('.') ? trimmed : `${trimmed}.testnet`;
+    setTempId(finalId);
+    handleSyncWithRpc(finalId);
+  };
 
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         backdropFilter: 'blur(6px)',
         display: 'grid',
         placeItems: 'center',
@@ -49,11 +75,27 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#F4F4F5' }}>
-            NEAR Wallet Settings
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#F4F4F5' }}>
+              NEAR Testnet Wallet
+            </h2>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#4ADE80',
+                background: 'rgba(74, 222, 128, 0.1)',
+                padding: '2px 8px',
+                borderRadius: '999px',
+                border: '1px solid rgba(74, 222, 128, 0.25)',
+              }}
+            >
+              Testnet
+            </span>
+          </div>
           <button
             onClick={onClose}
+            aria-label="Close modal"
             style={{
               background: 'transparent',
               border: 0,
@@ -79,32 +121,58 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             gap: '8px',
           }}
         >
-          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Available Balance</span>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Available Testnet Balance</span>
+            <button
+              type="button"
+              onClick={() => handleSyncWithRpc(wallet.accountId)}
+              disabled={isCheckingRpc}
+              title="Query RPC for live balance"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'transparent',
+                border: 'none',
+                color: '#A1A1AA',
+                cursor: 'pointer',
+                fontSize: '12px',
+              }}
+            >
+              <RefreshCw size={12} className={isCheckingRpc ? 'animate-spin' : ''} />
+              Sync RPC
+            </button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Space Grotesk' }}>
               {wallet.balanceNear.toFixed(2)} NEAR
             </span>
             <button
               onClick={() => onUpdateWallet({ balanceNear: wallet.balanceNear + 25 })}
               className="gold-badge"
-              style={{ cursor: 'pointer', border: '1px solid #F5A524' }}
+              style={{ cursor: 'pointer', border: '1px solid #F5A524', padding: '6px 12px', fontSize: '12px' }}
             >
-              + Faucet 25 NEAR
+              + Faucet 25 Test NEAR
             </button>
           </div>
+          {rpcStatus && (
+            <span style={{ fontSize: '11px', color: '#86EFAC', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Activity size={12} /> {rpcStatus}
+            </span>
+          )}
         </div>
 
         {/* Switch Account */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <label style={{ fontSize: '13px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <KeyRound size={14} /> Active Account ID
+            <KeyRound size={14} /> Active Testnet Account
           </label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input
               type="text"
               value={tempId}
               onChange={(e) => setTempId(e.target.value)}
-              placeholder="e.g. alice.near"
+              placeholder="e.g. yourname.testnet"
               style={{
                 flex: 1,
                 minHeight: '44px',
@@ -117,12 +185,32 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               }}
             />
             <button
-              onClick={() => onUpdateWallet({ accountId: tempId, connected: true })}
+              onClick={handleSaveAccount}
               className="btn-primary"
               style={{ minHeight: '44px', padding: '0 16px' }}
             >
               <Check size={16} /> Save
             </button>
+          </div>
+        </div>
+
+        {/* Quick Testnet Switch Accounts */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span style={{ fontSize: '12px', color: '#71717A' }}>Test Accounts:</span>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {['alice.testnet', 'bob.testnet', 'aurora.testnet', 'oceanic.testnet'].map((account) => (
+              <button
+                key={account}
+                onClick={() => {
+                  setTempId(account);
+                  handleSyncWithRpc(account);
+                }}
+                className="neutral-badge"
+                style={{ cursor: 'pointer', fontSize: '11px', height: '28px' }}
+              >
+                {account}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -132,6 +220,23 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             <Globe size={14} /> Network
           </span>
           <div style={{ display: 'flex', gap: '8px', background: '#1D1D25', padding: '4px', borderRadius: '12px' }}>
+            <button
+              type="button"
+              onClick={() => onUpdateWallet({ network: 'testnet' })}
+              style={{
+                flex: 1,
+                minHeight: '38px',
+                borderRadius: '10px',
+                border: 0,
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '13px',
+                background: wallet.network === 'testnet' ? '#F5A524' : 'transparent',
+                color: wallet.network === 'testnet' ? '#111113' : '#A1A1AA',
+              }}
+            >
+              NEAR Testnet (Active)
+            </button>
             <button
               type="button"
               onClick={() => onUpdateWallet({ network: 'mainnet' })}
@@ -149,48 +254,29 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             >
               Mainnet
             </button>
-            <button
-              type="button"
-              onClick={() => onUpdateWallet({ network: 'testnet' })}
-              style={{
-                flex: 1,
-                minHeight: '38px',
-                borderRadius: '10px',
-                border: 0,
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: '13px',
-                background: wallet.network === 'testnet' ? '#F5A524' : 'transparent',
-                color: wallet.network === 'testnet' ? '#111113' : '#A1A1AA',
-              }}
-            >
-              Testnet
-            </button>
           </div>
         </div>
 
-        {/* Quick Swapper */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#71717A' }}>Quick Demo Personas:</span>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {['alice.near (Holder & Voter)', 'creator.near (Artist)', 'whale.near (Collector)'].map((persona) => {
-              const account = persona.split(' ')[0];
-              return (
-                <button
-                  key={persona}
-                  onClick={() => {
-                    setTempId(account);
-                    onUpdateWallet({ accountId: account, connected: true });
-                  }}
-                  className="neutral-badge"
-                  style={{ cursor: 'pointer', fontSize: '11px', height: '28px' }}
-                >
-                  <RefreshCw size={11} style={{ marginRight: '4px' }} />
-                  {persona}
-                </button>
-              );
-            })}
-          </div>
+        {/* Testnet Explorer & RPC Details */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '12px',
+            color: '#71717A',
+            paddingTop: '4px',
+          }}
+        >
+          <span>RPC: {NEAR_TESTNET_RPC.replace('https://', '')}</span>
+          <a
+            href={`${NEAR_TESTNET_EXPLORER}/address/${wallet.accountId}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: '#F5A524', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+          >
+            Explorer <ExternalLink size={12} />
+          </a>
         </div>
 
         <button
@@ -206,10 +292,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             color: wallet.connected ? '#FCA5A5' : '#86EFAC',
             fontWeight: 600,
             cursor: 'pointer',
-            marginTop: '8px',
           }}
         >
-          {wallet.connected ? 'Disconnect Wallet' : 'Connect Wallet'}
+          {wallet.connected ? 'Disconnect Wallet' : 'Connect Testnet Wallet'}
         </button>
       </div>
     </div>

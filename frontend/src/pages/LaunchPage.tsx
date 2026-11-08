@@ -37,7 +37,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
       id: name.toLowerCase().replace(/\s+/g, '-'),
       name,
       symbol,
-      creator: 'alice.near',
+      creator: 'alice.testnet',
       description: desc,
       cover_image: '/images/banner-tidewater.jpg',
       avatar_image: '/images/tidewater-0.jpg',

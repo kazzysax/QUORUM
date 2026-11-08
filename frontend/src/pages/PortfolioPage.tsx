@@ -240,7 +240,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-                  Vault: {selectedToken.vault_account || `v${selectedToken.token_id}.molten.near`}
+                  Vault: {selectedToken.vault_account || `v${selectedToken.token_id}.molten.testnet`}
                 </span>
               </div>
             </div>

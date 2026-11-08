@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Page, TokenItem, CollectionItem, ProposalItem, UserWallet } from './types';
 import {
   INITIAL_COLLECTIONS,
@@ -8,7 +8,6 @@ import {
   INITIAL_SALES_HISTORY,
   INITIAL_OFFERS,
 } from './mockData';
-import { checkBackendHealth } from './api';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
@@ -27,16 +26,15 @@ import { LandingPage } from './pages/LandingPage';
 export function App() {
   const [currentPage, setCurrentPage] = useState<Page>('marketplace');
   const [searchQuery, setSearchQuery] = useState('');
-  const [backendOnline, setBackendOnline] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // App Data State
   const [wallet, setWallet] = useState<UserWallet>({
     connected: true,
-    accountId: 'alice.near',
+    accountId: 'alice.testnet',
     balanceNear: 125.40,
-    network: 'mainnet',
+    network: 'testnet',
   });
 
   const [collections, setCollections] = useState<CollectionItem[]>(INITIAL_COLLECTIONS);
@@ -61,12 +59,6 @@ export function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Probe local Fastify backend
-  useEffect(() => {
-    checkBackendHealth().then((res) => {
-      setBackendOnline(res.online);
-    });
-  }, []);
 
   // Handlers
   const handleMint = (_stage: 'pre' | 'pub', totalNear: number) => {
@@ -92,7 +84,7 @@ export function App() {
       image: '/images/molten-1.jpg',
       votes_cast: 0,
       unclaimed_distribution: '0.00 NEAR',
-      vault_account: `v${newMintNumber}.molten.near`,
+      vault_account: `v${newMintNumber}.molten.testnet`,
     };
 
     setWallet((prev) => ({ ...prev, balanceNear: prev.balanceNear - totalNear }));
@@ -305,7 +297,6 @@ export function App() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           wallet={wallet}
-          backendOnline={backendOnline}
           onOpenWallet={() => setIsWalletOpen(true)}
         />
 

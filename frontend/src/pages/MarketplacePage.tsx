@@ -17,34 +17,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const featured = [
-    {
-      title: 'Molten Hours',
-      badge: 'Live mint',
-      creator: 'aurora.near',
-      description: 'Amber currents caught mid-pour. Every piece holds USDC or wNEAR in its own vault.',
-      image: '/images/banner-molten.jpg',
-      mintTarget: 'mint',
-    },
-    {
-      title: 'Tidewater',
-      badge: 'Mint opens in 2 days',
-      creator: 'oceanic.near',
-      description: 'Teal tides and gold flecks, 1,000 pieces, each with a vote in the Tidewater DAO.',
-      image: '/images/banner-tidewater.jpg',
-      mintTarget: 'mint',
-    },
-    {
-      title: 'Glass Orchard',
-      badge: 'Mint opens in 5 days',
-      creator: 'glassworks.near',
-      description: 'Lilac and mint glass, slowly folding. A small collection for patient holders.',
-      image: '/images/banner-orchard.jpg',
-      mintTarget: 'mint',
-    },
-  ];
+  const featured = collections.slice(0, 2).map((col) => ({
+    title: col.name,
+    badge: col.status === 'live' ? 'Live mint' : `Mint opens in ${col.opens_in || '2 days'}`,
+    creator: col.creator,
+    description: col.description,
+    image: col.cover_image,
+    mintTarget: 'mint',
+  }));
 
-  const currentHero = featured[activeSlide];
+  const currentHero = featured[activeSlide] || featured[0];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
@@ -413,7 +395,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
                   <span>Backing: {token.backing}</span>
-                  <span>Vault: {token.vault_account || `v${token.token_id}.molten.near`}</span>
+                  <span>Vault: {token.vault_account || `v${token.token_id}.molten.testnet`}</span>
                 </div>
               </div>
 

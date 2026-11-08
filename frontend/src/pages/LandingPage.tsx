@@ -129,7 +129,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </span>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>A vault in every NFT</h3>
             <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
-              Each NFT owns a keyless NEAR sub-account (<code>v[id].[collection].near</code>). Its owner can add assets to it. Nothing leaves unless the NFT is burned.
+              Each NFT owns a keyless NEAR sub-account (<code>v[id].[collection].testnet</code>). Its owner can add assets to it. Nothing leaves unless the NFT is burned.
             </p>
           </article>
 

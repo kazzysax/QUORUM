@@ -6,7 +6,6 @@ interface HeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
   wallet: UserWallet;
-  backendOnline?: boolean;
   onOpenWallet: () => void;
 }
 
@@ -16,6 +15,8 @@ export const Header: React.FC<HeaderProps> = ({
   wallet,
   onOpenWallet,
 }) => {
+  const isTestnet = wallet.network === 'testnet';
+
   return (
     <header
       style={{
@@ -93,8 +94,8 @@ export const Header: React.FC<HeaderProps> = ({
                 width: '7px',
                 height: '7px',
                 borderRadius: '50%',
-                background: wallet.network === 'mainnet' ? '#4ADE80' : '#F5A524',
-                boxShadow: `0 0 8px ${wallet.network === 'mainnet' ? '#4ADE80' : '#F5A524'}`,
+                background: isTestnet ? '#4ADE80' : '#F5A524',
+                boxShadow: `0 0 8px ${isTestnet ? '#4ADE80' : '#F5A524'}`,
               }}
             />
             NEAR {wallet.network}
