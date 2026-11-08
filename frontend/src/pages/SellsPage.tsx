@@ -5,6 +5,8 @@ import { Tag, AlertCircle } from 'lucide-react';
 interface SellsPageProps {
   nfts: TokenItem[];
   salesHistory: SaleRecord[];
+  walletConnected?: boolean;
+  onOpenConnect?: () => void;
   onListNft: (token: TokenItem, priceNear: string) => void;
   onCancelListing: (token: TokenItem) => void;
 }
@@ -12,6 +14,8 @@ interface SellsPageProps {
 export const SellsPage: React.FC<SellsPageProps> = ({
   nfts,
   salesHistory,
+  walletConnected = true,
+  onOpenConnect,
   onListNft,
   onCancelListing,
 }) => {
@@ -33,6 +37,60 @@ export const SellsPage: React.FC<SellsPageProps> = ({
     if (!selectedNft || !isValidPrice) return;
     onListNft(selectedNft, priceNum.toFixed(2));
   };
+
+  if (!walletConnected) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Sells</h1>
+        </div>
+        <div
+          style={{
+            background: '#15151B',
+            border: '1px solid #2A2A33',
+            borderRadius: '24px',
+            padding: '56px 32px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '18px',
+            maxWidth: '640px',
+            margin: '30px auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              background: 'rgba(245, 165, 36, 0.1)',
+              border: '1px solid rgba(245, 165, 36, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#F5A524',
+            }}
+          >
+            <Tag size={34} />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>Wallet Disconnected</h2>
+          <p style={{ margin: 0, color: '#A1A1AA', fontSize: '15px', lineHeight: 1.6, maxWidth: '500px' }}>
+            Please connect your testnet wallet (<strong style={{ color: '#F4F4F5' }}>malekoala9992.testnet</strong>) to list your Keyless Vault NFTs for sale on the Quorum marketplace.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenConnect}
+            className="btn-primary"
+            style={{ minHeight: '46px', padding: '0 30px', fontSize: '15px', fontWeight: 600, marginTop: '8px' }}
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>

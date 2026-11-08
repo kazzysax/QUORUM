@@ -4,6 +4,9 @@ import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck, Check } from 
 
 interface PortfolioPageProps {
   nfts: TokenItem[];
+  walletConnected?: boolean;
+  walletAccountId?: string;
+  onOpenConnect?: () => void;
   onNavigate: (page: Page) => void;
   onClaimAll: () => void;
   onClaimSingle: (token: TokenItem) => void;
@@ -13,6 +16,9 @@ interface PortfolioPageProps {
 
 export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   nfts,
+  walletConnected = true,
+  walletAccountId = '',
+  onOpenConnect,
   onNavigate,
   onClaimAll,
   onClaimSingle,
@@ -82,6 +88,63 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
     return `${curNear.toFixed(2)} NEAR + ${curUsdt.toFixed(2)} USDT`;
   };
 
+  if (!walletConnected) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+        {/* Page Title */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Portfolio</h1>
+        </div>
+
+        {/* Clean Disconnected State */}
+        <div
+          style={{
+            background: '#15151B',
+            border: '1px solid #2A2A33',
+            borderRadius: '24px',
+            padding: '56px 32px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '18px',
+            maxWidth: '640px',
+            margin: '30px auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              background: 'rgba(245, 165, 36, 0.1)',
+              border: '1px solid rgba(245, 165, 36, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#F5A524',
+            }}
+          >
+            <ShieldCheck size={34} />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>Wallet Disconnected</h2>
+          <p style={{ margin: 0, color: '#A1A1AA', fontSize: '15px', lineHeight: 1.6, maxWidth: '500px' }}>
+            Please connect your testnet wallet (<strong style={{ color: '#F4F4F5' }}>malekoala9992.testnet</strong>) to view and manage your 6 Keyless Vault NFTs, collect secondary sales dividends, deposit NEAR &amp; USDT to vaults, or dissolve for 90% floor payout.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenConnect}
+            className="btn-primary"
+            style={{ minHeight: '46px', padding: '0 30px', fontSize: '15px', fontWeight: 600, marginTop: '8px' }}
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Page Title & Claim All Header */}
@@ -140,13 +203,20 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>My Keyless Vault NFTs</h2>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>My Keyless Vault NFTs</h2>
+                {walletAccountId && (
+                  <span style={{ fontSize: '12px', color: '#86EFAC', fontFamily: 'monospace' }}>
+                    Owner: {walletAccountId}
+                  </span>
+                )}
+              </div>
               <span style={{ fontSize: '13px', color: '#A1A1AA' }}>{nfts.length} Total</span>
             </div>
 
             {nfts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: '#A1A1AA' }}>
-                <p>No NFTs found in your connected wallet.</p>
+                <p>No NFTs found in connected wallet {walletAccountId ? `(${walletAccountId})` : ''}.</p>
                 <button
                   type="button"
                   onClick={() => onNavigate('marketplace')}

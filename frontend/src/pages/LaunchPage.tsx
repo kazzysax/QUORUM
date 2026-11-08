@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Page, CollectionItem } from '../types';
-import { Upload, CheckCircle2 } from 'lucide-react';
+import {
+  Upload,
+  CheckCircle2,
+  Image as ImageIcon,
+  ShieldCheck,
+  Vote,
+} from 'lucide-react';
 
 interface LaunchPageProps {
   onNavigate: (page: Page) => void;
@@ -15,46 +21,105 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
 }) => {
   const [step, setStep] = useState(0);
 
-  // Form states
-  const [name, setName] = useState('Molten Hours');
-  const [symbol, setSymbol] = useState('MOLT');
-  const [desc, setDesc] = useState('Amber currents caught mid-pour. Every piece holds USDC or wNEAR in its own vault and one vote in the DAO.');
-  const [supply, setSupply] = useState(500);
-  const [royalty, setRoyalty] = useState(5);
+  // Form states - Clean, no dummy prefilled text
+  const [name, setName] = useState('');
+  const [symbol, setSymbol] = useState('');
+  const [desc, setDesc] = useState('');
+  const [supply, setSupply] = useState(20);
+  const [royalty, setRoyalty] = useState(5.0); // Enforced 5% - 10%
 
+  // Real Uploaded Artwork States
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [artPreview, setArtPreview] = useState<string | null>(null);
+
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const artInputRef = useRef<HTMLInputElement>(null);
+
+  // Pricing & Stages
   const [prePrice, setPrePrice] = useState('1.00');
-  const [pubPrice, setPubPrice] = useState('2.00');
+  const [pubPrice, setPubPrice] = useState('1.00');
   const [preLimit, setPreLimit] = useState(2);
   const [pubLimit, setPubLimit] = useState(5);
 
-  const [usdcWeight, setUsdcWeight] = useState(2);
-  const [wnearWeight, setWnearWeight] = useState(1);
+  // Asset plan: Vault Backing between supported assets (NEAR & USDT)
+  const [nearWeight, setNearWeight] = useState(50);
+  const [usdtWeight, setUsdtWeight] = useState(50);
+
+  // Governance configuration
+  const [quorumPercent, setQuorumPercent] = useState(10);
+  const [votingPeriodDays, setVotingPeriodDays] = useState(3);
+
   const [acknowledged, setAcknowledged] = useState(false);
 
-  const steps = ['Details', 'Artwork', 'Stages', 'Asset plan', 'Governance', 'Review'];
+  const steps = ['Details', 'Artwork', 'Pricing', 'Vault Assets', 'DAO Governance', 'Review'];
+
+  // Handle Image Uploads with FileReader
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBannerPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleArtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setArtPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Clamped royalty setter (5% to 10%)
+  const handleRoyaltyChange = (value: number) => {
+    if (isNaN(value)) {
+      setRoyalty(5);
+      return;
+    }
+    const clamped = Math.min(10, Math.max(5, value));
+    setRoyalty(clamped);
+  };
+
+  const daoAccountName = `dao.${(name || 'collection').toLowerCase().replace(/[^a-z0-9]/g, '')}.testnet`;
 
   const handleLaunch = () => {
-    const totalWeight = usdcWeight + wnearWeight;
+    const collectionId = (name || 'collection').toLowerCase().replace(/[^a-z0-9]/g, '-');
     const newCollection: CollectionItem = {
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      symbol,
+      id: collectionId,
+      name: name.trim() || 'Untitled Collection',
+      symbol: (symbol.trim() || 'NFT').toUpperCase(),
       creator: creatorAccount || 'creator.testnet',
-      description: desc,
-      cover_image: '/images/banner-tidewater.jpg',
-      avatar_image: '/images/tidewater-0.jpg',
-      supply: Number(supply),
+      description: desc.trim() || 'Collection launched on Quorum with keyless DAO and per-NFT vault backing.',
+      cover_image: bannerPreview || '/images/banner-molten.jpg',
+      avatar_image: avatarPreview || artPreview || '/images/molten-0.jpg',
+      supply: Number(supply) || 20,
       minted: 0,
-      price_near: pubPrice,
-      floor_price_near: pubPrice,
-      backing_summary: `Backing from ${(parseFloat(pubPrice) / 2).toFixed(2)} NEAR`,
+      price_near: pubPrice || '1.00',
+      floor_price_near: pubPrice || '1.00',
+      backing_summary: `1 NEAR + 1 USDT in vault`,
       royalty_percent: Number(royalty),
       change_24h: '0%',
       change_positive: true,
       status: 'live',
       asset_weights: [
-        { asset: 'USDC', weight: usdcWeight, percentage: Math.round((usdcWeight / totalWeight) * 100) },
-        { asset: 'wNEAR', weight: wnearWeight, percentage: Math.round((wnearWeight / totalWeight) * 100) },
+        { asset: 'USDT', weight: 1, percentage: usdtWeight },
+        { asset: 'NEAR', weight: 1, percentage: nearWeight },
       ],
     };
 
@@ -66,8 +131,17 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Header */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Launch a collection</h1>
-        <span className="gold-badge">For creators</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            Launch a Collection
+          </h1>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+            Deploy your collection contract, keyless DAO treasury, and NFT vaults on NEAR testnet.
+          </span>
+        </div>
+        <span className="gold-badge" style={{ padding: '6px 14px', fontSize: '12px' }}>
+          Testnet Creator Studio
+        </span>
       </div>
 
       {/* Step Indicators */}
@@ -83,7 +157,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                   onClick={() => setStep(idx)}
                   style={{
                     width: '100%',
-                    minHeight: '56px',
+                    minHeight: '52px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
@@ -100,7 +174,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                       : 'transparent',
                     color: isCurrent ? '#F5A524' : isDone ? '#F4F4F5' : '#A1A1AA',
                     border: isCurrent
-                      ? '1px solid rgba(245,165,36,0.5)'
+                      ? '1.5px solid rgba(245,165,36,0.6)'
                       : '1px solid #2A2A33',
                     transition: 'all 0.15s ease',
                   }}
@@ -108,18 +182,18 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                   <span
                     style={{
                       flex: 'none',
-                      width: '26px',
-                      height: '26px',
+                      width: '24px',
+                      height: '24px',
                       borderRadius: '8px',
                       display: 'grid',
                       placeItems: 'center',
-                      fontSize: '13px',
+                      fontSize: '12px',
                       border: '1px solid currentColor',
                     }}
                   >
-                    {idx + 1}
+                    {isDone ? '✓' : idx + 1}
                   </span>
-                  {label}
+                  <span>{label}</span>
                 </button>
               </li>
             );
@@ -127,179 +201,440 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
         </ol>
       </nav>
 
-      {/* Form Content & Live Preview */}
+      {/* Main Form Content & Live Preview Card */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start' }}>
-        {/* Left: Step Form */}
+        {/* Left: Step Form Container */}
         <section
           style={{
             background: '#15151B',
             border: '1px solid #2A2A33',
             borderRadius: '24px',
-            padding: '24px',
+            padding: '28px',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px',
+            gap: '24px',
             flex: '999 1 560px',
             minWidth: 0,
           }}
         >
-          {/* Step 0: Details */}
+          {/* Step 0: Collection Details */}
           {step === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Collection details</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Collection Details</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Define the name, token symbol, and strictly regulated creator royalty.
+                </span>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                  Collection name
+                  Collection Name *
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Molten Hours"
-                    style={{ minHeight: '46px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                    placeholder="e.g. Neon Horizon"
+                    style={{
+                      minHeight: '46px',
+                      borderRadius: '12px',
+                      border: '1px solid #2A2A33',
+                      background: '#1D1D25',
+                      color: '#F4F4F5',
+                      padding: '0 12px',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
                   />
                 </label>
+
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                  Symbol
+                  Token Symbol (3–6 Letters) *
                   <input
                     type="text"
+                    maxLength={6}
                     value={symbol}
-                    onChange={(e) => setSymbol(e.target.value)}
-                    placeholder="e.g. MOLT"
-                    style={{ minHeight: '46px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                    onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                    placeholder="e.g. NEON"
+                    style={{
+                      minHeight: '46px',
+                      borderRadius: '12px',
+                      border: '1px solid #2A2A33',
+                      background: '#1D1D25',
+                      color: '#F4F4F5',
+                      padding: '0 12px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      textTransform: 'uppercase',
+                    }}
                   />
-                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>3–6 letters, shown in wallets</span>
                 </label>
               </div>
+
               <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
                 Description
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
-                  placeholder="What the art is and who it is for"
-                  style={{ borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '12px' }}
+                  placeholder="Describe your art collection, roadmap, and vault vision..."
+                  style={{
+                    borderRadius: '12px',
+                    border: '1px solid #2A2A33',
+                    background: '#1D1D25',
+                    color: '#F4F4F5',
+                    padding: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
                 />
               </label>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                  Max supply
+                  Total Supply
                   <input
                     type="number"
+                    min={1}
+                    max={1000}
                     value={supply}
-                    onChange={(e) => setSupply(Number(e.target.value))}
-                    style={{ minHeight: '46px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                    onChange={(e) => setSupply(Math.max(1, Number(e.target.value)))}
+                    style={{
+                      minHeight: '46px',
+                      borderRadius: '12px',
+                      border: '1px solid #2A2A33',
+                      background: '#1D1D25',
+                      color: '#F4F4F5',
+                      padding: '0 12px',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
                   />
+                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Number of keyless NFT vaults to generate.</span>
                 </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                  Creator royalty (%)
-                  <input
-                    type="number"
-                    value={royalty}
-                    onChange={(e) => setRoyalty(Number(e.target.value))}
-                    style={{ minHeight: '46px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
-                  />
-                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Paid to you on every market sale.</span>
-                </label>
-              </div>
-            </div>
-          )}
 
-          {/* Step 1: Artwork */}
-          {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Artwork &amp; Provenance</h2>
-              <div
-                style={{
-                  border: '1.5px dashed #2A2A33',
-                  borderRadius: '20px',
-                  padding: '36px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '12px',
-                  textAlign: 'center',
-                }}
-              >
-                <Upload size={32} color="#F5A524" />
-                <strong style={{ fontSize: '16px' }}>Drop your art and metadata folder</strong>
-                <span style={{ fontSize: '13px', color: '#A1A1AA', maxWidth: '420px' }}>
-                  One image and one JSON file per piece. We record a SHA-256 provenance hash of the full set so holders can verify nothing changes after launch.
-                </span>
-                <button type="button" className="btn-secondary">
-                  Choose directory
-                </button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                  Cover image (Marketplace banner)
-                  <button type="button" className="btn-secondary" style={{ justifyContent: 'flex-start' }}>
-                    Upload banner image
-                  </button>
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                  Collection image (1:1 Avatar)
-                  <button type="button" className="btn-secondary" style={{ justifyContent: 'flex-start' }}>
-                    Upload square image
-                  </button>
-                </label>
-              </div>
-            </div>
-          )}
+                {/* STRICTLY REGULATED CREATOR ROYALTY (5% - 10%) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', color: '#D4D4D8' }}>Creator Royalty (%) *</span>
+                    <strong style={{ fontSize: '13px', color: '#F5A524' }}>{royalty.toFixed(1)}%</strong>
+                  </div>
 
-          {/* Step 2: Stages */}
-          {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Stages and price</h2>
-              <div style={{ padding: '18px', borderRadius: '18px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ fontSize: '15px' }}>Presale (Allowlist only)</strong>
-                  <span className="neutral-badge">Merkle proof verified</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                    Price (NEAR)
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
-                      type="text"
-                      value={prePrice}
-                      onChange={(e) => setPrePrice(e.target.value)}
-                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                      type="range"
+                      min={5}
+                      max={10}
+                      step={0.5}
+                      value={royalty}
+                      onChange={(e) => handleRoyaltyChange(parseFloat(e.target.value))}
+                      style={{ flex: 1, accentColor: '#F5A524', cursor: 'pointer' }}
                     />
-                  </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                    Limit per wallet
                     <input
                       type="number"
-                      value={preLimit}
-                      onChange={(e) => setPreLimit(Number(e.target.value))}
-                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                      min={5}
+                      max={10}
+                      step={0.5}
+                      value={royalty}
+                      onChange={(e) => handleRoyaltyChange(parseFloat(e.target.value))}
+                      style={{
+                        width: '74px',
+                        minHeight: '42px',
+                        borderRadius: '10px',
+                        border: '1px solid #2A2A33',
+                        background: '#1D1D25',
+                        color: '#F4F4F5',
+                        padding: '0 8px',
+                        fontSize: '14px',
+                        textAlign: 'center',
+                      }}
                     />
-                  </label>
+                  </div>
+
+                  {/* Preset Royalty Chips */}
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                    {[5.0, 7.5, 10.0].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setRoyalty(preset)}
+                        style={{
+                          flex: 1,
+                          minHeight: '28px',
+                          borderRadius: '8px',
+                          border: royalty === preset ? '1px solid #F5A524' : '1px solid #2A2A33',
+                          background: royalty === preset ? 'rgba(245,165,36,0.14)' : '#1D1D25',
+                          color: royalty === preset ? '#F5A524' : '#A1A1AA',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {preset}% {preset === 5 ? '(Min)' : preset === 10 ? '(Max)' : ''}
+                      </button>
+                    ))}
+                  </div>
+
+                  <span style={{ fontSize: '11.5px', color: '#86EFAC', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                    <ShieldCheck size={13} /> Strictly bounded between 5% and 10% per protocol guidelines.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Real Artwork & Banner Uploads */}
+          {step === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Artwork &amp; Visuals</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Upload your collection banner, avatar, and piece artwork directly from your device.
+                </span>
+              </div>
+
+              {/* Hidden File Inputs */}
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBannerUpload}
+                style={{ display: 'none' }}
+              />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                style={{ display: 'none' }}
+              />
+              <input
+                ref={artInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleArtUpload}
+                style={{ display: 'none' }}
+              />
+
+              {/* Banner Upload Area */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#D4D4D8' }}>
+                  Collection Banner (Cover Image)
+                </span>
+                <div
+                  onClick={() => bannerInputRef.current?.click()}
+                  style={{
+                    position: 'relative',
+                    border: '1.5px dashed #2A2A33',
+                    borderRadius: '18px',
+                    height: '140px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    background: '#1D1D25',
+                    transition: 'border-color 0.15s ease',
+                  }}
+                >
+                  {bannerPreview ? (
+                    <>
+                      <img
+                        src={bannerPreview}
+                        alt="Banner preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.5)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: 0,
+                          transition: 'opacity 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
+                      >
+                        <span className="btn-secondary" style={{ pointerEvents: 'none' }}>
+                          Change Banner Image
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={24} color="#F5A524" />
+                      <strong style={{ fontSize: '14px', color: '#F4F4F5' }}>
+                        Click to upload Marketplace Banner
+                      </strong>
+                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                        Recommended ratio: 3:1 (e.g. 1500x500px, PNG or JPG)
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div style={{ padding: '18px', borderRadius: '18px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ fontSize: '15px' }}>Public Stage</strong>
-                  <span className="success-badge">Open to all</span>
+              {/* Avatar & Artwork Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                {/* 1:1 Avatar Upload */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#D4D4D8' }}>
+                    Collection Avatar (1:1 Square)
+                  </span>
+                  <div
+                    onClick={() => avatarInputRef.current?.click()}
+                    style={{
+                      border: '1.5px dashed #2A2A33',
+                      borderRadius: '18px',
+                      height: '140px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      background: '#1D1D25',
+                      overflow: 'hidden',
+                      position: 'relative',
+                    }}
+                  >
+                    {avatarPreview ? (
+                      <img
+                        src={avatarPreview}
+                        alt="Avatar preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <>
+                        <ImageIcon size={22} color="#F5A524" />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#F4F4F5' }}>
+                          Upload Avatar (1:1)
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#A1A1AA' }}>PNG or JPG</span>
+                      </>
+                    )}
+                  </div>
                 </div>
+
+                {/* NFT Piece Artwork Upload */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#D4D4D8' }}>
+                    Sample NFT Artwork
+                  </span>
+                  <div
+                    onClick={() => artInputRef.current?.click()}
+                    style={{
+                      border: '1.5px dashed #2A2A33',
+                      borderRadius: '18px',
+                      height: '140px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      background: '#1D1D25',
+                      overflow: 'hidden',
+                      position: 'relative',
+                    }}
+                  >
+                    {artPreview ? (
+                      <img
+                        src={artPreview}
+                        alt="Art preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <>
+                        <Upload size={22} color="#F5A524" />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#F4F4F5' }}>
+                          Upload Artwork Piece
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Appears on NFT vaults</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Pricing & Stages */}
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Mint Pricing &amp; Limits</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Set your public mint price in NEAR. 50% automatically funds the collection's DAO treasury.
+                </span>
+              </div>
+
+              <div style={{ padding: '18px', borderRadius: '18px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', gap: '14px', background: '#1D1D25' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '15px' }}>Public Stage Minting</strong>
+                  <span className="success-badge">NEAR Testnet</span>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                    Price (NEAR)
+                    Mint Price (NEAR) *
                     <input
                       type="text"
                       value={pubPrice}
                       onChange={(e) => setPubPrice(e.target.value)}
-                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                      placeholder="1.00"
+                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#15151B', color: '#F4F4F5', padding: '0 12px' }}
                     />
                   </label>
+
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
-                    Limit per wallet
+                    Limit per Wallet
                     <input
                       type="number"
+                      min={1}
+                      max={20}
                       value={pubLimit}
                       onChange={(e) => setPubLimit(Number(e.target.value))}
-                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#1D1D25', color: '#F4F4F5', padding: '0 12px' }}
+                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#15151B', color: '#F4F4F5', padding: '0 12px' }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ padding: '18px', borderRadius: '18px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', gap: '14px', background: '#1D1D25' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '15px' }}>Presale Stage (Allowlist)</strong>
+                  <span className="neutral-badge">Optional</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
+                    Presale Price (NEAR)
+                    <input
+                      type="text"
+                      value={prePrice}
+                      onChange={(e) => setPrePrice(e.target.value)}
+                      placeholder="1.00"
+                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#15151B', color: '#F4F4F5', padding: '0 12px' }}
+                    />
+                  </label>
+
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#D4D4D8' }}>
+                    Presale Limit per Wallet
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={preLimit}
+                      onChange={(e) => setPreLimit(Number(e.target.value))}
+                      style={{ minHeight: '44px', borderRadius: '12px', border: '1px solid #2A2A33', background: '#15151B', color: '#F4F4F5', padding: '0 12px' }}
                     />
                   </label>
                 </div>
@@ -307,114 +642,232 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
             </div>
           )}
 
-          {/* Step 3: Asset Plan */}
+          {/* Step 3: Vault Assets (Supported Assets Only) */}
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Asset plan</h2>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-                Choose what your NFTs will hold. Buyers pay NEAR; after mint closes, holders vote to swap each NFT's half into its asset through Rhea.
-              </p>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <li style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
-                  <span className="gold-badge">USDC</span>
-                  <span style={{ flex: '1 1 160px', fontSize: '13px', color: '#A1A1AA' }}>Rhea route verified · deep pool</span>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#D4D4D8' }}>
-                    Weight
-                    <input
-                      type="number"
-                      value={usdcWeight}
-                      onChange={(e) => setUsdcWeight(Number(e.target.value))}
-                      style={{ width: '80px', minHeight: '40px', borderRadius: '10px', border: '1px solid #2A2A33', background: '#15151B', color: '#F4F4F5', padding: '0 10px' }}
-                    />
-                  </label>
-                </li>
-                <li style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
-                  <span className="gold-badge">wNEAR</span>
-                  <span style={{ flex: '1 1 160px', fontSize: '13px', color: '#A1A1AA' }}>Rhea route verified · deep pool</span>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#D4D4D8' }}>
-                    Weight
-                    <input
-                      type="number"
-                      value={wnearWeight}
-                      onChange={(e) => setWnearWeight(Number(e.target.value))}
-                      style={{ width: '80px', minHeight: '40px', borderRadius: '10px', border: '1px solid #2A2A33', background: '#15151B', color: '#F4F4F5', padding: '0 10px' }}
-                    />
-                  </label>
-                </li>
-              </ul>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Keyless Vault Asset Allocation</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Configure what supported testnet assets each keyless NFT vault will hold to establish its floor value.
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '12px 14px',
+                  borderRadius: '14px',
+                  background: 'rgba(245,165,36,0.08)',
+                  border: '1px solid rgba(245,165,36,0.3)',
+                  fontSize: '13px',
+                  color: '#FFD572',
+                }}
+              >
+                <ShieldCheck size={18} color="#F5A524" style={{ flexShrink: 0 }} />
+                <span>
+                  <strong>Supported Assets:</strong> Every keyless vault on Quorum holds <strong>NEAR</strong> and <strong>USDT</strong>. 90% is guaranteed redeemable anytime by burning the NFT.
+                </span>
+              </div>
+
+              {/* Supported Assets Split */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[
+                    { label: '50% NEAR / 50% USDT', near: 50, usdt: 50 },
+                    { label: '70% NEAR / 30% USDT', near: 70, usdt: 30 },
+                    { label: '30% NEAR / 70% USDT', near: 30, usdt: 70 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setNearWeight(preset.near);
+                        setUsdtWeight(preset.usdt);
+                      }}
+                      style={{
+                        flex: 1,
+                        minHeight: '34px',
+                        borderRadius: '10px',
+                        border: nearWeight === preset.near ? '1.5px solid #F5A524' : '1px solid #2A2A33',
+                        background: nearWeight === preset.near ? 'rgba(245,165,36,0.14)' : '#1D1D25',
+                        color: nearWeight === preset.near ? '#F5A524' : '#D4D4D8',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="gold-badge">NEAR</span>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '14px' }}>Native Floor Reserve</strong>
+                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Liquid NEAR backing</span>
+                    </div>
+                  </div>
+                  <strong style={{ fontSize: '16px', color: '#F5A524' }}>{nearWeight}%</strong>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="gold-badge">USDT</span>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '14px' }}>Tether USD Stablecoin</strong>
+                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Decentralized stablecoin floor</span>
+                    </div>
+                  </div>
+                  <strong style={{ fontSize: '16px', color: '#F5A524' }}>{usdtWeight}%</strong>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Step 4: Governance */}
+          {/* Step 4: Simple, Actionable DAO Governance Setup */}
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Governance minimums</h2>
-              <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-                Holders can always set longer votes and higher thresholds than these, never shorter or lower.
-              </p>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '480px', borderCollapse: 'collapse', fontSize: '14px' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
-                      <th style={{ padding: '8px' }}>Proposal</th>
-                      <th style={{ padding: '8px' }}>Vote length</th>
-                      <th style={{ padding: '8px' }}>Quorum</th>
-                      <th style={{ padding: '8px' }}>Timelock</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>Spend, swap, settle</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>3 days</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>10%</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>2 days</td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>Distribute</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>3 days</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>10%</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>1 day</td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>Parameter change</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>5 days</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>15%</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>3 days</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Collection DAO Governance</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Your collection automatically deploys with its own dedicated DAO. Every NFT minted is a voting share.
+                </span>
+              </div>
+
+              {/* DAO Overview Card */}
+              <div
+                style={{
+                  padding: '18px',
+                  borderRadius: '16px',
+                  background: '#1D1D25',
+                  border: '1px solid #2A2A33',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Vote size={18} color="#F5A524" />
+                  <strong style={{ fontSize: '15px' }}>Dedicated Keyless DAO Account</strong>
+                </div>
+
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: '#15151B',
+                    fontFamily: 'monospace',
+                    fontSize: '13px',
+                    color: '#86EFAC',
+                    border: '1px solid #2A2A33',
+                  }}
+                >
+                  {daoAccountName}
+                </div>
+
+                <span style={{ fontSize: '13px', color: '#C4C4CC', lineHeight: 1.5 }}>
+                  This on-chain DAO controls the 20 NEAR treasury pool, manages secondary market fee dividends, and authorizes community vault rebalancing proposals.
+                </span>
+              </div>
+
+              {/* Governance Parameters */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#D4D4D8' }}>Quorum Threshold</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[10, 15, 20].map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => setQuorumPercent(q)}
+                        style={{
+                          flex: 1,
+                          minHeight: '38px',
+                          borderRadius: '10px',
+                          border: quorumPercent === q ? '1.5px solid #F5A524' : '1px solid #2A2A33',
+                          background: quorumPercent === q ? 'rgba(245,165,36,0.14)' : '#1D1D25',
+                          color: quorumPercent === q ? '#F5A524' : '#D4D4D8',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {q}%
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Minimum token votes required to pass a proposal.</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', color: '#D4D4D8' }}>Voting Window</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[3, 5, 7].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setVotingPeriodDays(days)}
+                        style={{
+                          flex: 1,
+                          minHeight: '38px',
+                          borderRadius: '10px',
+                          border: votingPeriodDays === days ? '1.5px solid #F5A524' : '1px solid #2A2A33',
+                          background: votingPeriodDays === days ? 'rgba(245,165,36,0.14)' : '#1D1D25',
+                          color: votingPeriodDays === days ? '#F5A524' : '#D4D4D8',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {days} Days
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Duration each community vote stays open.</span>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Step 5: Review */}
+          {/* Step 5: Review & Launch */}
           {step === 5 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Review and launch</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #2A2A33', fontSize: '14px' }}>
-                  <span style={{ color: '#C4C4CC' }}>Collection</span>
-                  <strong>{name} ({symbol})</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #2A2A33', fontSize: '14px' }}>
-                  <span style={{ color: '#C4C4CC' }}>Supply &amp; Royalty</span>
-                  <strong>{supply} pieces · {royalty}%</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #2A2A33', fontSize: '14px' }}>
-                  <span style={{ color: '#C4C4CC' }}>Public Price</span>
-                  <strong>{pubPrice} NEAR</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #2A2A33', fontSize: '14px' }}>
-                  <span style={{ color: '#C4C4CC' }}>Asset plan</span>
-                  <strong>USDC (x{usdcWeight}), wNEAR (x{wnearWeight})</strong>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Review &amp; Launch</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Verify your collection settings before broadcasting contract creation to NEAR testnet.
+                </span>
               </div>
 
-              <div style={{ padding: '16px', borderRadius: '16px', background: '#1D1D25', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <strong style={{ fontSize: '14px' }}>What launching creates</strong>
-                <span style={{ fontSize: '13px', lineHeight: 1.6, color: '#C4C4CC' }}>
-                  Your collection contract, its keyless DAO, its treasury, and market listing. About ~40 NEAR covers initial NEAR storage staking.
-                </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#1D1D25', padding: '18px', borderRadius: '18px', border: '1px solid #2A2A33' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Collection:</span>
+                  <strong>{name || 'Untitled'} ({symbol || 'NFT'})</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Total Supply:</span>
+                  <strong>{supply} Pieces</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Creator Royalty:</span>
+                  <strong style={{ color: '#F5A524' }}>{royalty.toFixed(1)}% (5%–10% compliant)</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Mint Price:</span>
+                  <strong>{pubPrice} NEAR</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Vault Backing Assets:</span>
+                  <span>50% NEAR + 50% USDT</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>DAO Treasury Account:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#86EFAC' }}>{daoAccountName}</span>
+                </div>
               </div>
 
               <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px', color: '#D4D4D8', cursor: 'pointer' }}>
@@ -422,38 +875,52 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                   type="checkbox"
                   checked={acknowledged}
                   onChange={(e) => setAcknowledged(e.target.checked)}
-                  style={{ width: '18px', height: '18px', accentColor: '#F5A524' }}
+                  style={{ width: '18px', height: '18px', accentColor: '#F5A524', marginTop: '2px' }}
                 />
-                I understand the asset plan and fee splits are permanent and keyless once deployed.
+                <span>
+                  I understand that fee splits, DAO governance, and keyless NFT vault backing are decentralized and permanent once deployed to testnet.
+                </span>
               </label>
 
               <button
                 type="button"
-                disabled={!acknowledged}
+                disabled={!acknowledged || !name.trim()}
                 onClick={handleLaunch}
                 className="btn-primary"
-                style={{ minHeight: '52px', fontSize: '16px', width: '100%', opacity: acknowledged ? 1 : 0.5 }}
+                style={{
+                  minHeight: '52px',
+                  fontSize: '16px',
+                  width: '100%',
+                  opacity: acknowledged && name.trim() ? 1 : 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
               >
-                <CheckCircle2 size={18} /> Launch Collection on NEAR
+                <CheckCircle2 size={18} /> Launch Collection on NEAR Testnet
               </button>
             </div>
           )}
 
-          {/* Wizard Controls */}
+          {/* Wizard Navigation Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', paddingTop: '10px' }}>
             <button
               type="button"
               disabled={step === 0}
               onClick={() => setStep(Math.max(0, step - 1))}
               className="btn-secondary"
+              style={{ minHeight: '44px', padding: '0 20px', opacity: step === 0 ? 0.4 : 1 }}
             >
               Back
             </button>
+
             {step < 5 && (
               <button
                 type="button"
                 onClick={() => setStep(Math.min(5, step + 1))}
                 className="btn-primary"
+                style={{ minHeight: '44px', padding: '0 24px' }}
               >
                 Continue
               </button>
@@ -461,7 +928,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
           </div>
         </section>
 
-        {/* Right: Live Preview Card */}
+        {/* Right: Real-Time Dynamic Marketplace Preview Card */}
         <section
           style={{
             background: '#15151B',
@@ -476,36 +943,90 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
             minWidth: 0,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Marketplace Preview</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Live Marketplace Preview</h2>
+            <span className="success-badge" style={{ fontSize: '11px' }}>Real-time</span>
+          </div>
+
           <div style={{ borderRadius: '20px', overflow: 'hidden', border: '1px solid #2A2A33', background: '#1D1D25' }}>
-            <img
-              src="/images/banner-tidewater.jpg"
-              alt="Sample cover"
-              style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-            />
+            {/* Banner Preview */}
+            <div style={{ height: '140px', background: '#0A0A0D', overflow: 'hidden', position: 'relative' }}>
+              {bannerPreview ? (
+                <img
+                  src={bannerPreview}
+                  alt="Banner preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717A', fontSize: '13px' }}>
+                  <Upload size={18} style={{ marginRight: '6px' }} /> Uploaded Banner Displays Here
+                </div>
+              )}
+            </div>
+
+            {/* Avatar & Info */}
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img
-                  src="/images/tidewater-0.jpg"
-                  alt=""
-                  style={{ width: '52px', height: '52px', borderRadius: '14px', objectFit: 'cover', marginTop: '-40px', border: '3px solid #1D1D25' }}
-                />
-                <strong style={{ fontSize: '18px' }}>{name || '[Collection name]'}</strong>
+                <div
+                  style={{
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '14px',
+                    marginTop: '-42px',
+                    border: '3px solid #1D1D25',
+                    background: '#15151B',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#71717A',
+                    flexShrink: 0,
+                  }}
+                >
+                  {avatarPreview || artPreview ? (
+                    <img
+                      src={avatarPreview || artPreview || ''}
+                      alt="Avatar"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <ImageIcon size={20} />
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <strong style={{ fontSize: '17px', color: '#F4F4F5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {name.trim() || 'Your Collection Name'}
+                  </strong>
+                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                    {symbol ? `$${symbol}` : '$SYMBOL'}
+                  </span>
+                </div>
               </div>
+
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span className="info-badge">Opens soon</span>
-                <span className="neutral-badge">{pubPrice} NEAR</span>
+                <span className="gold-badge" style={{ fontSize: '11px' }}>
+                  {pubPrice || '1.00'} NEAR
+                </span>
+                <span className="neutral-badge" style={{ fontSize: '11px' }}>
+                  {supply} Pieces
+                </span>
+                <span className="success-badge" style={{ fontSize: '11px' }}>
+                  Royalty: {royalty.toFixed(1)}%
+                </span>
               </div>
-              <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                This is how your drop appears on the Quorum Marketplace.
+
+              <span style={{ fontSize: '12.5px', color: '#A1A1AA', lineHeight: 1.5 }}>
+                {desc.trim() || 'Your description will appear here on the Quorum Marketplace drop card.'}
               </span>
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#C4C4CC', lineHeight: 1.55 }}>
-            <strong style={{ fontSize: '14px', color: '#F4F4F5' }}>How each mint splits</strong>
-            <span>Half of every mint price goes to your collection's DAO treasury straight away. The other half backs the buyer's NFT.</span>
-            <span>You earn through your {royalty}% royalty on sales, not from the mint price.</span>
+            <strong style={{ fontSize: '14px', color: '#F4F4F5' }}>Economic Model Breakdown:</strong>
+            <span>• 50% of every mint price automatically backs each buyer's individual keyless vault.</span>
+            <span>• 50% funds the collection's DAO Treasury pool ({daoAccountName}).</span>
+            <span>• You earn ongoing revenue via your <strong>{royalty.toFixed(1)}%</strong> creator royalty on secondary market trades.</span>
           </div>
         </section>
       </div>

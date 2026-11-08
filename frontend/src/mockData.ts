@@ -27,7 +27,7 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
     id: 'tidewater',
     name: 'Tidewater',
     symbol: 'TIDE',
-    creator: 'oceanic.testnet',
+    creator: 'aurora.testnet',
     description: 'Teal tides and gold flecks. 20 pieces total. Every piece holds 1.00 NEAR + 1.00 USDT in its own keyless vault and 1 vote in the Tidewater DAO (20 NEAR Treasury).',
     cover_image: '/images/banner-tidewater.jpg',
     avatar_image: '/images/tidewater-0.jpg',
@@ -53,7 +53,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'molt-0001',
     token_id: '0001',
-    owner_id: '',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Molten Hours',
     title: 'Molten Hours #0001',
     asset: 'USDT + NEAR',
@@ -67,7 +67,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'molt-0002',
     token_id: '0002',
-    owner_id: '',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Molten Hours',
     title: 'Molten Hours #0002',
     asset: 'USDT + NEAR',
@@ -81,7 +81,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'molt-0003',
     token_id: '0003',
-    owner_id: '',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Molten Hours',
     title: 'Molten Hours #0003',
     asset: 'USDT + NEAR',
@@ -97,7 +97,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'tide-0001',
     token_id: '0001',
-    owner_id: '',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Tidewater',
     title: 'Tidewater #0001',
     asset: 'USDT + NEAR',
@@ -111,7 +111,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'tide-0002',
     token_id: '0002',
-    owner_id: '',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Tidewater',
     title: 'Tidewater #0002',
     asset: 'USDT + NEAR',
@@ -125,7 +125,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'tide-0003',
     token_id: '0003',
-    owner_id: '',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Tidewater',
     title: 'Tidewater #0003',
     asset: 'USDT + NEAR',
@@ -160,13 +160,13 @@ const generateMarketListings = (): TokenItem[] => {
     });
   }
 
-  // 17 Tidewater (#0004 to #0020) listed by oceanic.testnet
+  // 17 Tidewater (#0004 to #0020) listed by aurora.testnet
   for (let i = 4; i <= 20; i++) {
     const numStr = String(i).padStart(4, '0');
     listings.push({
       id: `m-tide-${numStr}`,
       token_id: numStr,
-      owner_id: 'oceanic.testnet',
+      owner_id: 'aurora.testnet',
       collection: 'Tidewater',
       title: `Tidewater #${numStr}`,
       asset: 'USDT + NEAR',

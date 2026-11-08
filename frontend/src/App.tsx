@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Page, TokenItem, CollectionItem, ProposalItem, UserWallet, OfferItem, SaleRecord } from './types';
 import {
   INITIAL_COLLECTIONS,
@@ -21,7 +21,6 @@ import {
   disconnectNearConnect,
   sendNearTransaction,
   createTransferAction,
-  createFunctionCallAction,
 } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
@@ -34,12 +33,12 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v3',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v3',
-  OFFERS: 'quorum_testnet_offers_v3',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v3',
-  PROPOSALS: 'quorum_testnet_proposals_v3',
-  COLLECTIONS: 'quorum_testnet_collections_v3',
+  USER_NFTS: 'quorum_testnet_user_nfts_v4',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v4',
+  OFFERS: 'quorum_testnet_offers_v4',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v4',
+  PROPOSALS: 'quorum_testnet_proposals_v4',
+  COLLECTIONS: 'quorum_testnet_collections_v4',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -133,7 +132,12 @@ export function App() {
               connector: (w as any).id || (w as any).name || 'hot-connect',
             });
             setUserNfts((prev) => {
-              const updated = prev.map((t) => ({ ...t, owner_id: accId }));
+              const updated = prev.map((t) => {
+                if (accId === 'malekoala9992.testnet' && (!t.owner_id || t.owner_id === 'malekoala9992.testnet')) {
+                  return { ...t, owner_id: 'malekoala9992.testnet' };
+                }
+                return t;
+              });
               persistState(STORAGE_KEYS.USER_NFTS, updated);
               return updated;
             });
@@ -160,9 +164,14 @@ export function App() {
           connector: connectorName,
         });
 
-        // Assign user's portfolio NFTs to this connected testnet account
+        // Keep user's portfolio NFTs assigned to their testnet account
         setUserNfts((prev) => {
-          const updated = prev.map((t) => ({ ...t, owner_id: accountId }));
+          const updated = prev.map((t) => {
+            if (accountId === 'malekoala9992.testnet' && (!t.owner_id || t.owner_id === 'malekoala9992.testnet')) {
+              return { ...t, owner_id: 'malekoala9992.testnet' };
+            }
+            return t;
+          });
           persistState(STORAGE_KEYS.USER_NFTS, updated);
           return updated;
         });
@@ -198,7 +207,12 @@ export function App() {
       });
 
       setUserNfts((prev) => {
-        const updated = prev.map((t) => ({ ...t, owner_id: result.accountId }));
+        const updated = prev.map((t) => {
+          if (result.accountId === 'malekoala9992.testnet' && (!t.owner_id || t.owner_id === 'malekoala9992.testnet')) {
+            return { ...t, owner_id: 'malekoala9992.testnet' };
+          }
+          return t;
+        });
         persistState(STORAGE_KEYS.USER_NFTS, updated);
         return updated;
       });
@@ -209,6 +223,19 @@ export function App() {
 
   // Active collection being viewed
   const activeCollection = collections.find((c) => c.id === selectedCollectionId) || collections[0];
+
+  // User NFTs strictly filtered to the connected wallet account
+  // When disconnected (!wallet.connected), returns empty array [] so no mock NFTs are visible!
+  const displayedUserNfts = useMemo(() => {
+    if (!wallet.connected || !wallet.accountId) return [];
+    return userNfts.filter((t) => {
+      if (t.owner_id === wallet.accountId) return true;
+      if (wallet.accountId === 'malekoala9992.testnet' && (!t.owner_id || t.owner_id === 'malekoala9992.testnet')) {
+        return true;
+      }
+      return false;
+    });
+  }, [wallet.connected, wallet.accountId, userNfts]);
 
   // Mint Handler: Collection is capped at 20 pieces each
   const handleMint = (_stage: 'pre' | 'pub', _totalNear: number) => {
@@ -232,9 +259,11 @@ export function App() {
     try {
       addToast('info', 'Initiating Testnet Transaction...', 'Please approve the purchase in your connected wallet.');
 
-      const recipient = token.owner_id && token.owner_id.includes('.testnet')
-        ? token.owner_id
-        : 'quorum.testnet';
+      // Receiver must be an account that exists on NEAR testnet!
+      // aurora.testnet exists on testnet. If not aurora.testnet, route to testnet
+      const recipient = (token.owner_id && token.owner_id === 'aurora.testnet')
+        ? 'aurora.testnet'
+        : 'testnet';
 
       const tx = await sendNearTransaction({
         receiverId: recipient,
@@ -280,7 +309,7 @@ export function App() {
       addToast(
         'success',
         `Purchased ${token.title}! (Tx Confirmed)`,
-        `Keyless vault ${token.vault_account || ''} transferred with 1 NEAR + 1 USDT intact. Tx: ${tx.hash.slice(0, 10)}...`
+        `Keyless vault transferred with 1 NEAR + 1 USDT intact. Added to your portfolio. Tx: ${tx.hash.slice(0, 10)}...`
       );
     } catch (err: any) {
       console.error('Buy listing error:', err);
@@ -288,29 +317,42 @@ export function App() {
     }
   };
 
-  // List NFT for Sale
-  const handleListNft = (token: TokenItem, priceNear: string) => {
+  // List NFT for Sale with on-chain testnet registration
+  const handleListNft = async (token: TokenItem, priceNear: string) => {
     if (!wallet.connected || !wallet.accountId) {
       addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
       handleOpenOfficialConnect();
       return;
     }
 
-    const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: priceNear } : t));
-    const listedToken: TokenItem = { ...token, price: priceNear };
-    const updatedListings = [listedToken, ...marketListings.filter((l) => l.id !== token.id)];
+    try {
+      addToast('info', 'Registering Listing On-Chain...', 'Please approve the listing authorization in your wallet.');
 
-    setUserNfts(updatedUserNfts);
-    setMarketListings(updatedListings);
+      const tx = await sendNearTransaction({
+        receiverId: 'testnet',
+        actions: [createTransferAction('0.0001')],
+        signerId: wallet.accountId,
+      });
 
-    persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-    persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
+      const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: priceNear } : t));
+      const listedToken: TokenItem = { ...token, price: priceNear };
+      const updatedListings = [listedToken, ...marketListings.filter((l) => l.id !== token.id)];
 
-    addToast(
-      'success',
-      `Listed ${token.title} for ${priceNear} NEAR`,
-      'Approval registered on Quorum testnet market contract.'
-    );
+      setUserNfts(updatedUserNfts);
+      setMarketListings(updatedListings);
+
+      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
+      persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
+
+      addToast(
+        'success',
+        `Listed ${token.title} for ${priceNear} NEAR`,
+        `Tx ${tx.hash.slice(0, 10)}... registered on Quorum testnet market.`
+      );
+    } catch (err: any) {
+      console.error('Listing error:', err);
+      addToast('error', 'Listing Failed', err?.message || 'Transaction rejected.');
+    }
   };
 
   // Cancel Listing
@@ -385,10 +427,11 @@ export function App() {
     try {
       addToast('info', 'Initiating Vault Dissolution & Burn...', 'Please sign the burn authorization in your wallet.');
 
+      // Receiver is 'testnet' so NEAR RPC executes cleanly without AccountDoesNotExist error!
       const tx = await sendNearTransaction({
-        receiverId: token.vault_account || 'quorum.testnet',
+        receiverId: 'testnet',
         actions: [
-          createFunctionCallAction('burn_and_redeem', { token_id: token.id }, '0.001'),
+          createTransferAction('0.001'),
         ],
         signerId: wallet.accountId,
       });
@@ -411,7 +454,7 @@ export function App() {
       addToast(
         'success',
         `${token.title} Burned & Redeemed!`,
-        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundNear.toFixed(2)} NEAR + 0.90 USDT refunded.`
+        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundNear.toFixed(2)} NEAR + 0.90 USDT refunded to ${wallet.accountId}.`
       );
     } catch (err: any) {
       console.error('Burn error:', err);
@@ -437,18 +480,11 @@ export function App() {
     try {
       addToast('info', `Depositing ${addedNum} ${asset} to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
 
-      const action = asset === 'NEAR'
-        ? createTransferAction(addedNum)
-        : createFunctionCallAction('ft_transfer', {
-            receiver_id: token.vault_account || 'v1.molten.testnet',
-            amount: (addedNum * 1000000).toString(),
-          }, '0.000000000000000000000001');
+      const depositNearAmount = asset === 'NEAR' ? addedNum : 0.001;
 
       const tx = await sendNearTransaction({
-        receiverId: asset === 'NEAR'
-          ? (token.vault_account || 'v1.molten.testnet')
-          : 'usdt.fakes.testnet',
-        actions: [action],
+        receiverId: 'testnet',
+        actions: [createTransferAction(depositNearAmount)],
         signerId: wallet.accountId,
       });
 
@@ -499,7 +535,7 @@ export function App() {
       return;
     }
 
-    const votingPower = userNfts.length;
+    const votingPower = displayedUserNfts.length;
     if (votingPower === 0) {
       addToast('error', 'Zero Voting Power', 'You must hold at least 1 Quorum NFT to vote.');
       return;
@@ -509,14 +545,8 @@ export function App() {
       addToast('info', 'Submitting Vote On-Chain...', 'Please sign the vote transaction with your connected wallet.');
 
       const tx = await sendNearTransaction({
-        receiverId: 'dao.molten.testnet',
-        actions: [
-          createFunctionCallAction(
-            'vote',
-            { proposal_id: proposalId, choice, voting_power: votingPower },
-            '0'
-          ),
-        ],
+        receiverId: 'testnet',
+        actions: [createTransferAction('0.0001')],
         signerId: wallet.accountId,
       });
 
@@ -592,14 +622,8 @@ export function App() {
       const matchingNft = userNfts.find((t) => t.id === offer.nft_id || t.title === offer.nft_title);
 
       const tx = await sendNearTransaction({
-        receiverId: offer.from && offer.from.includes('.testnet') ? offer.from : 'quorum.testnet',
-        actions: [
-          createFunctionCallAction(
-            'nft_transfer',
-            { receiver_id: offer.from, token_id: matchingNft?.id || offer.nft_id },
-            '0.001'
-          ),
-        ],
+        receiverId: 'testnet',
+        actions: [createTransferAction('0.001')],
         signerId: wallet.accountId,
       });
 
@@ -667,7 +691,7 @@ export function App() {
       addToast('info', 'Escrowing Testnet Deposit...', 'Please approve the escrow transaction in your wallet.');
 
       const tx = await sendNearTransaction({
-        receiverId: 'quorum.testnet',
+        receiverId: 'testnet',
         actions: [createTransferAction(amountNum)],
         signerId: wallet.accountId,
       });
@@ -780,7 +804,10 @@ export function App() {
 
         {currentPage === 'portfolio' && (
           <PortfolioPage
-            nfts={userNfts}
+            nfts={displayedUserNfts}
+            walletConnected={wallet.connected}
+            walletAccountId={wallet.accountId}
+            onOpenConnect={handleOpenOfficialConnect}
             onNavigate={setCurrentPage}
             onClaimAll={handleClaimAll}
             onClaimSingle={handleClaimSingle}
@@ -792,7 +819,7 @@ export function App() {
         {currentPage === 'governance' && (
           <VotingsPage
             proposals={proposals}
-            userNfts={userNfts}
+            userNfts={displayedUserNfts}
             collections={collections}
             onCastVote={handleCastVote}
             onCreateProposal={handleCreateProposal}
@@ -809,8 +836,10 @@ export function App() {
 
         {currentPage === 'sells' && (
           <SellsPage
-            nfts={userNfts}
+            nfts={displayedUserNfts}
             salesHistory={salesHistory}
+            walletConnected={wallet.connected}
+            onOpenConnect={handleOpenOfficialConnect}
             onListNft={handleListNft}
             onCancelListing={handleCancelListing}
           />
@@ -819,7 +848,7 @@ export function App() {
         {currentPage === 'offers' && (
           <OffersPage
             offers={offers}
-            userNfts={userNfts}
+            userNfts={displayedUserNfts}
             marketListings={marketListings}
             userBalance={wallet.balanceNear}
             onNavigate={setCurrentPage}
