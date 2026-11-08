@@ -49,6 +49,35 @@ a {
   transition: color 0.15s ease;
 }
 
+/* Sidebar Nav Items */
+.sidebar-nav-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sidebar-nav-item:hover:not(.active) {
+  color: #F4F4F5 !important;
+}
+
+.sidebar-nav-item:hover:not(.active) svg {
+  transform: translateY(-1px);
+  color: #F4F4F5 !important;
+}
+
+.sidebar-nav-item.active {
+  color: var(--gold) !important;
+  font-weight: 600;
+}
+
 a:hover {
   color: var(--gold-hover);
 }

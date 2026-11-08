@@ -79,11 +79,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           aria-label="Quorum home"
           title="Quorum Overview"
           style={{
+            position: 'relative',
             width: collapsed ? '40px' : '46px',
             height: collapsed ? '40px' : '46px',
             borderRadius: '14px',
-            background: currentPage === 'landing' ? 'rgba(245,165,36,0.18)' : '#1D1D25',
-            border: currentPage === 'landing' ? '1px solid #F5A524' : '1px solid #2A2A33',
+            background: currentPage === 'landing' ? 'rgba(245,165,36,0.1)' : '#1D1D25',
+            border: currentPage === 'landing' ? '1px solid rgba(245,165,36,0.5)' : '1px solid #2A2A33',
             display: 'grid',
             placeItems: 'center',
             cursor: 'pointer',
@@ -92,6 +93,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             flexShrink: 0,
           }}
         >
+          {currentPage === 'landing' && (
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: collapsed ? '-6px' : '-8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '3.5px',
+                height: '24px',
+                borderRadius: '0 4px 4px 0',
+                background: 'linear-gradient(180deg, #FFD572 0%, #F5A524 100%)',
+                boxShadow: '0 0 10px rgba(245, 165, 36, 0.85)',
+              }}
+            />
+          )}
           <svg aria-hidden="true" width={collapsed ? 22 : 26} height={collapsed ? 22 : 26} viewBox="0 0 64 64">
             <defs>
               <linearGradient id="dg-side" x1="0.2" y1="0" x2="0.8" y2="1">
@@ -140,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {/* Navigation Items */}
-        <nav aria-label="App Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+        <nav aria-label="App Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
           {navItems.map((item) => {
             const isActive = currentPage === item.page;
             const Icon = item.icon;
@@ -149,29 +166,83 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 key={item.page}
                 onClick={() => onNavigate(item.page)}
                 title={item.label}
+                className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
                 style={{
-                  width: collapsed ? '44px' : '66px',
-                  minHeight: collapsed ? '44px' : '56px',
+                  position: 'relative',
+                  width: collapsed ? '44px' : '70px',
+                  minHeight: collapsed ? '44px' : '52px',
                   boxSizing: 'border-box',
-                  borderRadius: '14px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: collapsed ? '0' : '3px',
+                  gap: collapsed ? '0' : '4px',
                   textDecoration: 'none',
-                  fontSize: '10.5px',
-                  fontWeight: 500,
+                  fontSize: '11px',
+                  fontWeight: isActive ? 600 : 500,
                   cursor: 'pointer',
-                  background: isActive ? 'rgba(245,165,36,0.14)' : 'transparent',
+                  background: 'transparent',
                   color: isActive ? '#F5A524' : '#A1A1AA',
-                  border: isActive ? '1px solid rgba(245,165,36,0.45)' : '1px solid transparent',
-                  transition: 'all 0.15s ease',
-                  padding: collapsed ? '8px' : '6px 2px',
+                  border: 'none',
+                  outline: 'none',
+                  padding: collapsed ? '8px 2px' : '6px 2px 8px',
                 }}
               >
-                <Icon size={collapsed ? 20 : 19} strokeWidth={1.8} />
-                {!collapsed && <span>{item.label}</span>}
+                {/* Active Indicator: Left Vertical Golden Line */}
+                {isActive && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      left: collapsed ? '-6px' : '-7px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '3.5px',
+                      height: collapsed ? '22px' : '26px',
+                      borderRadius: '0 4px 4px 0',
+                      background: 'linear-gradient(180deg, #FFD572 0%, #F5A524 100%)',
+                      boxShadow: '0 0 10px rgba(245, 165, 36, 0.9), 0 0 2px #F5A524',
+                    }}
+                  />
+                )}
+
+                <Icon
+                  size={collapsed ? 21 : 20}
+                  strokeWidth={isActive ? 2.1 : 1.8}
+                  style={{
+                    color: isActive ? '#F5A524' : 'currentColor',
+                    filter: isActive ? 'drop-shadow(0 0 8px rgba(245,165,36,0.5))' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                />
+
+                {!collapsed && (
+                  <span
+                    style={{
+                      color: isActive ? '#F5A524' : 'currentColor',
+                      letterSpacing: '0.01em',
+                      transition: 'color 0.15s ease',
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                )}
+
+                {/* Active Indicator: Bottom Horizontal Golden Line */}
+                {isActive && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      width: collapsed ? '16px' : '24px',
+                      height: '2px',
+                      borderRadius: '999px',
+                      background: 'linear-gradient(90deg, transparent, #F5A524, transparent)',
+                      boxShadow: '0 0 8px rgba(245, 165, 36, 0.75)',
+                    }}
+                  />
+                )}
               </button>
             );
           })}
