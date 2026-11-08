@@ -1,22 +1,54 @@
 import React, { useState } from 'react';
-import type { OfferItem, Page } from '../types';
-import { Info, Tag } from 'lucide-react';
+import type { OfferItem, Page, TokenItem } from '../types';
+import { Tag, Check, X, Shield, ArrowRight } from 'lucide-react';
 
 interface OffersPageProps {
   offers: OfferItem[];
+  userNfts: TokenItem[];
+  marketListings: TokenItem[];
+  userBalance: number;
   onNavigate: (page: Page) => void;
+  onAcceptOffer: (offer: OfferItem) => void;
+  onCancelOffer: (offer: OfferItem) => void;
+  onPlaceOffer: (targetNft: TokenItem, amountNear: string) => void;
 }
 
-export const OffersPage: React.FC<OffersPageProps> = ({ offers, onNavigate }) => {
+export const OffersPage: React.FC<OffersPageProps> = ({
+  offers,
+  userNfts: _userNfts,
+  marketListings,
+  userBalance,
+  onNavigate,
+  onAcceptOffer,
+  onCancelOffer,
+  onPlaceOffer,
+}) => {
   const [tab, setTab] = useState<'rec' | 'made'>('rec');
 
+  // Place offer form state
+  const [selectedListingId, setSelectedListingId] = useState<string>(marketListings[0]?.id || '');
+  const [offerAmount, setOfferAmount] = useState('1.20');
+  const [expiresInDays, setExpiresInDays] = useState('7');
+
   const filteredOffers = offers.filter((o) => (tab === 'rec' ? o.type === 'received' : o.type === 'made'));
+  const selectedListing = marketListings.find((l) => l.id === selectedListingId) || marketListings[0];
+
+  const handlePlaceOfferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedListing) return;
+    const amountNum = parseFloat(offerAmount);
+    if (isNaN(amountNum) || amountNum <= 0) return;
+    onPlaceOffer(selectedListing, amountNum.toFixed(2));
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Page Title & Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Offers</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Offers</h1>
+          <span className="gold-badge">On-chain Escrow</span>
+        </div>
         <div role="group" aria-label="Offer list" style={{ display: 'flex', gap: '8px' }}>
           <button
             type="button"
@@ -33,7 +65,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({ offers, onNavigate }) =>
               border: tab === 'rec' ? '1px solid #F5A524' : '1px solid #2A2A33',
             }}
           >
-            Received
+            Received ({offers.filter((o) => o.type === 'received').length})
           </button>
           <button
             type="button"
@@ -50,12 +82,12 @@ export const OffersPage: React.FC<OffersPageProps> = ({ offers, onNavigate }) =>
               border: tab === 'made' ? '1px solid #F5A524' : '1px solid #2A2A33',
             }}
           >
-            Made
+            Made ({offers.filter((o) => o.type === 'made').length})
           </button>
         </div>
       </div>
 
-      {/* Release Notice Banner */}
+      {/* Escrow Status Banner */}
       <div
         role="status"
         style={{
@@ -63,27 +95,27 @@ export const OffersPage: React.FC<OffersPageProps> = ({ offers, onNavigate }) =>
           flexWrap: 'wrap',
           gap: '16px',
           alignItems: 'center',
-          padding: '20px 24px',
-          borderRadius: '20px',
-          border: '1px solid rgba(96,165,250,0.4)',
-          background: 'rgba(96,165,250,0.08)',
+          padding: '16px 20px',
+          borderRadius: '16px',
+          border: '1px solid #2A2A33',
+          background: '#15151B',
         }}
       >
-        <span style={{ color: '#93C5FD' }}>
-          <Info size={24} />
+        <span style={{ color: '#F5A524' }}>
+          <Shield size={20} />
         </span>
-        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <strong style={{ fontSize: '15px' }}>Offers arrive in an upcoming release</strong>
-          <span style={{ fontSize: '14px', lineHeight: 1.55, color: '#C4C4CC' }}>
-            This preview illustrates upcoming bilateral offers with NEAR escrow. Until then, buy directly at listed prices on the Marketplace or list your own NFT from Sells.
+        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <strong style={{ fontSize: '14px', color: '#F4F4F5' }}>Live Testnet Escrow Settlement</strong>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+            Accepted offers disburse test NEAR directly to your connected wallet and transfer the keyless vault with backing intact.
           </span>
         </div>
         <button
           onClick={() => onNavigate('marketplace')}
           className="btn-secondary"
-          style={{ background: '#1D1D25' }}
+          style={{ background: '#1D1D25', fontSize: '12px', minHeight: '36px' }}
         >
-          Go to Marketplace
+          Marketplace <ArrowRight size={13} style={{ marginLeft: '4px' }} />
         </button>
       </div>
 
@@ -104,57 +136,86 @@ export const OffersPage: React.FC<OffersPageProps> = ({ offers, onNavigate }) =>
             minWidth: 0,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>
-            {tab === 'rec' ? 'Offers on your NFTs' : 'Offers you made'}
-          </h2>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {filteredOffers.map((o) => (
-              <li
-                key={o.id}
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  gap: '14px',
-                  padding: '14px',
-                  borderRadius: '16px',
-                  background: '#1D1D25',
-                  border: '1px solid #2A2A33',
-                }}
-              >
-                <img
-                  src={o.image}
-                  alt={o.nft_title}
-                  style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '12px' }}
-                />
-                <span style={{ flex: '1 1 180px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <strong style={{ fontSize: '15px' }}>{o.nft_title}</strong>
-                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-                    {tab === 'rec' ? `From ${o.from}` : `To ${o.from}`}
-                  </span>
-                </span>
-                <span style={{ flex: '0 1 120px', display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Offer</span>
-                  <strong style={{ fontSize: '15px', color: '#F5A524' }}>{o.amount_near} NEAR</strong>
-                </span>
-                <span style={{ flex: '0 1 120px', display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Expires</span>
-                  <span style={{ fontSize: '14px' }}>in {o.expires_in}</span>
-                </span>
-                <button
-                  type="button"
-                  disabled
-                  className="btn-secondary"
-                  style={{ minHeight: '38px', opacity: 0.55, cursor: 'not-allowed' }}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>
+              {tab === 'rec' ? 'Received Offers (Claimable)' : 'Offers You Placed'}
+            </h2>
+            <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+              {filteredOffers.length} {filteredOffers.length === 1 ? 'offer' : 'offers'}
+            </span>
+          </div>
+
+          {filteredOffers.length === 0 ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center', color: '#71717A', fontSize: '14px' }}>
+              No {tab === 'rec' ? 'received' : 'active'} offers at the moment.
+            </div>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {filteredOffers.map((o) => (
+                <li
+                  key={o.id}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: '14px',
+                    padding: '14px',
+                    borderRadius: '16px',
+                    background: '#1D1D25',
+                    border: '1px solid #2A2A33',
+                  }}
                 >
-                  {tab === 'rec' ? 'Accept' : 'Cancel'}
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <img
+                    src={o.image}
+                    alt={o.nft_title}
+                    style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '12px' }}
+                  />
+                  <span style={{ flex: '1 1 180px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <strong style={{ fontSize: '15px' }}>{o.nft_title}</strong>
+                    <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                      {tab === 'rec' ? `From ${o.from}` : `To ${o.from}`}
+                    </span>
+                  </span>
+                  <span style={{ flex: '0 1 120px', display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Offer Amount</span>
+                    <strong style={{ fontSize: '16px', color: '#F5A524', fontFamily: 'Space Grotesk' }}>
+                      {o.amount_near} NEAR
+                    </strong>
+                  </span>
+                  <span style={{ flex: '0 1 100px', display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Expires</span>
+                    <span style={{ fontSize: '13px' }}>{o.expires_in}</span>
+                  </span>
+
+                  {/* Action Buttons: Accept / Cancel */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {tab === 'rec' ? (
+                      <button
+                        type="button"
+                        onClick={() => onAcceptOffer(o)}
+                        className="btn-primary"
+                        style={{ minHeight: '38px', padding: '0 18px', fontSize: '13px' }}
+                      >
+                        <Check size={14} style={{ marginRight: '4px' }} /> Accept &amp; Claim
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onCancelOffer(o)}
+                        className="btn-secondary"
+                        style={{ minHeight: '38px', padding: '0 16px', fontSize: '13px', color: '#FCA5A5' }}
+                      >
+                        <X size={14} style={{ marginRight: '4px' }} /> Cancel &amp; Refund
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
-        {/* Right: Make an Offer Form */}
+        {/* Right: Place an Offer Form */}
         <section
           style={{
             background: '#15151B',
@@ -164,74 +225,95 @@ export const OffersPage: React.FC<OffersPageProps> = ({ offers, onNavigate }) =>
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
-            gap: '20px',
+            gap: '16px',
             flex: '1 1 320px',
             minWidth: 0,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Make an offer</h2>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-            Offer on
-            <select
-              disabled
-              style={{
-                minHeight: '46px',
-                borderRadius: '12px',
-                border: '1px solid #2A2A33',
-                background: '#1D1D25',
-                color: '#F4F4F5',
-                padding: '0 12px',
-              }}
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Place an Offer</h2>
+
+          <form onSubmit={handlePlaceOfferSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
+              Target NFT (from Marketplace)
+              <select
+                value={selectedListingId}
+                onChange={(e) => setSelectedListingId(e.target.value)}
+                style={{
+                  minHeight: '44px',
+                  borderRadius: '12px',
+                  border: '1px solid #2A2A33',
+                  background: '#1D1D25',
+                  color: '#F4F4F5',
+                  padding: '0 12px',
+                  fontSize: '13px',
+                }}
+              >
+                {marketListings.slice(0, 10).map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.title} (Listed at {l.price} NEAR)
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
+              Offer Amount (NEAR test tokens)
+              <input
+                type="number"
+                step="0.05"
+                min="0.1"
+                value={offerAmount}
+                onChange={(e) => setOfferAmount(e.target.value)}
+                style={{
+                  minHeight: '44px',
+                  borderRadius: '12px',
+                  border: '1px solid #2A2A33',
+                  background: '#1D1D25',
+                  color: '#F4F4F5',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                }}
+              />
+            </label>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
+              <span>Available balance:</span>
+              <strong style={{ color: '#F4F4F5' }}>{userBalance.toFixed(2)} NEAR</strong>
+            </div>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
+              Duration
+              <select
+                value={expiresInDays}
+                onChange={(e) => setExpiresInDays(e.target.value)}
+                style={{
+                  minHeight: '44px',
+                  borderRadius: '12px',
+                  border: '1px solid #2A2A33',
+                  background: '#1D1D25',
+                  color: '#F4F4F5',
+                  padding: '0 12px',
+                  fontSize: '13px',
+                }}
+              >
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+              </select>
+            </label>
+
+            <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#71717A' }}>
+              Your test NEAR is held by the Quorum escrow contract until the seller accepts or you cancel.
+            </p>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ minHeight: '44px', fontSize: '14px', width: '100%' }}
             >
-              <option>A specific NFT</option>
-              <option>Any NFT in the collection</option>
-            </select>
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-            Amount (NEAR)
-            <input
-              disabled
-              type="text"
-              placeholder="0.00"
-              style={{
-                minHeight: '46px',
-                borderRadius: '12px',
-                border: '1px solid #2A2A33',
-                background: '#1D1D25',
-                color: '#F4F4F5',
-                padding: '0 12px',
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-            Expires after
-            <select
-              disabled
-              style={{
-                minHeight: '46px',
-                borderRadius: '12px',
-                border: '1px solid #2A2A33',
-                background: '#1D1D25',
-                color: '#F4F4F5',
-                padding: '0 12px',
-              }}
-            >
-              <option>7 days</option>
-              <option>14 days</option>
-              <option>30 days</option>
-            </select>
-          </label>
-          <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-            Your NEAR is held by the contract until the offer is accepted, cancelled or expires. Cancelling or expiry returns it in full.
-          </p>
-          <button
-            type="button"
-            disabled
-            className="btn-primary"
-            style={{ opacity: 0.5, cursor: 'not-allowed' }}
-          >
-            <Tag size={16} /> Place offer
-          </button>
+              <Tag size={16} /> Submit Offer
+            </button>
+          </form>
         </section>
       </div>
     </div>

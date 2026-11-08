@@ -4,9 +4,10 @@ import { ArrowRight, Vault, CheckSquare, Flame, RefreshCw } from 'lucide-react';
 
 interface LandingPageProps {
   onNavigate: (page: Page) => void;
+  onSelectCollection?: (colId: string) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectCollection }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', background: '#08080A', borderRadius: '24px', overflow: 'hidden' }}>
       {/* Hero Skyline Section */}
@@ -102,7 +103,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               Enter Marketplace <ArrowRight size={16} />
             </button>
             <button
-              onClick={() => onNavigate('mint')}
+              onClick={() => {
+                if (onSelectCollection) onSelectCollection('molten-hours');
+                onNavigate('mint');
+              }}
               className="btn-secondary"
               style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
             >

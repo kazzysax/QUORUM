@@ -17,7 +17,7 @@ export const MintPage: React.FC<MintPageProps> = ({
   const [minting, setMinting] = useState(false);
 
   const isPre = stage === 'pre';
-  const price = isPre ? 1.00 : 2.00;
+  const price = 1.00;
   const storage = 0.03;
   const total = price + storage;
   const half = (price / 2).toFixed(2);
@@ -198,31 +198,31 @@ export const MintPage: React.FC<MintPageProps> = ({
             >
               <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Asset plan</h2>
               <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-                Assets go by token number, in turn by weight: #1 and #2 carry USDC, #3 wNEAR, then again. Fixed at launch.
+                Every piece holds 1.00 NEAR + 1.00 USDT directly in its keyless sub-account vault, with voting governance in the 20 NEAR DAO.
               </p>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <li style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                     <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span className="gold-badge">USDC</span>
-                      <span style={{ color: '#A1A1AA' }}>weight 2</span>
+                      <span className="gold-badge">1.00 USDT</span>
+                      <span style={{ color: '#A1A1AA' }}>Vault Backing</span>
                     </span>
-                    <strong>67% of NFTs</strong>
+                    <strong>50% weight</strong>
                   </div>
                   <div style={{ height: '8px', borderRadius: '999px', background: '#1D1D25', overflow: 'hidden' }}>
-                    <div style={{ width: '67%', height: '100%', background: '#F5A524' }} />
+                    <div style={{ width: '50%', height: '100%', background: '#F5A524' }} />
                   </div>
                 </li>
                 <li style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                     <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span className="gold-badge">wNEAR</span>
-                      <span style={{ color: '#A1A1AA' }}>weight 1</span>
+                      <span className="gold-badge">1.00 NEAR</span>
+                      <span style={{ color: '#A1A1AA' }}>Vault Backing</span>
                     </span>
-                    <strong>33% of NFTs</strong>
+                    <strong>50% weight</strong>
                   </div>
                   <div style={{ height: '8px', borderRadius: '999px', background: '#1D1D25', overflow: 'hidden' }}>
-                    <div style={{ width: '33%', height: '100%', background: '#F5A524' }} />
+                    <div style={{ width: '50%', height: '100%', background: '#F5A524' }} />
                   </div>
                 </li>
               </ul>

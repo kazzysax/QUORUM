@@ -33,17 +33,35 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
     return acc + (isNaN(val) ? 0 : val);
   }, 0);
 
+  // Calculate dynamic backing stats across all owned NFTs
+  const totalNearBacking = nfts.reduce((acc, t) => {
+    const m = t.backing.match(/([\d.]+)\s*NEAR/i);
+    return acc + (m ? parseFloat(m[1]) : 0);
+  }, 0);
+  const totalUsdtBacking = nfts.reduce((acc, t) => {
+    const m = t.backing.match(/([\d.]+)\s*(USDT|USDC)/i);
+    return acc + (m ? parseFloat(m[1]) : 0);
+  }, 0);
+
   // Calculate 90% burn value
   const parseBacking = (backingStr: string) => {
-    const parts = backingStr.split(' ');
-    const num = parseFloat(parts[0]) || 0;
-    const unit = parts[1] || 'USDC';
-    const youGet = (num * 0.9).toFixed(3);
-    const daoGets = (num * 0.1).toFixed(3);
-    return { num, unit, youGet, daoGets };
+    const nearMatch = backingStr.match(/([\d.]+)\s*NEAR/i);
+    const usdtMatch = backingStr.match(/([\d.]+)\s*(USDT|USDC)/i);
+    const nearNum = nearMatch ? parseFloat(nearMatch[1]) : 0;
+    const usdtNum = usdtMatch ? parseFloat(usdtMatch[1]) : 0;
+
+    const youGetNear = (nearNum * 0.9).toFixed(2);
+    const youGetUsdt = (usdtNum * 0.9).toFixed(2);
+    const daoNear = (nearNum * 0.1).toFixed(2);
+    const daoUsdt = (usdtNum * 0.1).toFixed(2);
+
+    return {
+      youGet: `${youGetNear} NEAR + ${youGetUsdt} USDT`,
+      daoGets: `${daoNear} NEAR + ${daoUsdt} USDT`,
+    };
   };
 
-  const burnStats = selectedToken ? parseBacking(selectedToken.backing) : { num: 0, unit: 'USDC', youGet: '0.000', daoGets: '0.000' };
+  const burnStats = selectedToken ? parseBacking(selectedToken.backing) : { youGet: '0.00 NEAR + 0.00 USDT', daoGets: '0.00 NEAR + 0.00 USDT' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
@@ -68,7 +86,9 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Total backing</span>
-          <strong style={{ fontSize: '24px', fontWeight: 700 }}>13.92 USDC + 1.00 NEAR</strong>
+          <strong style={{ fontSize: '24px', fontWeight: 700 }}>
+            {totalNearBacking.toFixed(2)} NEAR + {totalUsdtBacking.toFixed(2)} USDT
+          </strong>
           <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Redeemable at 90% by burning</span>
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -275,11 +295,11 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               <strong style={{ fontSize: '14px' }}>If you burn it now</strong>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                 <span style={{ color: '#C4C4CC' }}>You receive (90%)</span>
-                <strong style={{ color: '#86EFAC' }}>{burnStats.youGet} {burnStats.unit}</strong>
+                <strong style={{ color: '#86EFAC' }}>{burnStats.youGet}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                 <span style={{ color: '#C4C4CC' }}>Treasury (10%)</span>
-                <span>{burnStats.daoGets} {burnStats.unit}</span>
+                <span>{burnStats.daoGets}</span>
               </div>
             </div>
 
@@ -361,7 +381,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               </h2>
             </div>
             <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-              Burning permanently destroys the NFT, closes its keyless subaccount, and pays out <strong>90% of the vault backing ({burnStats.youGet} {burnStats.unit})</strong> directly to your wallet. 10% returns to the DAO Treasury pool.
+              Burning permanently destroys the NFT, closes its keyless subaccount, and pays out <strong>90% of the vault backing ({burnStats.youGet})</strong> directly to your wallet. 10% returns to the DAO Treasury pool.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
