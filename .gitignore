@@ -48,3 +48,5 @@ desktop.ini
 # Vercel
 .vercel
 **/.vercel
+*.log
+deploy_out.txt
