@@ -1,437 +1,441 @@
 import React, { useState } from 'react';
-import type { ProposalItem } from '../types';
-import { Check, X } from 'lucide-react';
+import type { ProposalItem, TokenItem, CollectionItem } from '../types';
+import { Check, X, Minus, CheckCircle2, Vote, Clock } from 'lucide-react';
 
 interface VotingsPageProps {
   proposals: ProposalItem[];
-  userVotingPower: number;
+  userNfts: TokenItem[];
+  collections: CollectionItem[];
   onCastVote: (proposalId: number, choice: 'yes' | 'no' | 'abstain') => void;
-  onCreateProposal: (prop: Partial<ProposalItem>) => void;
+  onCreateProposal?: (prop: Partial<ProposalItem>) => void;
 }
 
 export const VotingsPage: React.FC<VotingsPageProps> = ({
   proposals,
-  userVotingPower,
+  userNfts,
+  collections,
   onCastVote,
-  onCreateProposal,
 }) => {
-  const [filter, setFilter] = useState<'Active' | 'Passed' | 'All'>('Active');
-  const [selectedVoteChoice, setSelectedVoteChoice] = useState<'yes' | 'no' | 'abstain'>('yes');
-  const [showProposeModal, setShowProposeModal] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [votingOnId, setVotingOnId] = useState<number | null>(null);
 
-  // New proposal form state
-  const [newKind, setNewKind] = useState<ProposalItem['kind']>('Spend');
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
+  // Group user's NFTs by collection to calculate voting power per collection
+  const userNftsByCollection = userNfts.reduce((acc, nft) => {
+    acc[nft.collection] = (acc[nft.collection] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
-  const featuredProp = proposals[0];
+  // Determine active collections that have proposals or are held
+  const activeCollectionNames = Array.from(
+    new Set([
+      ...collections.map((c) => c.name),
+      ...proposals.map((p) => p.collection || 'Molten Hours'),
+    ])
+  );
 
-  const filteredProposals = proposals.filter((p) => {
-    if (filter === 'Active') return p.status === 'Voting open' || p.status === 'Timelock';
-    if (filter === 'Passed') return p.status === 'Passed';
-    return true;
-  });
+  const totalUserVotes = userNfts.length;
 
-  const handleVoteSubmit = () => {
-    if (!featuredProp) return;
-    onCastVote(featuredProp.id, selectedVoteChoice);
-  };
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    onCreateProposal({
-      kind: newKind,
-      title: newTitle,
-      description: newDesc || 'Community proposal submitted by token holder.',
-      status: 'Voting open',
-      time_remaining: '3d 0h',
-      votes_yes: userVotingPower,
-      votes_no: 0,
-      votes_abstain: 0,
-      quorum_reached: false,
-      quorum_percent: 25,
-    });
-    setNewTitle('');
-    setNewDesc('');
-    setShowProposeModal(false);
+  const handleQuickVote = async (proposalId: number, choice: 'yes' | 'no' | 'abstain') => {
+    setVotingOnId(proposalId);
+    try {
+      await onCastVote(proposalId, choice);
+    } finally {
+      setVotingOnId(null);
+    }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
-      {/* Title & Filters */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Votings</h1>
-        <div role="group" aria-label="Filter proposals" style={{ display: 'flex', gap: '8px' }}>
-          {(['Active', 'Passed', 'All'] as const).map((tab) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%', maxWidth: '1080px' }}>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Vote size={22} color="#F5A524" />
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700, letterSpacing: '-0.02em' }}>
+              Collection Votings
+            </h1>
+          </div>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+            Ongoing DAO proposals organized by each collection you hold.
+          </span>
+        </div>
+
+        {/* Global Voting Power Badge */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            borderRadius: '999px',
+            background: 'rgba(245,165,36,0.1)',
+            border: '1px solid rgba(245,165,36,0.3)',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#FFD572',
+          }}
+        >
+          <CheckCircle2 size={16} color="#F5A524" />
+          <span>Your Total Voting Power: {totalUserVotes} Votes</span>
+        </div>
+      </div>
+
+      {/* Collection Switcher Filter Tabs */}
+      <div
+        role="tablist"
+        aria-label="Filter collection"
+        style={{
+          display: 'flex',
+          gap: '8px',
+          overflowX: 'auto',
+          paddingBottom: '4px',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setSelectedFilter('all')}
+          style={{
+            minHeight: '38px',
+            padding: '0 18px',
+            borderRadius: '999px',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: selectedFilter === 'all' ? '#F5A524' : '#1D1D25',
+            color: selectedFilter === 'all' ? '#111113' : '#D4D4D8',
+            border: selectedFilter === 'all' ? '1px solid #F5A524' : '1px solid #2A2A33',
+            transition: 'all 0.15s ease',
+            flexShrink: 0,
+          }}
+        >
+          All Collections ({proposals.length})
+        </button>
+
+        {activeCollectionNames.map((colName) => {
+          const power = userNftsByCollection[colName] || 0;
+          const count = proposals.filter((p) => (p.collection || 'Molten Hours') === colName).length;
+          const isSelected = selectedFilter === colName;
+
+          return (
             <button
-              key={tab}
+              key={colName}
               type="button"
-              onClick={() => setFilter(tab)}
+              onClick={() => setSelectedFilter(colName)}
               style={{
-                minHeight: '36px',
-                padding: '0 16px',
+                minHeight: '38px',
+                padding: '0 18px',
                 borderRadius: '999px',
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                background: filter === tab ? '#F5A524' : '#1D1D25',
-                color: filter === tab ? '#111113' : '#D4D4D8',
-                border: filter === tab ? '1px solid #F5A524' : '1px solid #2A2A33',
+                background: isSelected ? '#F5A524' : '#1D1D25',
+                color: isSelected ? '#111113' : '#D4D4D8',
+                border: isSelected ? '1px solid #F5A524' : '1px solid #2A2A33',
                 transition: 'all 0.15s ease',
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
               }}
             >
-              {tab}
+              <span>{colName}</span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  padding: '1px 6px',
+                  borderRadius: '999px',
+                  background: isSelected ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.08)',
+                  color: isSelected ? '#111113' : '#A1A1AA',
+                }}
+              >
+                {power > 0 ? `${power} votes · ${count} props` : `${count} props`}
+              </span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start' }}>
-        {/* Left Column: Highlighted Proposal + Other Proposals */}
-        <div style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Active Rhea Swap Proposal Highlight */}
-          {featuredProp && (
-            <section
-              style={{
-                background: '#15151B',
-                border: '1px solid #2A2A33',
-                borderRadius: '24px',
-                padding: '24px',
-                boxSizing: 'border-box',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px',
-              }}
-            >
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  <span className="gold-badge">{featuredProp.kind}</span>
-                  <span className="success-badge">{featuredProp.status}</span>
-                </div>
-                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                  Proposal #{featuredProp.id} · closes in {featuredProp.time_remaining}
-                </span>
-              </div>
+      {/* Ongoing Votes Grouped by Collection */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+        {activeCollectionNames
+          .filter((colName) => selectedFilter === 'all' || selectedFilter === colName)
+          .map((colName) => {
+            const colProposals = proposals.filter(
+              (p) => (p.collection || 'Molten Hours') === colName
+            );
+            if (colProposals.length === 0) return null;
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontSize: '26px', lineHeight: 1.2 }}>{featuredProp.title}</h2>
-                <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-                  {featuredProp.description}
-                </p>
-              </div>
+            const colMeta = collections.find((c) => c.name === colName);
+            const userVotesInCol = userNftsByCollection[colName] || 0;
 
-              {featuredProp.near_in && (
-                <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
-                  <div style={{ padding: '14px', borderRadius: '14px', background: '#1D1D25' }}>
-                    <dt style={{ fontSize: '12px', color: '#A1A1AA' }}>NEAR in</dt>
-                    <dd style={{ margin: '4px 0 0', fontWeight: 600, fontSize: '14px' }}>{featuredProp.near_in}</dd>
-                  </div>
-                  <div style={{ padding: '14px', borderRadius: '14px', background: '#1D1D25' }}>
-                    <dt style={{ fontSize: '12px', color: '#A1A1AA' }}>Route</dt>
-                    <dd style={{ margin: '4px 0 0', fontWeight: 600, fontSize: '14px' }}>{featuredProp.route}</dd>
-                  </div>
-                  <div style={{ padding: '14px', borderRadius: '14px', background: '#1D1D25' }}>
-                    <dt style={{ fontSize: '12px', color: '#A1A1AA' }}>Expected out</dt>
-                    <dd style={{ margin: '4px 0 0', fontWeight: 600, fontSize: '14px' }}>{featuredProp.quote_out}</dd>
-                  </div>
-                  <div style={{ padding: '14px', borderRadius: '14px', background: '#1D1D25' }}>
-                    <dt style={{ fontSize: '12px', color: '#A1A1AA' }}>Minimum accepted</dt>
-                    <dd style={{ margin: '4px 0 0', fontWeight: 600, fontSize: '14px' }}>{featuredProp.min_out}</dd>
-                  </div>
-                </dl>
-              )}
-
-              {/* Vote Meter Bars */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#C4C4CC' }}>Yes</span>
-                    <span style={{ fontWeight: 600 }}>{featuredProp.votes_yes} votes</span>
-                  </div>
-                  <div style={{ height: '8px', borderRadius: '999px', background: '#1D1D25', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, featuredProp.votes_yes)}%`, height: '100%', background: '#F5A524' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#C4C4CC' }}>No</span>
-                    <span style={{ fontWeight: 600 }}>{featuredProp.votes_no} votes</span>
-                  </div>
-                  <div style={{ height: '8px', borderRadius: '999px', background: '#1D1D25', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, featuredProp.votes_no)}%`, height: '100%', background: '#93C5FD' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#C4C4CC' }}>Abstain</span>
-                    <span style={{ fontWeight: 600 }}>{featuredProp.votes_abstain} votes</span>
-                  </div>
-                  <div style={{ height: '8px', borderRadius: '999px', background: '#1D1D25', overflow: 'hidden' }}>
-                    <div style={{ width: `${Math.min(100, featuredProp.votes_abstain)}%`, height: '100%', background: '#71717A' }} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#C4C4CC' }}>Quorum (10% of live supply)</span>
-                    <span style={{ fontWeight: 600, color: '#86EFAC' }}>reached</span>
-                  </div>
-                  <div style={{ height: '8px', borderRadius: '999px', background: '#1D1D25', overflow: 'hidden' }}>
-                    <div style={{ width: '100%', height: '100%', background: '#86EFAC' }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Voter Interaction Widget */}
-              <div style={{ padding: '16px', borderRadius: '16px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', gap: '14px', background: '#181820' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '8px' }}>
-                  <strong style={{ fontSize: '15px' }}>Your vote</strong>
-                  <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                    {userVotingPower} of your NFTs can vote · #0088 changed hands after this opened
-                  </span>
-                </div>
-                <div role="group" aria-label="Your vote" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {(['yes', 'no', 'abstain'] as const).map((choice) => (
-                    <button
-                      key={choice}
-                      type="button"
-                      onClick={() => setSelectedVoteChoice(choice)}
-                      style={{
-                        flex: '1 1 100px',
-                        minHeight: '48px',
-                        borderRadius: '14px',
-                        fontSize: '15px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        background: selectedVoteChoice === choice ? '#F5A524' : '#1D1D25',
-                        color: selectedVoteChoice === choice ? '#111113' : '#D4D4D8',
-                        border: selectedVoteChoice === choice ? '1px solid #F5A524' : '1px solid #2A2A33',
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {choice}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleVoteSubmit}
-                  className="btn-primary"
-                  style={{ minHeight: '48px', fontSize: '15px' }}
-                >
-                  Vote {selectedVoteChoice.toUpperCase()} with {userVotingPower} votes
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* Other Proposals List */}
-          <section
-            style={{
-              background: '#15151B',
-              border: '1px solid #2A2A33',
-              borderRadius: '24px',
-              padding: '24px',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Other proposals</h2>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {filteredProposals.slice(1).map((prop) => (
-                <li
-                  key={prop.id}
+            return (
+              <section
+                key={colName}
+                style={{
+                  background: '#15151B',
+                  border: '1px solid #2A2A33',
+                  borderRadius: '24px',
+                  padding: '24px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                }}
+              >
+                {/* Collection DAO Header */}
+                <div
                   style={{
                     display: 'flex',
                     flexWrap: 'wrap',
                     alignItems: 'center',
-                    gap: '14px',
-                    padding: '16px',
-                    borderRadius: '16px',
-                    background: '#1D1D25',
-                    border: '1px solid #2A2A33',
+                    justifyContent: 'space-between',
+                    gap: '16px',
+                    paddingBottom: '18px',
+                    borderBottom: '1px solid #2A2A33',
                   }}
                 >
-                  <span className="neutral-badge">{prop.kind}</span>
-                  <strong style={{ flex: '1 1 240px', minWidth: 0, fontSize: '15px', fontWeight: 500 }}>
-                    {prop.title}
-                  </strong>
-                  <span
-                    className={
-                      prop.status === 'Voting open'
-                        ? 'success-badge'
-                        : prop.status === 'Timelock'
-                        ? 'info-badge'
-                        : 'neutral-badge'
-                    }
-                  >
-                    {prop.status} · {prop.time_remaining}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onCastVote(prop.id, 'yes')}
-                    className="btn-secondary"
-                    style={{ minHeight: '38px', padding: '0 16px', fontSize: '13px' }}
-                  >
-                    Vote
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    {colMeta?.avatar_image && (
+                      <img
+                        src={colMeta.avatar_image}
+                        alt=""
+                        style={{ width: '48px', height: '48px', borderRadius: '14px', objectFit: 'cover' }}
+                      />
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#F4F4F5' }}>
+                          {colName} DAO
+                        </h2>
+                        <span className="gold-badge" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                          20.00 NEAR Treasury
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                        {colMeta?.description || 'Community DAO backed by 20 keyless NFT vaults.'}
+                      </span>
+                    </div>
+                  </div>
 
-        {/* Right Column: Propose Drawer Card */}
-        <section
-          style={{
-            background: '#15151B',
-            border: '1px solid #2A2A33',
-            borderRadius: '24px',
-            padding: '24px',
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            flex: '1 1 320px',
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Propose</h2>
-          </div>
-          <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-            Any holder can open a proposal. The founder sets minimum voting periods, quorum and timelocks; you can only go above them.
-          </p>
-          <button
-            type="button"
-            onClick={() => setShowProposeModal(true)}
-            className="btn-primary"
-            style={{ width: '100%' }}
-          >
-            New proposal
-          </button>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {[
-              { title: 'Spend', desc: 'Pay an account from the treasury, with a stated purpose.' },
-              { title: 'Distribute', desc: 'Split an amount evenly across every live NFT.' },
-              { title: 'Settle', desc: "Swap one asset group's mint escrow into its asset." },
-              { title: 'Swap', desc: 'Move treasury funds into another asset through Rhea.' },
-              { title: 'Parameter', desc: 'Pause minting, change the DEX, raise the royalty.' },
-              { title: 'Text', desc: 'A signal vote or an event, with no money attached.' },
-            ].map((item) => (
-              <li key={item.title} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <strong style={{ fontSize: '14px', color: '#F5A524' }}>{item.title}</strong>
-                <span style={{ fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>{item.desc}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+                  {/* User's Voting Power in this specific collection */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: '2px',
+                    }}
+                  >
+                    <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#71717A' }}>
+                      Your Voting Power
+                    </span>
+                    <strong style={{ fontSize: '18px', color: userVotesInCol > 0 ? '#F5A524' : '#71717A' }}>
+                      {userVotesInCol} {userVotesInCol === 1 ? 'Vote' : 'Votes'} ({userVotesInCol} {colName} NFTs held)
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Proposals List for this collection */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {colProposals.map((prop) => {
+                    const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
+                    const yesPercent = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
+                    const noPercent = totalVotes > 0 ? Math.round((prop.votes_no / totalVotes) * 100) : 0;
+                    const hasVoted = Boolean(prop.voted_choice);
+                    const isVoting = votingOnId === prop.id;
+
+                    return (
+                      <div
+                        key={prop.id}
+                        style={{
+                          background: '#1D1D25',
+                          border: '1px solid #2A2A33',
+                          borderRadius: '18px',
+                          padding: '20px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '14px',
+                          transition: 'border-color 0.15s ease',
+                        }}
+                      >
+                        {/* Proposal Meta Row */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="neutral-badge" style={{ fontSize: '11px', fontWeight: 600 }}>
+                              #{prop.id} · {prop.kind}
+                            </span>
+                            <span
+                              className={prop.status === 'Voting open' ? 'success-badge' : 'gold-badge'}
+                              style={{ fontSize: '11px' }}
+                            >
+                              ● {prop.status}
+                            </span>
+                          </div>
+
+                          <span style={{ fontSize: '12px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={13} /> Closes in {prop.time_remaining}
+                          </span>
+                        </div>
+
+                        {/* Title & Description */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#F4F4F5' }}>
+                            {prop.title}
+                          </h3>
+                          <p style={{ margin: 0, fontSize: '13.5px', lineHeight: 1.5, color: '#C4C4CC' }}>
+                            {prop.description}
+                          </p>
+                        </div>
+
+                        {/* Swap route details if available */}
+                        {prop.route && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '12px',
+                              padding: '10px 14px',
+                              borderRadius: '12px',
+                              background: '#15151B',
+                              border: '1px solid #2A2A33',
+                              fontSize: '12.5px',
+                              color: '#D4D4D8',
+                            }}
+                          >
+                            <span><strong>In:</strong> {prop.near_in}</span>
+                            <span><strong>Route:</strong> {prop.route}</span>
+                            <span><strong>Out:</strong> {prop.quote_out}</span>
+                            <span style={{ color: '#86EFAC' }}><strong>Min:</strong> {prop.min_out}</span>
+                          </div>
+                        )}
+
+                        {/* Vote Results Progress Bar */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
+                            <span style={{ color: '#F5A524' }}>
+                              Yes: {prop.votes_yes} votes ({yesPercent}%)
+                            </span>
+                            <span style={{ color: '#93C5FD' }}>
+                              No: {prop.votes_no} votes ({noPercent}%)
+                            </span>
+                            <span>
+                              Abstain: {prop.votes_abstain}
+                            </span>
+                            <span style={{ color: prop.quorum_reached ? '#86EFAC' : '#A1A1AA', fontWeight: 500 }}>
+                              Quorum {prop.quorum_percent}% {prop.quorum_reached ? '✓ Reached' : ''}
+                            </span>
+                          </div>
+
+                          {/* Dual progress bar */}
+                          <div style={{ height: '7px', borderRadius: '999px', background: '#15151B', overflow: 'hidden', display: 'flex' }}>
+                            <div style={{ width: `${yesPercent}%`, background: '#F5A524', transition: 'width 0.3s ease' }} />
+                            <div style={{ width: `${noPercent}%`, background: '#93C5FD', transition: 'width 0.3s ease' }} />
+                          </div>
+                        </div>
+
+                        {/* Quick On-Chain Cast Vote Buttons */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingTop: '4px' }}>
+                          {hasVoted ? (
+                            <div
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 14px',
+                                borderRadius: '12px',
+                                background: 'rgba(74,222,128,0.1)',
+                                border: '1px solid rgba(74,222,128,0.3)',
+                                fontSize: '13px',
+                                color: '#86EFAC',
+                                fontWeight: 600,
+                              }}
+                            >
+                              <CheckCircle2 size={16} color="#4ADE80" />
+                              <span>
+                                You voted {prop.voted_choice?.toUpperCase()} with {userVotesInCol} votes on testnet
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', width: '100%' }}>
+                              <button
+                                type="button"
+                                disabled={isVoting || userVotesInCol === 0}
+                                onClick={() => handleQuickVote(prop.id, 'yes')}
+                                className="btn-primary"
+                                style={{
+                                  flex: '1 1 120px',
+                                  minHeight: '40px',
+                                  fontSize: '13px',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  opacity: userVotesInCol === 0 ? 0.5 : 1,
+                                }}
+                              >
+                                <Check size={16} strokeWidth={2.5} />
+                                {isVoting ? 'Signing...' : `Vote YES (+${userVotesInCol})`}
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isVoting || userVotesInCol === 0}
+                                onClick={() => handleQuickVote(prop.id, 'no')}
+                                className="btn-secondary"
+                                style={{
+                                  flex: '1 1 120px',
+                                  minHeight: '40px',
+                                  fontSize: '13px',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  opacity: userVotesInCol === 0 ? 0.5 : 1,
+                                }}
+                              >
+                                <X size={16} strokeWidth={2.5} />
+                                Vote NO (+${userVotesInCol})
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isVoting || userVotesInCol === 0}
+                                onClick={() => handleQuickVote(prop.id, 'abstain')}
+                                className="btn-secondary"
+                                style={{
+                                  flex: '0 1 100px',
+                                  minHeight: '40px',
+                                  fontSize: '13px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '4px',
+                                  opacity: userVotesInCol === 0 ? 0.5 : 1,
+                                }}
+                              >
+                                <Minus size={15} /> Abstain
+                              </button>
+                            </div>
+                          )}
+
+                          {userVotesInCol === 0 && (
+                            <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                              Hold at least 1 {colName} NFT to cast votes in this DAO.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
       </div>
-
-      {/* Propose Modal */}
-      {showProposeModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            display: 'grid',
-            placeItems: 'center',
-            zIndex: 99999,
-            padding: '20px',
-          }}
-        >
-          <form
-            onSubmit={handleCreateSubmit}
-            style={{
-              width: '100%',
-              maxWidth: '480px',
-              background: '#15151B',
-              border: '1px solid #2A2A33',
-              borderRadius: '24px',
-              padding: '28px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '18px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '20px' }}>Create DAO Proposal</h2>
-              <button type="button" onClick={() => setShowProposeModal(false)} style={{ background: 'transparent', border: 0, color: '#A1A1AA', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-              Proposal Type
-              <select
-                value={newKind}
-                onChange={(e) => setNewKind(e.target.value as ProposalItem['kind'])}
-                style={{
-                  minHeight: '46px',
-                  borderRadius: '12px',
-                  border: '1px solid #2A2A33',
-                  background: '#1D1D25',
-                  color: '#F4F4F5',
-                  padding: '0 12px',
-                  fontSize: '14px',
-                }}
-              >
-                <option value="Spend">Spend (Treasury Outflow)</option>
-                <option value="Distribute">Distribute (Even NFT Dividend)</option>
-                <option value="Settle">Settle (Rhea Escrow Swap)</option>
-                <option value="Swap">Swap (DEX Rebalance)</option>
-                <option value="Parameter">Parameter Change</option>
-                <option value="Text">Text (Community Signaling)</option>
-              </select>
-            </label>
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-              Proposal Title
-              <input
-                type="text"
-                required
-                placeholder="e.g. Disburse 20 NEAR for Community Marketing"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                style={{
-                  minHeight: '46px',
-                  borderRadius: '12px',
-                  border: '1px solid #2A2A33',
-                  background: '#1D1D25',
-                  color: '#F4F4F5',
-                  padding: '0 12px',
-                  fontSize: '14px',
-                }}
-              />
-            </label>
-
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-              Description &amp; Specifications
-              <textarea
-                rows={3}
-                placeholder="Details of the proposal, execution payload, receiver account..."
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                style={{
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: '1px solid #2A2A33',
-                  background: '#1D1D25',
-                  color: '#F4F4F5',
-                  fontSize: '14px',
-                }}
-              />
-            </label>
-
-            <button type="submit" className="btn-primary" style={{ minHeight: '46px' }}>
-              <Check size={16} /> Submit Proposal
-            </button>
-          </form>
-        </div>
-      )}
     </div>
   );
 };

@@ -39,6 +39,7 @@ export interface CollectionItem {
 
 export interface ProposalItem {
   id: number;
+  collection?: string;
   kind: 'Spend' | 'Distribute' | 'Settle' | 'Swap' | 'Parameter' | 'Text';
   title: string;
   description: string;

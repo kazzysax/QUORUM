@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Page, TokenItem } from '../types';
-import { Flame, ArrowUpRight, Plus, AlertTriangle, X } from 'lucide-react';
+import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck, Check } from 'lucide-react';
 
 interface PortfolioPageProps {
   nfts: TokenItem[];
@@ -8,7 +8,7 @@ interface PortfolioPageProps {
   onClaimAll: () => void;
   onClaimSingle: (token: TokenItem) => void;
   onBurnToken: (token: TokenItem) => void;
-  onAddToVault: (token: TokenItem, amount: string) => void;
+  onAddToVault: (token: TokenItem, amount: string, asset: 'NEAR' | 'USDT') => void;
 }
 
 export const PortfolioPage: React.FC<PortfolioPageProps> = ({
@@ -22,7 +22,8 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   const [selectedTokenId, setSelectedTokenId] = useState<string>(nfts[0]?.id || '');
   const [showBurnModal, setShowBurnModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addAmount, setAddAmount] = useState('10.0');
+  const [addAmount, setAddAmount] = useState('1.0');
+  const [selectedAsset, setSelectedAsset] = useState<'NEAR' | 'USDT'>('NEAR');
 
   const selectedToken = nfts.find((t) => t.id === selectedTokenId) || nfts[0];
 
@@ -63,6 +64,24 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
 
   const burnStats = selectedToken ? parseBacking(selectedToken.backing) : { youGet: '0.00 NEAR + 0.00 USDT', daoGets: '0.00 NEAR + 0.00 USDT' };
 
+  // Calculate projected new backing for Add to Vault modal
+  const calculateProjectedBacking = () => {
+    if (!selectedToken) return '';
+    const nearMatch = selectedToken.backing.match(/([\d.]+)\s*NEAR/i);
+    const usdtMatch = selectedToken.backing.match(/([\d.]+)\s*(USDT|USDC)/i);
+    let curNear = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
+    let curUsdt = usdtMatch ? parseFloat(usdtMatch[1]) : 1.0;
+
+    const added = parseFloat(addAmount) || 0;
+    if (selectedAsset === 'NEAR') {
+      curNear += added;
+    } else {
+      curUsdt += added;
+    }
+
+    return `${curNear.toFixed(2)} NEAR + ${curUsdt.toFixed(2)} USDT`;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Page Title & Claim All Header */}
@@ -82,24 +101,24 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>NFTs held</span>
           <strong style={{ fontSize: '26px', fontWeight: 700 }}>{nfts.length}</strong>
-          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Each one is a vault and a vote</span>
+          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Each one is a keyless vault &amp; DAO vote</span>
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Total backing</span>
-          <strong style={{ fontSize: '24px', fontWeight: 700 }}>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Total Backing</span>
+          <strong style={{ fontSize: '22px', fontWeight: 700, color: '#F5A524' }}>
             {totalNearBacking.toFixed(2)} NEAR + {totalUsdtBacking.toFixed(2)} USDT
           </strong>
           <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Redeemable at 90% by burning</span>
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Voting power</span>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Voting Power</span>
           <strong style={{ fontSize: '26px', fontWeight: 700 }}>{totalVotes} votes</strong>
-          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Tokens held before a vote opened count</span>
+          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Active in collection DAOs</span>
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Unclaimed distributions</span>
-          <strong style={{ fontSize: '26px', fontWeight: 700, color: '#F5A524' }}>{unclaimedTotal.toFixed(2)} NEAR</strong>
-          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Travels with the NFT if you sell</span>
+          <strong style={{ fontSize: '26px', fontWeight: 700, color: '#86EFAC' }}>{unclaimedTotal.toFixed(2)} NEAR</strong>
+          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Disbursed from secondary sales fees</span>
         </div>
       </div>
 
@@ -120,63 +139,81 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               gap: '20px',
             }}
           >
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>My NFTs</h2>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {nfts.map((nft) => {
-                const isSelected = nft.id === selectedTokenId;
-                return (
-                  <li
-                    key={nft.id}
-                    onClick={() => setSelectedTokenId(nft.id)}
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      gap: '16px',
-                      padding: '14px',
-                      borderRadius: '18px',
-                      background: '#1D1D25',
-                      border: isSelected ? '1px solid #F5A524' : '1px solid #2A2A33',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <span style={{ width: '64px', flex: 'none' }}>
-                      <img
-                        src={nft.image}
-                        alt={nft.title}
-                        style={{ display: 'block', width: '64px', height: '64px', objectFit: 'cover', borderRadius: '14px' }}
-                      />
-                    </span>
-                    <span style={{ flex: '1 1 160px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <strong style={{ fontSize: '15px' }}>{nft.title}</strong>
-                      <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        <span className="neutral-badge">{nft.asset}</span>
-                        <span className={nft.backing_status === 'credited' ? 'success-badge' : 'gold-badge'}>
-                          {nft.backing_status === 'credited' ? 'Credited' : 'In escrow'}
-                        </span>
-                      </span>
-                    </span>
-                    <span style={{ flex: '1 1 120px', display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Backing</span>
-                      <strong style={{ fontSize: '15px' }}>{nft.backing}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      className="btn-secondary"
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>My Keyless Vault NFTs</h2>
+              <span style={{ fontSize: '13px', color: '#A1A1AA' }}>{nfts.length} Total</span>
+            </div>
+
+            {nfts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#A1A1AA' }}>
+                <p>No NFTs found in your connected wallet.</p>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('marketplace')}
+                  className="btn-primary"
+                  style={{ marginTop: '12px' }}
+                >
+                  Explore Marketplace (34 Available)
+                </button>
+              </div>
+            ) : (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {nfts.map((nft) => {
+                  const isSelected = nft.id === selectedTokenId;
+                  return (
+                    <li
+                      key={nft.id}
+                      onClick={() => setSelectedTokenId(nft.id)}
                       style={{
-                        minHeight: '40px',
-                        background: isSelected ? '#F5A524' : '#1D1D25',
-                        color: isSelected ? '#111113' : '#F4F4F5',
-                        borderColor: isSelected ? '#F5A524' : '#2A2A33',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '16px',
+                        padding: '14px',
+                        borderRadius: '18px',
+                        background: '#1D1D25',
+                        border: isSelected ? '1.5px solid #F5A524' : '1px solid #2A2A33',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      {isSelected ? 'Selected' : 'Details'}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                      <span style={{ width: '64px', flex: 'none' }}>
+                        <img
+                          src={nft.image}
+                          alt={nft.title}
+                          style={{ display: 'block', width: '64px', height: '64px', objectFit: 'cover', borderRadius: '14px' }}
+                        />
+                      </span>
+                      <span style={{ flex: '1 1 160px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <strong style={{ fontSize: '15px' }}>{nft.title}</strong>
+                        <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          <span className="neutral-badge">{nft.collection}</span>
+                          <span className={nft.backing_status === 'credited' ? 'success-badge' : 'gold-badge'}>
+                            {nft.backing_status === 'credited' ? 'Vault Active' : 'In escrow'}
+                          </span>
+                        </span>
+                      </span>
+                      <span style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Supported Vault Backing</span>
+                        <strong style={{ fontSize: '14px', color: '#F5A524' }}>{nft.backing}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{
+                          minHeight: '40px',
+                          background: isSelected ? '#F5A524' : '#1D1D25',
+                          color: isSelected ? '#111113' : '#F4F4F5',
+                          borderColor: isSelected ? '#F5A524' : '#2A2A33',
+                        }}
+                      >
+                        {isSelected ? 'Managing' : 'Manage'}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
 
           {/* Unclaimed Distributions Table */}
@@ -192,13 +229,13 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               gap: '20px',
             }}
           >
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Unclaimed distributions</h2>
+            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Unclaimed Dividends</h2>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '440px' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
                     <th style={{ padding: '8px', fontWeight: 500 }}>NFT</th>
-                    <th style={{ padding: '8px', fontWeight: 500 }}>Asset</th>
+                    <th style={{ padding: '8px', fontWeight: 500 }}>Vault Account</th>
                     <th style={{ padding: '8px', fontWeight: 500 }}>Owed</th>
                     <th style={{ padding: '8px', textAlign: 'right' }}>Action</th>
                   </tr>
@@ -207,9 +244,11 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                   {nfts.map((nft) => (
                     <tr key={nft.id}>
                       <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>{nft.title}</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>NEAR</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600 }}>
-                        {nft.unclaimed_distribution || '0.00'}
+                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', fontFamily: 'monospace', fontSize: '12px' }}>
+                        {nft.vault_account}
+                      </td>
+                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600, color: '#86EFAC' }}>
+                        {nft.unclaimed_distribution || '0.00 NEAR'}
                       </td>
                       <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', textAlign: 'right' }}>
                         <button
@@ -229,7 +268,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           </section>
         </div>
 
-        {/* Right Column: Selected NFT Inspector */}
+        {/* Right Column: Selected NFT Inspector & Vault Management */}
         {selectedToken && (
           <section
             style={{
@@ -245,60 +284,59 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               minWidth: 0,
             }}
           >
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '12px', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#F5A524', fontWeight: 600 }}>
+                Vault Inspector
+              </span>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>{selectedToken.title}</h2>
+              <span style={{ fontSize: '12px', color: '#A1A1AA', fontFamily: 'monospace' }}>
+                Vault: {selectedToken.vault_account}
+              </span>
+            </div>
+
+            <div style={{ borderRadius: '18px', overflow: 'hidden', border: '1px solid #2A2A33', background: '#0A0A0D' }}>
               <img
                 src={selectedToken.image}
                 alt={selectedToken.title}
-                style={{ width: '96px', height: '96px', objectFit: 'cover', borderRadius: '18px', border: '1px solid #2A2A33' }}
+                style={{ width: '100%', height: '240px', objectFit: 'cover', display: 'block' }}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <h3 style={{ margin: 0, fontSize: '22px' }}>{selectedToken.title}</h3>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <span className="neutral-badge">{selectedToken.asset}</span>
-                  <span className={selectedToken.backing_status === 'credited' ? 'success-badge' : 'gold-badge'}>
-                    {selectedToken.backing_status === 'credited' ? 'Credited' : 'In escrow'}
-                  </span>
-                </div>
-                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-                  Vault: {selectedToken.vault_account || `v${selectedToken.token_id}.molten.testnet`}
-                </span>
+            </div>
+
+            {/* Backing Summary */}
+            <div style={{ padding: '16px', borderRadius: '16px', background: '#1D1D25', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#A1A1AA' }}>Supported Vault Backing</span>
+                <strong style={{ color: '#F5A524' }}>{selectedToken.backing}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#A1A1AA' }}>Supported Assets</span>
+                <span className="gold-badge" style={{ fontSize: '11px', padding: '1px 6px' }}>NEAR + USDT</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#A1A1AA' }}>DAO Voting Power</span>
+                <strong style={{ color: '#F4F4F5' }}>1 Vote in {selectedToken.collection} DAO</strong>
               </div>
             </div>
 
-            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-              Its vault holds {selectedToken.asset}. Only you can add to it; nothing leaves unless you burn.
-            </p>
-
-            <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
-              <div style={{ padding: '14px', borderRadius: '14px', background: '#1D1D25' }}>
-                <dt style={{ fontSize: '12px', color: '#A1A1AA' }}>Backing</dt>
-                <dd style={{ margin: '4px 0 0', fontWeight: 600 }}>{selectedToken.backing}</dd>
-              </div>
-              <div style={{ padding: '14px', borderRadius: '14px', background: '#1D1D25' }}>
-                <dt style={{ fontSize: '12px', color: '#A1A1AA' }}>Votes cast</dt>
-                <dd style={{ margin: '4px 0 0', fontWeight: 600 }}>{selectedToken.votes_cast || 0}</dd>
-              </div>
-            </dl>
-
-            {/* Liquid Exit Burn Calculation */}
+            {/* Burn Payout Estimation */}
             <div
               style={{
                 padding: '16px',
                 borderRadius: '16px',
-                border: '1px solid rgba(245,165,36,0.4)',
-                background: 'rgba(245,165,36,0.06)',
+                border: '1px solid rgba(245,165,36,0.25)',
+                background: 'rgba(245,165,36,0.04)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
               }}
             >
-              <strong style={{ fontSize: '14px' }}>If you burn it now</strong>
+              <strong style={{ fontSize: '14px' }}>Liquid Exit Valuation (If Burned Now)</strong>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                <span style={{ color: '#C4C4CC' }}>You receive (90%)</span>
+                <span style={{ color: '#C4C4CC' }}>You receive (90% floor)</span>
                 <strong style={{ color: '#86EFAC' }}>{burnStats.youGet}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                <span style={{ color: '#C4C4CC' }}>Treasury (10%)</span>
+                <span style={{ color: '#C4C4CC' }}>Treasury retained (10%)</span>
                 <span>{burnStats.daoGets}</span>
               </div>
             </div>
@@ -307,11 +345,15 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               <button
                 type="button"
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  setAddAmount('1.0');
+                  setSelectedAsset('NEAR');
+                  setShowAddModal(true);
+                }}
                 className="btn-primary"
-                style={{ flex: '1 1 120px' }}
+                style={{ flex: '1 1 140px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                <Plus size={16} /> Add to vault
+                <Plus size={16} /> Add to Vault
               </button>
               <button
                 type="button"
@@ -341,7 +383,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                   border: '1px solid rgba(252,165,165,0.3)',
                 }}
               >
-                <Flame size={16} /> Burn and redeem floor
+                <Flame size={16} /> Burn &amp; Redeem 90% Floor
               </button>
             </div>
           </section>
@@ -354,14 +396,17 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backgroundColor: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(4px)',
             display: 'grid',
             placeItems: 'center',
             zIndex: 99999,
             padding: '20px',
           }}
+          onClick={() => setShowBurnModal(false)}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
               maxWidth: '460px',
@@ -372,6 +417,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               display: 'flex',
               flexDirection: 'column',
               gap: '20px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -381,10 +427,11 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               </h2>
             </div>
             <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC' }}>
-              Burning permanently destroys the NFT, closes its keyless subaccount, and pays out <strong>90% of the vault backing ({burnStats.youGet})</strong> directly to your wallet. 10% returns to the DAO Treasury pool.
+              Burning permanently destroys this NFT, closes its keyless subaccount (<code>{selectedToken.vault_account}</code>), and pays out <strong>90% of the vault backing ({burnStats.youGet})</strong> directly to your connected wallet. 10% returns to the {selectedToken.collection} DAO Treasury.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
+                type="button"
                 onClick={() => setShowBurnModal(false)}
                 className="btn-secondary"
                 style={{ flex: 1 }}
@@ -392,6 +439,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   onBurnToken(selectedToken);
                   setShowBurnModal(false);
@@ -414,67 +462,234 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
         </div>
       )}
 
-      {/* Add To Vault Modal */}
+      {/* Add To Vault Modal - RESTRICTED STRICTLY TO SUPPORTED ASSETS (NEAR, USDT) */}
       {showAddModal && selectedToken && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            backgroundColor: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(4px)',
             display: 'grid',
             placeItems: 'center',
             zIndex: 99999,
             padding: '20px',
           }}
+          onClick={() => setShowAddModal(false)}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
-              maxWidth: '440px',
+              maxWidth: '460px',
               background: '#15151B',
               border: '1px solid #2A2A33',
               borderRadius: '24px',
               padding: '28px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '18px',
+              gap: '20px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.8)',
             }}
           >
+            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '20px' }}>Deposit into Vault</h2>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 0, color: '#A1A1AA', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#F4F4F5' }}>
+                  Deposit to Keyless Vault
+                </h2>
+                <span style={{ fontSize: '12px', color: '#A1A1AA', fontFamily: 'monospace' }}>
+                  {selectedToken.vault_account}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                style={{ background: 'transparent', border: 0, color: '#A1A1AA', cursor: 'pointer', padding: '4px' }}
+              >
                 <X size={20} />
               </button>
             </div>
-            <p style={{ margin: 0, fontSize: '14px', color: '#C4C4CC' }}>
-              Deposit FT or NEAR directly into keyless vault <code>{selectedToken.vault_account}</code>. It increases your NFT's floor redemption value.
-            </p>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-              Amount ({selectedToken.asset})
-              <input
-                type="text"
-                value={addAmount}
-                onChange={(e) => setAddAmount(e.target.value)}
-                style={{
-                  minHeight: '46px',
-                  borderRadius: '12px',
-                  border: '1px solid #2A2A33',
-                  background: '#1D1D25',
-                  color: '#F4F4F5',
-                  padding: '0 12px',
-                  fontSize: '16px',
-                }}
-              />
-            </label>
+
+            {/* Developer Rule Banner: Only Supported Assets */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                padding: '12px 14px',
+                borderRadius: '14px',
+                background: 'rgba(245,165,36,0.08)',
+                border: '1px solid rgba(245,165,36,0.3)',
+                fontSize: '12.5px',
+                color: '#FFD572',
+                lineHeight: 1.5,
+              }}
+            >
+              <ShieldCheck size={18} color="#F5A524" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong>Supported Assets Only:</strong> Per the collection developer specifications, this keyless NFT vault strictly holds <strong>NEAR</strong> and <strong>USDT</strong>. Non-supported assets are rejected by the contract.
+              </div>
+            </div>
+
+            {/* Supported Asset Selector Pills */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#D4D4D8' }}>
+                Select Supported Asset:
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAsset('NEAR')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: selectedAsset === 'NEAR' ? '1.5px solid #F5A524' : '1px solid #2A2A33',
+                    background: selectedAsset === 'NEAR' ? '#1D1D25' : '#111115',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <strong style={{ fontSize: '15px', color: selectedAsset === 'NEAR' ? '#F5A524' : '#F4F4F5' }}>
+                      NEAR Protocol
+                    </strong>
+                    {selectedAsset === 'NEAR' && <Check size={16} color="#F5A524" />}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Native Floor Reserve</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedAsset('USDT')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '14px',
+                    border: selectedAsset === 'USDT' ? '1.5px solid #F5A524' : '1px solid #2A2A33',
+                    background: selectedAsset === 'USDT' ? '#1D1D25' : '#111115',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <strong style={{ fontSize: '15px', color: selectedAsset === 'USDT' ? '#F5A524' : '#F4F4F5' }}>
+                      USDT Stablecoin
+                    </strong>
+                    {selectedAsset === 'USDT' && <Check size={16} color="#F5A524" />}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Tether USD Reserve</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Deposit Amount Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#D4D4D8' }}>Amount to Deposit</span>
+                <span style={{ color: '#A1A1AA' }}>Token: {selectedAsset}</span>
+              </div>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={addAmount}
+                  onChange={(e) => setAddAmount(e.target.value)}
+                  placeholder="0.0"
+                  style={{
+                    width: '100%',
+                    minHeight: '48px',
+                    borderRadius: '14px',
+                    border: '1px solid #2A2A33',
+                    background: '#1D1D25',
+                    color: '#F4F4F5',
+                    padding: '0 64px 0 14px',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    outline: 'none',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: '14px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: '#F5A524',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {selectedAsset}
+                </span>
+              </div>
+
+              {/* Quick Chip Presets */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {['1.0', '5.0', '10.0', '25.0'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAddAmount(preset)}
+                    style={{
+                      flex: 1,
+                      minHeight: '30px',
+                      borderRadius: '8px',
+                      background: addAmount === preset ? '#F5A524' : '#1D1D25',
+                      color: addAmount === preset ? '#111113' : '#D4D4D8',
+                      border: '1px solid #2A2A33',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +{preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Projection Card */}
+            <div
+              style={{
+                padding: '14px',
+                borderRadius: '14px',
+                background: '#111115',
+                border: '1px solid #2A2A33',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                fontSize: '13px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#A1A1AA' }}>Current Backing:</span>
+                <span style={{ color: '#D4D4D8' }}>{selectedToken.backing}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', borderTop: '1px solid #2A2A33' }}>
+                <span style={{ color: '#86EFAC', fontWeight: 600 }}>New Vault Backing:</span>
+                <strong style={{ color: '#F5A524' }}>{calculateProjectedBacking()}</strong>
+              </div>
+            </div>
+
+            {/* Submit Button */}
             <button
+              type="button"
               onClick={() => {
-                onAddToVault(selectedToken, addAmount);
+                onAddToVault(selectedToken, addAmount, selectedAsset);
                 setShowAddModal(false);
               }}
               className="btn-primary"
-              style={{ minHeight: '46px' }}
+              style={{ minHeight: '48px', fontSize: '15px' }}
             >
-              Deposit {addAmount} {selectedToken.asset}
+              Deposit {addAmount} {selectedAsset} On-Chain
             </button>
           </div>
         </div>

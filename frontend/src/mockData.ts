@@ -185,7 +185,27 @@ export const INITIAL_MARKET_LISTINGS: TokenItem[] = generateMarketListings();
 
 export const INITIAL_PROPOSALS: ProposalItem[] = [
   {
+    id: 15,
+    collection: 'Tidewater',
+    kind: 'Swap',
+    title: 'Swap 8 NEAR from Tidewater DAO treasury into USDT via Rhea pool',
+    description: 'Swaps 8 NEAR from the 20 NEAR Tidewater DAO Treasury on testnet through Rhea DEX to boost keyless vault floor reserves.',
+    status: 'Voting open',
+    time_remaining: '4d 12h',
+    near_in: '8.00 NEAR',
+    route: 'wNEAR → USDT, testnet pool #42',
+    quote_out: '40.00 USDT',
+    min_out: '39.20 USDT',
+    votes_yes: 14,
+    votes_no: 1,
+    votes_abstain: 0,
+    quorum_reached: true,
+    quorum_percent: 75,
+    voted_choice: null,
+  },
+  {
     id: 14,
+    collection: 'Molten Hours',
     kind: 'Settle',
     title: 'Swap 10 NEAR from Molten Hours DAO treasury into USDT via Rhea',
     description: 'Swaps 10 NEAR from the 20 NEAR DAO Treasury on testnet through Rhea DEX to rebalance and top-up NFT vault backing reserves.',
@@ -204,6 +224,7 @@ export const INITIAL_PROPOSALS: ProposalItem[] = [
   },
   {
     id: 13,
+    collection: 'Tidewater',
     kind: 'Spend',
     title: 'Disburse 5 NEAR from Tidewater DAO treasury for testnet audits',
     description: 'Authorizes 5 test NEAR payout from Tidewater DAO treasury for contract verification on testnet.',
@@ -217,6 +238,7 @@ export const INITIAL_PROPOSALS: ProposalItem[] = [
   },
   {
     id: 12,
+    collection: 'Molten Hours',
     kind: 'Distribute',
     title: 'Share 4 test NEAR dividend across all 20 unburned vaults',
     description: 'Distributes 4 test NEAR from secondary market sales fees evenly to every active vault (0.20 NEAR per piece).',

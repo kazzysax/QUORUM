@@ -419,8 +419,12 @@ export function App() {
     }
   };
 
-  // Add to Vault with real testnet transfer
-  const handleAddToVault = async (token: TokenItem, amount: string) => {
+  // Add to Vault with real testnet transfer (Strictly Supported Assets: NEAR, USDT)
+  const handleAddToVault = async (
+    token: TokenItem,
+    amount: string,
+    asset: 'NEAR' | 'USDT' = 'NEAR'
+  ) => {
     if (!wallet.connected || !wallet.accountId) {
       addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
       handleOpenOfficialConnect();
@@ -431,18 +435,39 @@ export function App() {
     if (addedNum <= 0) return;
 
     try {
-      addToast('info', 'Depositing to Keyless Vault...', 'Please approve the vault transfer in your wallet.');
+      addToast('info', `Depositing ${addedNum} ${asset} to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
+
+      const action = asset === 'NEAR'
+        ? createTransferAction(addedNum)
+        : createFunctionCallAction('ft_transfer', {
+            receiver_id: token.vault_account || 'v1.molten.testnet',
+            amount: (addedNum * 1000000).toString(),
+          }, '0.000000000000000000000001');
 
       const tx = await sendNearTransaction({
-        receiverId: token.vault_account || 'v1.molten.testnet',
-        actions: [createTransferAction(addedNum)],
+        receiverId: asset === 'NEAR'
+          ? (token.vault_account || 'v1.molten.testnet')
+          : 'usdt.fakes.testnet',
+        actions: [action],
         signerId: wallet.accountId,
       });
 
       const updatedUserNfts = userNfts.map((t) => {
         if (t.id !== token.id) return t;
-        const currentNear = 1.0 + addedNum;
-        return { ...t, backing: `${currentNear.toFixed(2)} NEAR + 1.00 USDT` };
+
+        const nearMatch = t.backing.match(/([\d.]+)\s*NEAR/i);
+        const usdtMatch = t.backing.match(/([\d.]+)\s*(USDT|USDC)/i);
+
+        let currentNear = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
+        let currentUsdt = usdtMatch ? parseFloat(usdtMatch[1]) : 1.0;
+
+        if (asset === 'NEAR') {
+          currentNear += addedNum;
+        } else {
+          currentUsdt += addedNum;
+        }
+
+        return { ...t, backing: `${currentNear.toFixed(2)} NEAR + ${currentUsdt.toFixed(2)} USDT` };
       });
 
       setUserNfts(updatedUserNfts);
@@ -451,11 +476,15 @@ export function App() {
       const rpcBal = await fetchNearAccountBalance(wallet.accountId);
       if (rpcBal !== null) {
         setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      } else {
+      } else if (asset === 'NEAR') {
         setWallet((prev) => ({ ...prev, balanceNear: Math.max(0, prev.balanceNear - addedNum) }));
       }
 
-      addToast('success', 'Vault Deposit Confirmed', `Tx ${tx.hash.slice(0, 10)}... Added ${amount} NEAR to ${token.vault_account}`);
+      addToast(
+        'success',
+        `Vault Deposit Confirmed (${asset})`,
+        `Tx ${tx.hash.slice(0, 10)}... Added ${amount} ${asset} to ${token.vault_account}`
+      );
     } catch (err: any) {
       console.error('Vault deposit error:', err);
       addToast('error', 'Deposit Failed', err?.message || 'Transaction rejected.');
@@ -763,7 +792,8 @@ export function App() {
         {currentPage === 'governance' && (
           <VotingsPage
             proposals={proposals}
-            userVotingPower={userNfts.length}
+            userNfts={userNfts}
+            collections={collections}
             onCastVote={handleCastVote}
             onCreateProposal={handleCreateProposal}
           />
