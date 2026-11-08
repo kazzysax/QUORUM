@@ -415,13 +415,10 @@ export function App() {
           gap: '16px',
         }}
       >
-        {/* Header Bar */}
+        {/* Header Bar: Only Search and Testnet status */}
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          wallet={wallet}
-          onOpenWallet={() => setIsWalletOpen(true)}
-          onOpenConnect={handleOpenOfficialConnect}
         />
 
         {/* Dynamic Route Content */}
