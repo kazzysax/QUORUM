@@ -35,6 +35,7 @@ export function App() {
     accountId: 'alice.testnet',
     balanceNear: 125.40,
     network: 'testnet',
+    connector: 'meteor',
   });
 
   const [collections, setCollections] = useState<CollectionItem[]>(INITIAL_COLLECTIONS);

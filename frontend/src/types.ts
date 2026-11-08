@@ -91,5 +91,6 @@ export interface UserWallet {
   accountId: string;
   balanceNear: number;
   network: 'mainnet' | 'testnet';
+  connector?: 'meteor' | 'hot' | 'mynearwallet' | 'custom';
 }
 

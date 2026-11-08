@@ -40,3 +40,4 @@ export async function fetchNearAccountBalance(accountId: string): Promise<number
     return null;
   }
 }
+

@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { UserWallet } from '../types';
-import { X, Check, RefreshCw, KeyRound, Globe, ExternalLink, Activity } from 'lucide-react';
+import {
+  X,
+  Check,
+  RefreshCw,
+  ExternalLink,
+  Activity,
+  Flame,
+  Zap,
+  CheckCircle2,
+  ArrowRight,
+  Shield,
+  Layers,
+} from 'lucide-react';
 import { fetchNearAccountBalance, NEAR_TESTNET_EXPLORER, NEAR_TESTNET_RPC } from '../near';
 
 interface WalletModalProps {
@@ -16,33 +28,98 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   wallet,
   onUpdateWallet,
 }) => {
+  const [activeTab, setActiveTab] = useState<'connectors' | 'account'>('connectors');
+  const [selectedConnector, setSelectedConnector] = useState<'meteor' | 'hot' | 'mynearwallet' | 'custom' | null>(
+    wallet.connector || 'meteor'
+  );
   const [tempId, setTempId] = useState(wallet.accountId);
   const [isCheckingRpc, setIsCheckingRpc] = useState(false);
   const [rpcStatus, setRpcStatus] = useState<string | null>(null);
+  const [hasMeteorInjected, setHasMeteorInjected] = useState(false);
+
+  // Detect Meteor injected extension on mount / open
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isMeteor = !!((window as unknown as { meteorWallet?: unknown }).meteorWallet || (window as unknown as { near?: { isMeteor?: boolean } }).near?.isMeteor);
+      setHasMeteorInjected(isMeteor);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSyncWithRpc = async (accountToSync: string) => {
+  const handleSyncWithRpc = async (accountToSync: string, connectorType?: 'meteor' | 'hot' | 'mynearwallet' | 'custom') => {
     setIsCheckingRpc(true);
     setRpcStatus('Querying NEAR testnet RPC...');
     const balance = await fetchNearAccountBalance(accountToSync);
     setIsCheckingRpc(false);
 
+    const connector = connectorType || selectedConnector || 'meteor';
+
     if (balance !== null) {
-      onUpdateWallet({ accountId: accountToSync, balanceNear: balance, connected: true });
+      onUpdateWallet({
+        accountId: accountToSync,
+        balanceNear: balance,
+        connected: true,
+        connector,
+      });
       setRpcStatus(`Synced on-chain: ${balance.toFixed(2)} test NEAR`);
     } else {
-      onUpdateWallet({ accountId: accountToSync, connected: true });
+      onUpdateWallet({
+        accountId: accountToSync,
+        connected: true,
+        connector,
+      });
       setRpcStatus(`Connected to ${accountToSync} (testnet mode)`);
     }
+    setActiveTab('account');
   };
 
-  const handleSaveAccount = () => {
+  const handleConnectMeteor = async () => {
+    setSelectedConnector('meteor');
+    // Check if Meteor injected provider is present
+    const win = typeof window !== 'undefined' ? (window as unknown as { meteorWallet?: { requestSignIn?: (opts: unknown) => Promise<unknown>; getAccountId?: () => Promise<string> } }) : null;
+    if (win?.meteorWallet?.requestSignIn) {
+      try {
+        setRpcStatus('Connecting to Meteor Wallet extension...');
+        await win.meteorWallet.requestSignIn({ contractId: 'quorum.testnet' });
+        if (win.meteorWallet.getAccountId) {
+          const accId = await win.meteorWallet.getAccountId();
+          if (accId) {
+            setTempId(accId);
+            await handleSyncWithRpc(accId, 'meteor');
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Meteor sign-in rejected or error:', err);
+      }
+    }
+    // If not injected or running in standard browser, connect with testnet account
+    const finalId = tempId.includes('.') ? tempId : `${tempId || 'meteor-user'}.testnet`;
+    setTempId(finalId);
+    handleSyncWithRpc(finalId, 'meteor');
+  };
+
+  const handleConnectHot = async () => {
+    setSelectedConnector('hot');
+    const finalId = tempId.includes('.') ? tempId : `${tempId || 'hot-user'}.tg`;
+    setTempId(finalId);
+    handleSyncWithRpc(finalId, 'hot');
+  };
+
+  const handleConnectMyNearWallet = async () => {
+    setSelectedConnector('mynearwallet');
+    const finalId = tempId.includes('.') ? tempId : `${tempId || 'mynear-user'}.testnet`;
+    setTempId(finalId);
+    handleSyncWithRpc(finalId, 'mynearwallet');
+  };
+
+  const handleManualSave = () => {
     const trimmed = tempId.trim();
     if (!trimmed) return;
     const finalId = trimmed.includes('.') ? trimmed : `${trimmed}.testnet`;
     setTempId(finalId);
-    handleSyncWithRpc(finalId);
+    handleSyncWithRpc(finalId, selectedConnector || 'custom');
   };
 
   return (
@@ -50,8 +127,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(6px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.82)',
+        backdropFilter: 'blur(8px)',
         display: 'grid',
         placeItems: 'center',
         zIndex: 9999,
@@ -63,21 +140,23 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '480px',
           background: '#15151B',
           border: '1px solid #2A2A33',
           borderRadius: '24px',
-          padding: '28px',
+          padding: '26px',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+          gap: '18px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
         }}
       >
+        {/* Modal Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#F4F4F5' }}>
-              NEAR Testnet Wallet
+              NEAR Testnet Connect
             </h2>
             <span
               style={{
@@ -103,161 +182,455 @@ export const WalletModal: React.FC<WalletModalProps> = ({
               cursor: 'pointer',
               display: 'grid',
               placeItems: 'center',
+              padding: '4px',
             }}
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Current Balance Card */}
+        {/* Tab Switcher: Connectors vs Account Details */}
         <div
+          role="tablist"
           style={{
-            padding: '16px',
-            background: '#1D1D25',
-            border: '1px solid #2A2A33',
-            borderRadius: '16px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
+            gap: '6px',
+            background: '#1D1D25',
+            padding: '4px',
+            borderRadius: '14px',
+            border: '1px solid #2A2A33',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Available Testnet Balance</span>
-            <button
-              type="button"
-              onClick={() => handleSyncWithRpc(wallet.accountId)}
-              disabled={isCheckingRpc}
-              title="Query RPC for live balance"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'transparent',
-                border: 'none',
-                color: '#A1A1AA',
-                cursor: 'pointer',
-                fontSize: '12px',
-              }}
-            >
-              <RefreshCw size={12} className={isCheckingRpc ? 'animate-spin' : ''} />
-              Sync RPC
-            </button>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Space Grotesk' }}>
-              {wallet.balanceNear.toFixed(2)} NEAR
-            </span>
-            <button
-              onClick={() => onUpdateWallet({ balanceNear: wallet.balanceNear + 25 })}
-              className="gold-badge"
-              style={{ cursor: 'pointer', border: '1px solid #F5A524', padding: '6px 12px', fontSize: '12px' }}
-            >
-              + Faucet 25 Test NEAR
-            </button>
-          </div>
-          {rpcStatus && (
-            <span style={{ fontSize: '11px', color: '#86EFAC', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Activity size={12} /> {rpcStatus}
-            </span>
-          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'connectors'}
+            onClick={() => setActiveTab('connectors')}
+            style={{
+              flex: 1,
+              minHeight: '36px',
+              borderRadius: '10px',
+              border: 0,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '13px',
+              background: activeTab === 'connectors' ? '#F5A524' : 'transparent',
+              color: activeTab === 'connectors' ? '#111113' : '#A1A1AA',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Connectors
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'account'}
+            onClick={() => setActiveTab('account')}
+            style={{
+              flex: 1,
+              minHeight: '36px',
+              borderRadius: '10px',
+              border: 0,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '13px',
+              background: activeTab === 'account' ? '#F5A524' : 'transparent',
+              color: activeTab === 'account' ? '#111113' : '#A1A1AA',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Active Account
+          </button>
         </div>
 
-        {/* Switch Account */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontSize: '13px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <KeyRound size={14} /> Active Testnet Account
-          </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={tempId}
-              onChange={(e) => setTempId(e.target.value)}
-              placeholder="e.g. yourname.testnet"
+        {/* TAB 1: CONNECTORS (Meteor Wallet & HOT Connector) */}
+        {activeTab === 'connectors' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+              Select your NEAR wallet connector:
+            </span>
+
+            {/* 1. METEOR WALLET CONNECTOR */}
+            <div
+              onClick={handleConnectMeteor}
               style={{
-                flex: 1,
-                minHeight: '44px',
-                padding: '0 12px',
-                borderRadius: '12px',
+                background: wallet.connector === 'meteor' ? 'rgba(245,165,36,0.1)' : '#1D1D25',
+                border: wallet.connector === 'meteor' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                borderRadius: '18px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #5F45FF 0%, #8E79FF 100%)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 14px rgba(95, 69, 255, 0.35)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Zap size={22} />
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ fontSize: '15px', color: '#F4F4F5' }}>Meteor Wallet</strong>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        background: 'rgba(95, 69, 255, 0.2)',
+                        color: '#B4A5FF',
+                        padding: '1px 6px',
+                        borderRadius: '999px',
+                        border: '1px solid rgba(95, 69, 255, 0.4)',
+                      }}
+                    >
+                      {hasMeteorInjected ? 'Installed 🟢' : 'Extension & Web'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                    {hasMeteorInjected ? 'Extension detected. Click to approve sign-in.' : 'Popular NEAR browser extension & web wallet'}
+                  </span>
+                </div>
+              </div>
+              {wallet.connector === 'meteor' && wallet.connected ? (
+                <CheckCircle2 size={20} color="#F5A524" />
+              ) : (
+                <ArrowRight size={18} color="#71717A" />
+              )}
+            </div>
+
+            {/* 2. HOT CONNECTOR (HOT Wallet / HERE) */}
+            <div
+              onClick={handleConnectHot}
+              style={{
+                background: wallet.connector === 'hot' ? 'rgba(245,165,36,0.1)' : '#1D1D25',
+                border: wallet.connector === 'hot' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                borderRadius: '18px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #FF5722 0%, #FF9800 100%)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 14px rgba(255, 87, 34, 0.35)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Flame size={22} />
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ fontSize: '15px', color: '#F4F4F5' }}>HOT Connector</strong>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        background: 'rgba(255, 87, 34, 0.2)',
+                        color: '#FFAB91',
+                        padding: '1px 6px',
+                        borderRadius: '999px',
+                        border: '1px solid rgba(255, 87, 34, 0.4)',
+                      }}
+                    >
+                      Telegram HOT
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                    Connect via Telegram HOT Wallet &amp; HERE Wallet app
+                  </span>
+                </div>
+              </div>
+              {wallet.connector === 'hot' && wallet.connected ? (
+                <CheckCircle2 size={20} color="#F5A524" />
+              ) : (
+                <ArrowRight size={18} color="#71717A" />
+              )}
+            </div>
+
+            {/* 3. MYNEARWALLET CONNECTOR */}
+            <div
+              onClick={handleConnectMyNearWallet}
+              style={{
+                background: wallet.connector === 'mynearwallet' ? 'rgba(245,165,36,0.1)' : '#1D1D25',
+                border: wallet.connector === 'mynearwallet' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                borderRadius: '18px',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '14px',
+                    background: '#15151B',
+                    border: '1px solid #2A2A33',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#F5A524',
+                    fontSize: '20px',
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  Ⓝ
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ fontSize: '15px', color: '#F4F4F5' }}>MyNearWallet</strong>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: '#A1A1AA',
+                        padding: '1px 6px',
+                        borderRadius: '999px',
+                      }}
+                    >
+                      Web Wallet
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                    testnet.mynearwallet.com official web wallet
+                  </span>
+                </div>
+              </div>
+              {wallet.connector === 'mynearwallet' && wallet.connected ? (
+                <CheckCircle2 size={20} color="#F5A524" />
+              ) : (
+                <ArrowRight size={18} color="#71717A" />
+              )}
+            </div>
+
+            {/* Quick Web Links for Meteor & HOT */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <a
+                href="https://wallet.meteorwallet.app"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '12px',
+                  background: '#1D1D25',
+                  border: '1px solid #2A2A33',
+                  color: '#A1A1AA',
+                  fontSize: '12px',
+                  textDecoration: 'none',
+                }}
+              >
+                <Zap size={13} color="#8E79FF" /> Meteor Web App <ExternalLink size={11} />
+              </a>
+              <a
+                href="https://t.me/herewalletbot/app"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '12px',
+                  background: '#1D1D25',
+                  border: '1px solid #2A2A33',
+                  color: '#A1A1AA',
+                  fontSize: '12px',
+                  textDecoration: 'none',
+                }}
+              >
+                <Flame size={13} color="#FF5722" /> HOT Telegram <ExternalLink size={11} />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: ACTIVE ACCOUNT & BALANCE SETTINGS */}
+        {activeTab === 'account' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Active Connector Badge */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 14px',
                 background: '#1D1D25',
                 border: '1px solid #2A2A33',
-                color: '#F4F4F5',
-                fontSize: '14px',
+                borderRadius: '14px',
               }}
-            />
-            <button
-              onClick={handleSaveAccount}
-              className="btn-primary"
-              style={{ minHeight: '44px', padding: '0 16px' }}
             >
-              <Check size={16} /> Save
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Testnet Switch Accounts */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#71717A' }}>Test Accounts:</span>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {['alice.testnet', 'bob.testnet', 'aurora.testnet', 'oceanic.testnet'].map((account) => (
-              <button
-                key={account}
-                onClick={() => {
-                  setTempId(account);
-                  handleSyncWithRpc(account);
+              <span style={{ fontSize: '13px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={14} /> Active Connector:
+              </span>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: wallet.connector === 'hot' ? '#FFAB91' : '#B4A5FF',
                 }}
-                className="neutral-badge"
-                style={{ cursor: 'pointer', fontSize: '11px', height: '28px' }}
               >
-                {account}
-              </button>
-            ))}
-          </div>
-        </div>
+                {wallet.connector === 'hot' ? (
+                  <>
+                    <Flame size={14} color="#FF5722" /> HOT Connector
+                  </>
+                ) : wallet.connector === 'meteor' ? (
+                  <>
+                    <Zap size={14} color="#5F45FF" /> Meteor Wallet
+                  </>
+                ) : (
+                  <>
+                    <Shield size={14} /> MyNearWallet
+                  </>
+                )}
+              </span>
+            </div>
 
-        {/* Network Toggle */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '13px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Globe size={14} /> Network
-          </span>
-          <div style={{ display: 'flex', gap: '8px', background: '#1D1D25', padding: '4px', borderRadius: '12px' }}>
-            <button
-              type="button"
-              onClick={() => onUpdateWallet({ network: 'testnet' })}
+            {/* Current Balance Card */}
+            <div
               style={{
-                flex: 1,
-                minHeight: '38px',
-                borderRadius: '10px',
-                border: 0,
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: '13px',
-                background: wallet.network === 'testnet' ? '#F5A524' : 'transparent',
-                color: wallet.network === 'testnet' ? '#111113' : '#A1A1AA',
+                padding: '16px',
+                background: '#1D1D25',
+                border: '1px solid #2A2A33',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
               }}
             >
-              NEAR Testnet (Active)
-            </button>
-            <button
-              type="button"
-              onClick={() => onUpdateWallet({ network: 'mainnet' })}
-              style={{
-                flex: 1,
-                minHeight: '38px',
-                borderRadius: '10px',
-                border: 0,
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: '13px',
-                background: wallet.network === 'mainnet' ? '#F5A524' : 'transparent',
-                color: wallet.network === 'mainnet' ? '#111113' : '#A1A1AA',
-              }}
-            >
-              Mainnet
-            </button>
-          </div>
-        </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Available Testnet Balance</span>
+                <button
+                  type="button"
+                  onClick={() => handleSyncWithRpc(wallet.accountId)}
+                  disabled={isCheckingRpc}
+                  title="Query RPC for live on-chain balance"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#A1A1AA',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  <RefreshCw size={12} className={isCheckingRpc ? 'animate-spin' : ''} />
+                  Sync RPC
+                </button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'Space Grotesk' }}>
+                  {wallet.balanceNear.toFixed(2)} NEAR
+                </span>
+                <button
+                  onClick={() => onUpdateWallet({ balanceNear: wallet.balanceNear + 25 })}
+                  className="gold-badge"
+                  style={{ cursor: 'pointer', border: '1px solid #F5A524', padding: '6px 12px', fontSize: '12px' }}
+                >
+                  + Faucet 25 Test NEAR
+                </button>
+              </div>
+              {rpcStatus && (
+                <span style={{ fontSize: '11px', color: '#86EFAC', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Activity size={12} /> {rpcStatus}
+                </span>
+              )}
+            </div>
 
-        {/* Testnet Explorer & RPC Details */}
+            {/* Switch Account Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                Active Account ID
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={tempId}
+                  onChange={(e) => setTempId(e.target.value)}
+                  placeholder="e.g. yourname.testnet or name.tg"
+                  style={{
+                    flex: 1,
+                    minHeight: '44px',
+                    padding: '0 12px',
+                    borderRadius: '12px',
+                    background: '#1D1D25',
+                    border: '1px solid #2A2A33',
+                    color: '#F4F4F5',
+                    fontSize: '14px',
+                  }}
+                />
+                <button
+                  onClick={handleManualSave}
+                  className="btn-primary"
+                  style={{ minHeight: '44px', padding: '0 16px' }}
+                >
+                  <Check size={16} /> Save
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Test Accounts */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: '#71717A' }}>Quick Switch Testnet Accounts:</span>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {['alice.testnet', 'bob.testnet', 'aurora.testnet', 'oceanic.testnet'].map((account) => (
+                  <button
+                    key={account}
+                    onClick={() => {
+                      setTempId(account);
+                      handleSyncWithRpc(account);
+                    }}
+                    className="neutral-badge"
+                    style={{ cursor: 'pointer', fontSize: '11px', height: '28px' }}
+                  >
+                    {account}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer Details: Explorer & Disconnect */}
         <div
           style={{
             display: 'flex',
@@ -265,7 +638,8 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             alignItems: 'center',
             fontSize: '12px',
             color: '#71717A',
-            paddingTop: '4px',
+            paddingTop: '6px',
+            borderTop: '1px solid #2A2A33',
           }}
         >
           <span>RPC: {NEAR_TESTNET_RPC.replace('https://', '')}</span>
@@ -294,7 +668,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             cursor: 'pointer',
           }}
         >
-          {wallet.connected ? 'Disconnect Wallet' : 'Connect Testnet Wallet'}
+          {wallet.connected ? 'Disconnect Wallet' : 'Connect Selected Connector'}
         </button>
       </div>
     </div>

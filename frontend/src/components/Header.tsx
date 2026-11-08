@@ -104,6 +104,24 @@ export const Header: React.FC<HeaderProps> = ({
           <span style={{ fontSize: '14px', fontWeight: 500 }}>
             {wallet.connected ? `Hi, ${wallet.accountId}` : 'Connect Wallet'}
           </span>
+          {wallet.connected && wallet.connector && (
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: '999px',
+                background: wallet.connector === 'hot' ? 'rgba(255, 87, 34, 0.15)' : 'rgba(95, 69, 255, 0.15)',
+                color: wallet.connector === 'hot' ? '#FFAB91' : '#B4A5FF',
+                border: wallet.connector === 'hot' ? '1px solid rgba(255, 87, 34, 0.3)' : '1px solid rgba(95, 69, 255, 0.3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+              }}
+            >
+              {wallet.connector === 'hot' ? '🔥 HOT' : wallet.connector === 'meteor' ? '☄️ Meteor' : 'Ⓝ MyNear'}
+            </span>
+          )}
           <span
             aria-hidden="true"
             style={{
