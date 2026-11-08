@@ -11,6 +11,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { fetchNearAccountBalance, NEAR_TESTNET_EXPLORER, NEAR_TESTNET_RPC } from '../near';
+import { disconnectNearConnect } from '../nearConnect';
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface WalletModalProps {
   wallet: UserWallet;
   onUpdateWallet: (updated: Partial<UserWallet>) => void;
   onOpenConnect: () => void;
+  onDisconnect?: () => void;
 }
 
 export const WalletModal: React.FC<WalletModalProps> = ({
@@ -26,6 +28,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   wallet,
   onUpdateWallet,
   onOpenConnect,
+  onDisconnect,
 }) => {
   const [isCheckingRpc, setIsCheckingRpc] = useState(false);
   const [rpcStatus, setRpcStatus] = useState<string | null>(null);
@@ -229,13 +232,15 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     {wallet.balanceNear.toFixed(2)} NEAR
                   </span>
                 </div>
-                <button
-                  onClick={() => onUpdateWallet({ balanceNear: wallet.balanceNear + 25 })}
+                <a
+                  href="https://near-faucet.io"
+                  target="_blank"
+                  rel="noreferrer"
                   className="gold-badge"
-                  style={{ cursor: 'pointer', border: '1px solid #F5A524', padding: '6px 12px', fontSize: '12px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', border: '1px solid #F5A524', padding: '6px 12px', fontSize: '12px' }}
                 >
-                  + Faucet 25 Test NEAR
-                </button>
+                  Get Testnet NEAR <ExternalLink size={12} />
+                </a>
               </div>
 
               {rpcStatus && (
@@ -247,8 +252,10 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
             {/* Disconnect Button */}
             <button
-              onClick={() => {
-                onUpdateWallet({ connected: false });
+              onClick={async () => {
+                await disconnectNearConnect();
+                onUpdateWallet({ connected: false, accountId: '', balanceNear: 0, connector: undefined });
+                if (onDisconnect) onDisconnect();
                 onClose();
               }}
               style={{

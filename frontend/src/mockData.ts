@@ -47,13 +47,13 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
   },
 ];
 
-// User holds 3 pieces of Molten Hours + 3 pieces of Tidewater (6 pieces total)
+// 6 pieces held by the connected testnet user (3 Molten Hours + 3 Tidewater)
 export const INITIAL_USER_NFTS: TokenItem[] = [
-  // Molten Hours pieces for User (alice.testnet)
+  // Molten Hours pieces
   {
     id: 'molt-0001',
     token_id: '0001',
-    owner_id: 'alice.testnet',
+    owner_id: '',
     collection: 'Molten Hours',
     title: 'Molten Hours #0001',
     asset: 'USDT + NEAR',
@@ -67,7 +67,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'molt-0002',
     token_id: '0002',
-    owner_id: 'alice.testnet',
+    owner_id: '',
     collection: 'Molten Hours',
     title: 'Molten Hours #0002',
     asset: 'USDT + NEAR',
@@ -81,7 +81,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'molt-0003',
     token_id: '0003',
-    owner_id: 'alice.testnet',
+    owner_id: '',
     collection: 'Molten Hours',
     title: 'Molten Hours #0003',
     asset: 'USDT + NEAR',
@@ -93,11 +93,11 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     vault_account: 'v3.molten.testnet',
   },
 
-  // Tidewater pieces for User (alice.testnet)
+  // Tidewater pieces
   {
     id: 'tide-0001',
     token_id: '0001',
-    owner_id: 'alice.testnet',
+    owner_id: '',
     collection: 'Tidewater',
     title: 'Tidewater #0001',
     asset: 'USDT + NEAR',
@@ -111,7 +111,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'tide-0002',
     token_id: '0002',
-    owner_id: 'alice.testnet',
+    owner_id: '',
     collection: 'Tidewater',
     title: 'Tidewater #0002',
     asset: 'USDT + NEAR',
@@ -125,7 +125,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
   {
     id: 'tide-0003',
     token_id: '0003',
-    owner_id: 'alice.testnet',
+    owner_id: '',
     collection: 'Tidewater',
     title: 'Tidewater #0003',
     asset: 'USDT + NEAR',
@@ -233,7 +233,7 @@ export const INITIAL_PROPOSALS: ProposalItem[] = [
 export const INITIAL_SALES_HISTORY: SaleRecord[] = [
   {
     nft_id: 'Molten Hours #0003',
-    buyer: 'alice.testnet',
+    buyer: 'collector.testnet',
     price_near: '1.00',
     to_dao: '0.05',
     royalty: '0.05',
@@ -242,7 +242,7 @@ export const INITIAL_SALES_HISTORY: SaleRecord[] = [
   },
   {
     nft_id: 'Tidewater #0003',
-    buyer: 'alice.testnet',
+    buyer: 'zenith.testnet',
     price_near: '1.00',
     to_dao: '0.05',
     royalty: '0.05',
@@ -251,7 +251,7 @@ export const INITIAL_SALES_HISTORY: SaleRecord[] = [
   },
   {
     nft_id: 'Molten Hours #0002',
-    buyer: 'alice.testnet',
+    buyer: 'crypton.testnet',
     price_near: '1.00',
     to_dao: '0.05',
     royalty: '0.05',
@@ -260,7 +260,7 @@ export const INITIAL_SALES_HISTORY: SaleRecord[] = [
   },
   {
     nft_id: 'Tidewater #0002',
-    buyer: 'alice.testnet',
+    buyer: 'aurora.testnet',
     price_near: '1.00',
     to_dao: '0.05',
     royalty: '0.05',
@@ -305,7 +305,7 @@ export const INITIAL_OFFERS: OfferItem[] = [
     nft_id: 'm-molt-0005',
     nft_title: 'Molten Hours #0005',
     image: '/images/molten-1.jpg',
-    from: 'alice.testnet',
+    from: 'zenith.testnet',
     amount_near: '1.10',
     expires_in: '4 days',
     type: 'made',

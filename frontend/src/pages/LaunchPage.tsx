@@ -5,11 +5,13 @@ import { Upload, CheckCircle2 } from 'lucide-react';
 interface LaunchPageProps {
   onNavigate: (page: Page) => void;
   onCollectionCreated: (col: CollectionItem) => void;
+  creatorAccount?: string;
 }
 
 export const LaunchPage: React.FC<LaunchPageProps> = ({
   onNavigate,
   onCollectionCreated,
+  creatorAccount,
 }) => {
   const [step, setStep] = useState(0);
 
@@ -37,7 +39,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
       id: name.toLowerCase().replace(/\s+/g, '-'),
       name,
       symbol,
-      creator: 'alice.testnet',
+      creator: creatorAccount || 'creator.testnet',
       description: desc,
       cover_image: '/images/banner-tidewater.jpg',
       avatar_image: '/images/tidewater-0.jpg',

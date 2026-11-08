@@ -46,11 +46,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         position: 'fixed',
         left: '16px',
         top: '16px',
-        width: collapsed ? '58px' : '84px',
+        width: collapsed ? '58px' : '88px',
         height: 'calc(100vh - 32px)',
         maxHeight: 'calc(100vh - 32px)',
         boxSizing: 'border-box',
-        padding: collapsed ? '14px 6px' : '16px 8px',
+        padding: collapsed ? '14px 6px' : '16px 6px',
         background: '#15151B',
         border: '1px solid #2A2A33',
         borderRadius: '22px',
@@ -79,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           onClick={() => onNavigate('landing')}
           aria-label="Quorum home"
-          title="Quorum Overview"
+          title={collapsed ? 'Quorum Overview' : undefined}
           style={{
             position: 'relative',
             width: collapsed ? '40px' : '46px',
@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        {/* Navigation Items */}
+        {/* Navigation Items - Clean golden line on selection, NO surrounding box */}
         <nav aria-label="App Navigation" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
           {navItems.map((item) => {
             const isActive = currentPage === item.page;
@@ -167,11 +167,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.page}
                 onClick={() => onNavigate(item.page)}
-                title={item.label}
+                title={collapsed ? item.label : undefined}
                 className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
                 style={{
                   position: 'relative',
-                  width: collapsed ? '44px' : '70px',
+                  width: collapsed ? '44px' : '76px',
                   minHeight: collapsed ? '44px' : '52px',
                   boxSizing: 'border-box',
                   display: 'flex',
@@ -223,6 +223,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     style={{
                       color: isActive ? '#F5A524' : 'currentColor',
                       letterSpacing: '0.01em',
+                      whiteSpace: 'nowrap',
+                      overflow: 'visible',
                       transition: 'color 0.15s ease',
                     }}
                   >
