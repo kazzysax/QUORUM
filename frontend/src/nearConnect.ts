@@ -1,12 +1,20 @@
 import { NearConnector } from '@hot-labs/near-connect';
+import nearManifest from './nearManifest.json';
 
 let connectorInstance: NearConnector | null = null;
 
 export function getNearConnector(): NearConnector {
   if (!connectorInstance) {
     connectorInstance = new NearConnector({
-      autoConnect: true,
-      network: 'mainnet', // Ensure all ecosystem wallets (HOT, Meteor, Intear, etc.) show in modal
+      autoConnect: false,
+      network: 'testnet',
+      manifest: nearManifest as unknown as {
+        wallets: any[];
+        version: string;
+      },
+      signIn: {
+        contractId: 'quorum.testnet',
+      },
     });
   }
   return connectorInstance;
@@ -57,10 +65,12 @@ export function subscribeToNearConnect(
 export async function openNearConnect(): Promise<ConnectedAccountData | null> {
   const connector = getNearConnector();
   try {
+    // Explicitly enforce testnet on the connector
+    connector.network = 'testnet';
     const wallet = await connector.connect();
     if (!wallet) return null;
 
-    const accounts = await wallet.getAccounts().catch(() => []);
+    const accounts = await wallet.getAccounts({ network: 'testnet' }).catch(() => []);
     const accountId = accounts?.[0]?.accountId;
     const connectorName = wallet.manifest?.name || 'HOT Connector';
 
