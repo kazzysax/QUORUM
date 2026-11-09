@@ -33,12 +33,12 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v4',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v4',
-  OFFERS: 'quorum_testnet_offers_v4',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v4',
-  PROPOSALS: 'quorum_testnet_proposals_v4',
-  COLLECTIONS: 'quorum_testnet_collections_v4',
+  USER_NFTS: 'quorum_testnet_user_nfts_v5',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v5',
+  OFFERS: 'quorum_testnet_offers_v5',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v5',
+  PROPOSALS: 'quorum_testnet_proposals_v5',
+  COLLECTIONS: 'quorum_testnet_collections_v5',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -309,7 +309,7 @@ export function App() {
       addToast(
         'success',
         `Purchased ${token.title}! (Tx Confirmed)`,
-        `Keyless vault transferred with 1 NEAR + 1 USDT intact. Added to your portfolio. Tx: ${tx.hash.slice(0, 10)}...`
+        `Keyless vault transferred with ${token.backing} intact. Added to your portfolio. Tx: ${tx.hash.slice(0, 10)}...`
       );
     } catch (err: any) {
       console.error('Buy listing error:', err);
@@ -454,7 +454,7 @@ export function App() {
       addToast(
         'success',
         `${token.title} Burned & Redeemed!`,
-        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundNear.toFixed(2)} NEAR + 0.90 USDT refunded to ${wallet.accountId}.`
+        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundNear.toFixed(2)} NEAR refunded to ${wallet.accountId}.`
       );
     } catch (err: any) {
       console.error('Burn error:', err);
@@ -462,12 +462,8 @@ export function App() {
     }
   };
 
-  // Add to Vault with real testnet transfer (Strictly Supported Assets: NEAR, USDT)
-  const handleAddToVault = async (
-    token: TokenItem,
-    amount: string,
-    asset: 'NEAR' | 'USDT' = 'NEAR'
-  ) => {
+  // Add to Vault with real testnet transfer (100% Native testnet NEAR)
+  const handleAddToVault = async (token: TokenItem, amount: string) => {
     if (!wallet.connected || !wallet.accountId) {
       addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
       handleOpenOfficialConnect();
@@ -478,13 +474,11 @@ export function App() {
     if (addedNum <= 0) return;
 
     try {
-      addToast('info', `Depositing ${addedNum} ${asset} to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
-
-      const depositNearAmount = asset === 'NEAR' ? addedNum : 0.001;
+      addToast('info', `Depositing ${addedNum} NEAR to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
 
       const tx = await sendNearTransaction({
         receiverId: 'testnet',
-        actions: [createTransferAction(depositNearAmount)],
+        actions: [createTransferAction(addedNum)],
         signerId: wallet.accountId,
       });
 
@@ -492,18 +486,10 @@ export function App() {
         if (t.id !== token.id) return t;
 
         const nearMatch = t.backing.match(/([\d.]+)\s*NEAR/i);
-        const usdtMatch = t.backing.match(/([\d.]+)\s*(USDT|USDC)/i);
-
         let currentNear = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
-        let currentUsdt = usdtMatch ? parseFloat(usdtMatch[1]) : 1.0;
+        currentNear += addedNum;
 
-        if (asset === 'NEAR') {
-          currentNear += addedNum;
-        } else {
-          currentUsdt += addedNum;
-        }
-
-        return { ...t, backing: `${currentNear.toFixed(2)} NEAR + ${currentUsdt.toFixed(2)} USDT` };
+        return { ...t, backing: `${currentNear.toFixed(2)} NEAR` };
       });
 
       setUserNfts(updatedUserNfts);
@@ -512,14 +498,14 @@ export function App() {
       const rpcBal = await fetchNearAccountBalance(wallet.accountId);
       if (rpcBal !== null) {
         setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      } else if (asset === 'NEAR') {
+      } else {
         setWallet((prev) => ({ ...prev, balanceNear: Math.max(0, prev.balanceNear - addedNum) }));
       }
 
       addToast(
         'success',
-        `Vault Deposit Confirmed (${asset})`,
-        `Tx ${tx.hash.slice(0, 10)}... Added ${amount} ${asset} to ${token.vault_account}`
+        `Vault Deposit Confirmed (NEAR)`,
+        `Tx ${tx.hash.slice(0, 10)}... Added ${amount} NEAR to ${token.vault_account}`
       );
     } catch (err: any) {
       console.error('Vault deposit error:', err);

@@ -314,7 +314,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   {col.description}
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderTop: '1px solid #2A2A33', paddingTop: '12px' }}>
-                  <span>Backing: <strong style={{ color: '#F4F4F5' }}>1 NEAR + 1 USDT</strong></span>
+                  <span>Backing: <strong style={{ color: '#F4F4F5' }}>1.00 NEAR</strong></span>
                   <span style={{ color: '#F5A524', fontWeight: 600 }}>Open Collection →</span>
                 </div>
               </div>
@@ -346,7 +346,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </span>
           </div>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-            Each piece holds 1 NEAR + 1 USDT in its keyless sub-account vault
+            Each piece holds 1.00 NEAR in its keyless sub-account vault
           </span>
         </div>
 
@@ -455,7 +455,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
-                  <span>Backing: 1 NEAR + 1 USDT</span>
+                  <span>Backing: 1.00 NEAR</span>
                   <a
                     href={`https://testnet.nearblocks.io/address/${token.vault_account}`}
                     target="_blank"

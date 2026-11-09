@@ -132,7 +132,7 @@ export const MintPage: React.FC<MintPageProps> = ({
           </div>
           <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(21,21,27,0.85)', border: '1px solid #2A2A33' }}>
             <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Vault Backing</span>
-            <strong style={{ fontSize: '18px', color: '#F5A524' }}>1 NEAR + 1 USDT</strong>
+            <strong style={{ fontSize: '18px', color: '#F5A524' }}>1.00 NEAR</strong>
           </div>
           <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(21,21,27,0.85)', border: '1px solid #2A2A33' }}>
             <span style={{ fontSize: '12px', color: '#A1A1AA' }}>DAO Treasury</span>
@@ -263,7 +263,7 @@ export const MintPage: React.FC<MintPageProps> = ({
               color: '#C4C4CC',
             }}
           >
-            All 20 pieces are verifiable on NEAR testnet. Each piece contains 1.00 NEAR + 1.00 USDT stored inside its individual keyless vault.
+            All 20 pieces are verifiable on NEAR testnet. Each piece contains 1.00 NEAR stored inside its individual keyless vault.
           </p>
         </div>
 
@@ -363,7 +363,7 @@ export const MintPage: React.FC<MintPageProps> = ({
             </div>
             <div style={{ padding: '14px', borderRadius: '14px', border: '1px solid #2A2A33', background: '#1D1D25' }}>
               <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Per-NFT Vault</span>
-              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#F5A524' }}>1 NEAR + 1 USDT</strong>
+              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#F5A524' }}>1.00 NEAR</strong>
             </div>
           </div>
 

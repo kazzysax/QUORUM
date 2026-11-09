@@ -43,10 +43,6 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
   const [preLimit, setPreLimit] = useState(2);
   const [pubLimit, setPubLimit] = useState(5);
 
-  // Asset plan: Vault Backing between supported assets (NEAR & USDT)
-  const [nearWeight, setNearWeight] = useState(50);
-  const [usdtWeight, setUsdtWeight] = useState(50);
-
   // Governance configuration
   const [quorumPercent, setQuorumPercent] = useState(10);
   const [votingPeriodDays, setVotingPeriodDays] = useState(3);
@@ -112,14 +108,13 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
       minted: 0,
       price_near: pubPrice || '1.00',
       floor_price_near: pubPrice || '1.00',
-      backing_summary: `1 NEAR + 1 USDT in vault`,
+      backing_summary: `${(parseFloat(pubPrice || '1.00') * 0.5).toFixed(2)} NEAR in vault`,
       royalty_percent: Number(royalty),
       change_24h: '0%',
       change_positive: true,
       status: 'live',
       asset_weights: [
-        { asset: 'USDT', weight: 1, percentage: usdtWeight },
-        { asset: 'NEAR', weight: 1, percentage: nearWeight },
+        { asset: 'NEAR', weight: 1, percentage: 100 },
       ],
     };
 
@@ -642,13 +637,13 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
             </div>
           )}
 
-          {/* Step 3: Vault Assets (Supported Assets Only) */}
+          {/* Step 3: Vault Assets (100% Native NEAR Backing) */}
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Keyless Vault Asset Allocation</h2>
                 <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                  Configure what supported testnet assets each keyless NFT vault will hold to establish its floor value.
+                  Every piece minted establishes a verifiable on-chain keyless vault holding real testnet NEAR.
                 </span>
               </div>
 
@@ -667,62 +662,28 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
               >
                 <ShieldCheck size={18} color="#F5A524" style={{ flexShrink: 0 }} />
                 <span>
-                  <strong>Supported Assets:</strong> Every keyless vault on Quorum holds <strong>NEAR</strong> and <strong>USDT</strong>. 90% is guaranteed redeemable anytime by burning the NFT.
+                  <strong>100% Native NEAR Backing:</strong> Each keyless vault holds native testnet <strong>NEAR</strong>. 90% is guaranteed redeemable at any time by burning the NFT.
                 </span>
               </div>
 
-              {/* Supported Assets Split */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {[
-                    { label: '50% NEAR / 50% USDT', near: 50, usdt: 50 },
-                    { label: '70% NEAR / 30% USDT', near: 70, usdt: 30 },
-                    { label: '30% NEAR / 70% USDT', near: 30, usdt: 70 },
-                  ].map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => {
-                        setNearWeight(preset.near);
-                        setUsdtWeight(preset.usdt);
-                      }}
-                      style={{
-                        flex: 1,
-                        minHeight: '34px',
-                        borderRadius: '10px',
-                        border: nearWeight === preset.near ? '1.5px solid #F5A524' : '1px solid #2A2A33',
-                        background: nearWeight === preset.near ? 'rgba(245,165,36,0.14)' : '#1D1D25',
-                        color: nearWeight === preset.near ? '#F5A524' : '#D4D4D8',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="gold-badge">NEAR</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="gold-badge" style={{ fontSize: '13px', padding: '4px 10px' }}>NEAR</span>
                     <div>
-                      <strong style={{ display: 'block', fontSize: '14px' }}>Native Floor Reserve</strong>
-                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Liquid NEAR backing</span>
+                      <strong style={{ display: 'block', fontSize: '15px' }}>Native Floor Reserve</strong>
+                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>100% Real NEAR on-chain liquidity</span>
                     </div>
                   </div>
-                  <strong style={{ fontSize: '16px', color: '#F5A524' }}>{nearWeight}%</strong>
+                  <strong style={{ fontSize: '18px', color: '#86EFAC' }}>100% Allocation</strong>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="gold-badge">USDT</span>
-                    <div>
-                      <strong style={{ display: 'block', fontSize: '14px' }}>Tether USD Stablecoin</strong>
-                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Decentralized stablecoin floor</span>
-                    </div>
-                  </div>
-                  <strong style={{ fontSize: '16px', color: '#F5A524' }}>{usdtWeight}%</strong>
+                <div style={{ padding: '14px', borderRadius: '14px', background: '#111115', border: '1px solid #2A2A33', fontSize: '13px', color: '#A1A1AA', lineHeight: 1.6 }}>
+                  With a mint price of <strong style={{ color: '#F4F4F5' }}>{pubPrice || '1.00'} NEAR</strong>:
+                  <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px' }}>
+                    <li><strong style={{ color: '#F5A524' }}>{(parseFloat(pubPrice || '1.00') * 0.5).toFixed(2)} NEAR</strong> goes directly into the buyer's keyless vault.</li>
+                    <li><strong style={{ color: '#86EFAC' }}>{(parseFloat(pubPrice || '1.00') * 0.5).toFixed(2)} NEAR</strong> goes to the collection DAO Treasury ({daoAccountName}).</li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -861,8 +822,8 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                   <strong>{pubPrice} NEAR</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                  <span style={{ color: '#A1A1AA' }}>Vault Backing Assets:</span>
-                  <span>50% NEAR + 50% USDT</span>
+                  <span style={{ color: '#A1A1AA' }}>Vault Backing Asset:</span>
+                  <span style={{ color: '#86EFAC', fontWeight: 600 }}>100% Native testnet NEAR</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                   <span style={{ color: '#A1A1AA' }}>DAO Treasury Account:</span>

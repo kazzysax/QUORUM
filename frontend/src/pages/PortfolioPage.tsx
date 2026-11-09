@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Page, TokenItem } from '../types';
-import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck, Check } from 'lucide-react';
+import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 
 interface PortfolioPageProps {
   nfts: TokenItem[];
@@ -11,7 +11,7 @@ interface PortfolioPageProps {
   onClaimAll: () => void;
   onClaimSingle: (token: TokenItem) => void;
   onBurnToken: (token: TokenItem) => void;
-  onAddToVault: (token: TokenItem, amount: string, asset: 'NEAR' | 'USDT') => void;
+  onAddToVault: (token: TokenItem, amount: string) => void;
 }
 
 export const PortfolioPage: React.FC<PortfolioPageProps> = ({
@@ -29,7 +29,6 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   const [showBurnModal, setShowBurnModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addAmount, setAddAmount] = useState('1.0');
-  const [selectedAsset, setSelectedAsset] = useState<'NEAR' | 'USDT'>('NEAR');
 
   const selectedToken = nfts.find((t) => t.id === selectedTokenId) || nfts[0];
 
@@ -40,52 +39,37 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
     return acc + (isNaN(val) ? 0 : val);
   }, 0);
 
-  // Calculate dynamic backing stats across all owned NFTs
+  // Calculate dynamic NEAR backing across all owned NFTs
   const totalNearBacking = nfts.reduce((acc, t) => {
     const m = t.backing.match(/([\d.]+)\s*NEAR/i);
-    return acc + (m ? parseFloat(m[1]) : 0);
-  }, 0);
-  const totalUsdtBacking = nfts.reduce((acc, t) => {
-    const m = t.backing.match(/([\d.]+)\s*(USDT|USDC)/i);
-    return acc + (m ? parseFloat(m[1]) : 0);
+    return acc + (m ? parseFloat(m[1]) : 1.0);
   }, 0);
 
-  // Calculate 90% burn value
+  // Calculate 90% burn value (Pure NEAR)
   const parseBacking = (backingStr: string) => {
     const nearMatch = backingStr.match(/([\d.]+)\s*NEAR/i);
-    const usdtMatch = backingStr.match(/([\d.]+)\s*(USDT|USDC)/i);
-    const nearNum = nearMatch ? parseFloat(nearMatch[1]) : 0;
-    const usdtNum = usdtMatch ? parseFloat(usdtMatch[1]) : 0;
+    const nearNum = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
 
     const youGetNear = (nearNum * 0.9).toFixed(2);
-    const youGetUsdt = (usdtNum * 0.9).toFixed(2);
     const daoNear = (nearNum * 0.1).toFixed(2);
-    const daoUsdt = (usdtNum * 0.1).toFixed(2);
 
     return {
-      youGet: `${youGetNear} NEAR + ${youGetUsdt} USDT`,
-      daoGets: `${daoNear} NEAR + ${daoUsdt} USDT`,
+      youGet: `${youGetNear} NEAR`,
+      daoGets: `${daoNear} NEAR`,
     };
   };
 
-  const burnStats = selectedToken ? parseBacking(selectedToken.backing) : { youGet: '0.00 NEAR + 0.00 USDT', daoGets: '0.00 NEAR + 0.00 USDT' };
+  const burnStats = selectedToken ? parseBacking(selectedToken.backing) : { youGet: '0.00 NEAR', daoGets: '0.00 NEAR' };
 
   // Calculate projected new backing for Add to Vault modal
   const calculateProjectedBacking = () => {
     if (!selectedToken) return '';
     const nearMatch = selectedToken.backing.match(/([\d.]+)\s*NEAR/i);
-    const usdtMatch = selectedToken.backing.match(/([\d.]+)\s*(USDT|USDC)/i);
     let curNear = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
-    let curUsdt = usdtMatch ? parseFloat(usdtMatch[1]) : 1.0;
-
     const added = parseFloat(addAmount) || 0;
-    if (selectedAsset === 'NEAR') {
-      curNear += added;
-    } else {
-      curUsdt += added;
-    }
+    curNear += added;
 
-    return `${curNear.toFixed(2)} NEAR + ${curUsdt.toFixed(2)} USDT`;
+    return `${curNear.toFixed(2)} NEAR`;
   };
 
   if (!walletConnected) {
@@ -130,7 +114,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           </div>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>Wallet Disconnected</h2>
           <p style={{ margin: 0, color: '#A1A1AA', fontSize: '15px', lineHeight: 1.6, maxWidth: '500px' }}>
-            Please connect your testnet wallet (<strong style={{ color: '#F4F4F5' }}>malekoala9992.testnet</strong>) to view and manage your 6 Keyless Vault NFTs, collect secondary sales dividends, deposit NEAR &amp; USDT to vaults, or dissolve for 90% floor payout.
+            Please connect your testnet wallet (<strong style={{ color: '#F4F4F5' }}>malekoala9992.testnet</strong>) to view and manage your 6 Keyless Vault NFTs, collect secondary sales dividends, deposit NEAR into vaults, or dissolve for 90% floor payout.
           </p>
           <button
             type="button"
@@ -168,10 +152,10 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Total Backing</span>
-          <strong style={{ fontSize: '22px', fontWeight: 700, color: '#F5A524' }}>
-            {totalNearBacking.toFixed(2)} NEAR + {totalUsdtBacking.toFixed(2)} USDT
+          <strong style={{ fontSize: '24px', fontWeight: 700, color: '#F5A524' }}>
+            {totalNearBacking.toFixed(2)} NEAR
           </strong>
-          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Redeemable at 90% by burning</span>
+          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>100% Real testnet NEAR in vaults</span>
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Voting Power</span>
@@ -379,8 +363,8 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                 <strong style={{ color: '#F5A524' }}>{selectedToken.backing}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#A1A1AA' }}>Supported Assets</span>
-                <span className="gold-badge" style={{ fontSize: '11px', padding: '1px 6px' }}>NEAR + USDT</span>
+                <span style={{ color: '#A1A1AA' }}>Supported Asset</span>
+                <span className="gold-badge" style={{ fontSize: '11px', padding: '1px 6px' }}>100% NEAR</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: '#A1A1AA' }}>DAO Voting Power</span>
@@ -417,7 +401,6 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                 type="button"
                 onClick={() => {
                   setAddAmount('1.0');
-                  setSelectedAsset('NEAR');
                   setShowAddModal(true);
                 }}
                 className="btn-primary"
@@ -532,7 +515,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
         </div>
       )}
 
-      {/* Add To Vault Modal - RESTRICTED STRICTLY TO SUPPORTED ASSETS (NEAR, USDT) */}
+      {/* Add To Vault Modal - 100% Native testnet NEAR */}
       {showAddModal && selectedToken && (
         <div
           style={{
@@ -581,7 +564,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
               </button>
             </div>
 
-            {/* Developer Rule Banner: Only Supported Assets */}
+            {/* Native Asset Backing Banner */}
             <div
               style={{
                 display: 'flex',
@@ -598,65 +581,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
             >
               <ShieldCheck size={18} color="#F5A524" style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <strong>Supported Assets Only:</strong> Per the collection developer specifications, this keyless NFT vault strictly holds <strong>NEAR</strong> and <strong>USDT</strong>. Non-supported assets are rejected by the contract.
-              </div>
-            </div>
-
-            {/* Supported Asset Selector Pills */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#D4D4D8' }}>
-                Select Supported Asset:
-              </span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAsset('NEAR')}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '14px',
-                    border: selectedAsset === 'NEAR' ? '1.5px solid #F5A524' : '1px solid #2A2A33',
-                    background: selectedAsset === 'NEAR' ? '#1D1D25' : '#111115',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: '4px',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <strong style={{ fontSize: '15px', color: selectedAsset === 'NEAR' ? '#F5A524' : '#F4F4F5' }}>
-                      NEAR Protocol
-                    </strong>
-                    {selectedAsset === 'NEAR' && <Check size={16} color="#F5A524" />}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Native Floor Reserve</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedAsset('USDT')}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '14px',
-                    border: selectedAsset === 'USDT' ? '1.5px solid #F5A524' : '1px solid #2A2A33',
-                    background: selectedAsset === 'USDT' ? '#1D1D25' : '#111115',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: '4px',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <strong style={{ fontSize: '15px', color: selectedAsset === 'USDT' ? '#F5A524' : '#F4F4F5' }}>
-                      USDT Stablecoin
-                    </strong>
-                    {selectedAsset === 'USDT' && <Check size={16} color="#F5A524" />}
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Tether USD Reserve</span>
-                </button>
+                <strong>100% Native NEAR Asset Backing:</strong> Deposit testnet NEAR directly into this keyless vault. 90% becomes instantly redeemable on burn.
               </div>
             </div>
 
@@ -664,7 +589,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: '#D4D4D8' }}>Amount to Deposit</span>
-                <span style={{ color: '#A1A1AA' }}>Token: {selectedAsset}</span>
+                <span style={{ color: '#A1A1AA' }}>Asset: NEAR Protocol</span>
               </div>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
@@ -697,13 +622,13 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                     pointerEvents: 'none',
                   }}
                 >
-                  {selectedAsset}
+                  NEAR
                 </span>
               </div>
 
               {/* Quick Chip Presets */}
               <div style={{ display: 'flex', gap: '6px' }}>
-                {['1.0', '5.0', '10.0', '25.0'].map((preset) => (
+                {['0.5', '1.0', '2.0', '5.0'].map((preset) => (
                   <button
                     key={preset}
                     type="button"
@@ -753,13 +678,13 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
             <button
               type="button"
               onClick={() => {
-                onAddToVault(selectedToken, addAmount, selectedAsset);
+                onAddToVault(selectedToken, addAmount);
                 setShowAddModal(false);
               }}
               className="btn-primary"
               style={{ minHeight: '48px', fontSize: '15px' }}
             >
-              Deposit {addAmount} {selectedAsset} On-Chain
+              Deposit {addAmount} NEAR On-Chain
             </button>
           </div>
         </div>
