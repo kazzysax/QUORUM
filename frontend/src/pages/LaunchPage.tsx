@@ -165,8 +165,8 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                     background: isCurrent
                       ? 'rgba(245,165,36,0.14)'
                       : isDone
-                      ? '#1D1D25'
-                      : 'transparent',
+                        ? '#1D1D25'
+                        : 'transparent',
                     color: isCurrent ? '#F5A524' : isDone ? '#F4F4F5' : '#A1A1AA',
                     border: isCurrent
                       ? '1.5px solid rgba(245,165,36,0.6)'

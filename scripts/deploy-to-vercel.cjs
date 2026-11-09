@@ -13,7 +13,7 @@ function getVercelToken() {
       const data = JSON.parse(fs.readFileSync(authPath, 'utf8'));
       if (data.token) return data.token;
     }
-  } catch (_) {}
+  } catch (_) { }
   throw new Error('Vercel token not found in environment or auth.json');
 }
 
@@ -139,8 +139,8 @@ async function main() {
       outputDirectory: 'dist'
     },
     meta: {
-      gitCommitSha: 'c33a32e',
-      gitCommitMessage: 'fix(onchain): route transactions to valid testnet accounts and assign user NFTs to malekoala9992.testnet',
+      gitCommitSha: '4f1fecc',
+      gitCommitMessage: 'fix(vaults): eradicate USDT, back all NFTs 100% with native NEAR, and route transactions to verified testnet accounts',
       actor: 'antigravity'
     }
   };

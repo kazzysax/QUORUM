@@ -33,12 +33,12 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v5',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v5',
-  OFFERS: 'quorum_testnet_offers_v5',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v5',
-  PROPOSALS: 'quorum_testnet_proposals_v5',
-  COLLECTIONS: 'quorum_testnet_collections_v5',
+  USER_NFTS: 'quorum_testnet_user_nfts_v6',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v6',
+  OFFERS: 'quorum_testnet_offers_v6',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v6',
+  PROPOSALS: 'quorum_testnet_proposals_v6',
+  COLLECTIONS: 'quorum_testnet_collections_v6',
 };
 
 function loadStored<T>(key: string, fallback: T): T {
@@ -260,10 +260,7 @@ export function App() {
       addToast('info', 'Initiating Testnet Transaction...', 'Please approve the purchase in your connected wallet.');
 
       // Receiver must be an account that exists on NEAR testnet!
-      // aurora.testnet exists on testnet. If not aurora.testnet, route to testnet
-      const recipient = (token.owner_id && token.owner_id === 'aurora.testnet')
-        ? 'aurora.testnet'
-        : 'testnet';
+      const recipient = token.owner_id || 'qrm1.testnet';
 
       const tx = await sendNearTransaction({
         receiverId: recipient,
@@ -329,7 +326,7 @@ export function App() {
       addToast('info', 'Registering Listing On-Chain...', 'Please approve the listing authorization in your wallet.');
 
       const tx = await sendNearTransaction({
-        receiverId: 'testnet',
+        receiverId: 'mkt.qrm1.testnet',
         actions: [createTransferAction('0.0001')],
         signerId: wallet.accountId,
       });
@@ -427,9 +424,10 @@ export function App() {
     try {
       addToast('info', 'Initiating Vault Dissolution & Burn...', 'Please sign the burn authorization in your wallet.');
 
-      // Receiver is 'testnet' so NEAR RPC executes cleanly without AccountDoesNotExist error!
+      // Burn contract receiver on NEAR testnet
+      const burnContract = token.collection === 'Tidewater' ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
       const tx = await sendNearTransaction({
-        receiverId: 'testnet',
+        receiverId: burnContract,
         actions: [
           createTransferAction('0.001'),
         ],
@@ -531,7 +529,7 @@ export function App() {
       addToast('info', 'Submitting Vote On-Chain...', 'Please sign the vote transaction with your connected wallet.');
 
       const tx = await sendNearTransaction({
-        receiverId: 'testnet',
+        receiverId: 'dao.qrm1.testnet',
         actions: [createTransferAction('0.0001')],
         signerId: wallet.accountId,
       });

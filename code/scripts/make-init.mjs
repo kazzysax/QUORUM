@@ -20,14 +20,18 @@ const plan = need("ASSET_PLAN").split(",").map((p) => {
   return { token, weight: Number(weight) };
 });
 
-const presaleMin = Number(e.PRESALE_MIN ?? 60), publicMin = Number(e.PUBLIC_MIN ?? 180);
+const presaleMin = Number(e.PRESALE_MIN ?? 60), publicMin = Number(e.PUBLIC_MIN ?? (365 * 24 * 60));
 const stages = [];
 if (e.PRESALE_ROOT_B64) {
-  stages.push({ name: "Presale", kind: "Presale", price_near: yocto(e.PRESALE_NEAR ?? 1), start_ms: String(now + 2 * min),
-    end_ms: String(now + presaleMin * min), per_wallet_limit: 2, merkle_root: e.PRESALE_ROOT_B64 });
+  stages.push({
+    name: "Presale", kind: "Presale", price_near: yocto(e.PRESALE_NEAR ?? 1), start_ms: String(now - 60 * min),
+    end_ms: String(now + presaleMin * min), per_wallet_limit: 10, merkle_root: e.PRESALE_ROOT_B64
+  });
 }
-stages.push({ name: "Public", kind: "Public", price_near: yocto(e.PUBLIC_NEAR ?? 2),
-  start_ms: String(now + (e.PRESALE_ROOT_B64 ? presaleMin : 2) * min), end_ms: String(now + publicMin * min), per_wallet_limit: 5, merkle_root: null });
+stages.push({
+  name: "Public", kind: "Public", price_near: yocto(e.PUBLIC_NEAR ?? 1),
+  start_ms: String(now - 60 * min), end_ms: String(now + publicMin * min), per_wallet_limit: 20, merkle_root: null
+});
 
 console.log(JSON.stringify({
   args: {

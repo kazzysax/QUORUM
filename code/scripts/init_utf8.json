@@ -1,0 +1,44 @@
+{
+  "args": {
+    "metadata": {
+      "spec": "nft-1.0.0",
+      "name": "Molten Hours",
+      "symbol": "MOLT"
+    },
+    "config": {
+      "founder": "qrm1.testnet",
+      "treasury": "tre.qrm1.testnet",
+      "dao": "dao.qrm1.testnet",
+      "vault_allowlist": [],
+      "vault_code_hash": "DQALgt8fazwvRPFKdz2j5Eek9kacchwFm2vCucLDPCn8",
+      "mint_storage_cost": "30000000000000000000000",
+      "max_supply": 20,
+      "stages": [
+        {
+          "name": "Public",
+          "kind": "Public",
+          "price_near": "1000000000000000000000000",
+          "start_ms": "1794190013801",
+          "end_ms": "1825729613801",
+          "per_wallet_limit": 20,
+          "merkle_root": null
+        }
+      ],
+      "royalty_bps": 500,
+      "royalty_recipient": "qrm1.testnet",
+      "metadata_base_url": "http://localhost:8080",
+      "media_base_url": "http://localhost:8080/media",
+      "paused": false,
+      "provenance_hash": null,
+      "asset_plan": [
+        {
+          "token": "near",
+          "weight": 1
+        }
+      ],
+      "dex": "v2.ref-finance.testnet",
+      "wrap_account": "wrap.testnet",
+      "settle_grace_ms": "1209600000"
+    }
+  }
+}
