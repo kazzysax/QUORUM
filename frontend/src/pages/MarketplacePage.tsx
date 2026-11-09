@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { CollectionItem, TokenItem, Page, OfferItem } from '../types';
+import type { CollectionItem, TokenItem, Page, OfferItem, ProposalItem } from '../types';
 import {
   ArrowRight,
   ArrowLeft,
@@ -17,6 +17,9 @@ import {
   Activity,
   BarChart3,
   Sparkles,
+  Landmark,
+  CheckSquare,
+  Clock,
 } from 'lucide-react';
 import {
   COLLECTION_HOLDERS,
@@ -30,11 +33,14 @@ interface MarketplacePageProps {
   listings: TokenItem[];
   selectedCollectionId?: string | null;
   walletAccountId?: string;
+  proposals?: ProposalItem[];
+  userNfts?: TokenItem[];
   onNavigate: (page: Page) => void;
   onSelectCollection: (collectionId: string | null) => void;
   onBuyListing: (token: TokenItem) => void;
   onPlaceOffer?: (targetNft: TokenItem, amountNear: string) => void;
   onAcceptOffer?: (offer: OfferItem) => void;
+  onCastVote?: (proposalId: number, choice: 'yes' | 'no' | 'abstain') => void;
 }
 
 export const MarketplacePage: React.FC<MarketplacePageProps> = ({
@@ -42,21 +48,25 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   listings,
   selectedCollectionId,
   walletAccountId,
+  proposals,
+  userNfts,
   onNavigate: _onNavigate,
   onSelectCollection,
   onBuyListing,
   onPlaceOffer,
   onAcceptOffer,
+  onCastVote,
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
   const [collectionFilter, setCollectionFilter] = useState<'all' | 'Molten Hours' | 'Tidewater'>('all');
 
   // Dedicated Collection View State
-  const [collectionTab, setCollectionTab] = useState<'items' | 'offers' | 'holders' | 'traits' | 'activity' | 'analytics'>('items');
+  const [collectionTab, setCollectionTab] = useState<'items' | 'offers' | 'holders' | 'traits' | 'activity' | 'analytics' | 'dao'>('items');
   const [copiedContract, setCopiedContract] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [itemSort, setItemSort] = useState<'id-asc' | 'id-desc' | 'price-asc' | 'price-desc'>('id-asc');
   const [activityFilter, setActivityFilter] = useState<'all' | 'Sale' | 'Mint' | 'Burn & Redeem' | 'List'>('all');
+  const [daoVoteFilter, setDaoVoteFilter] = useState<'active' | 'past'>('active');
 
   // Quick Offer Modal State
   const [offerModalToken, setOfferModalToken] = useState<TokenItem | null>(null);
@@ -162,6 +172,23 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       return act.event === activityFilter;
     });
     const colOffers = COLLECTION_OFFERS[activeCollection.id] || [];
+
+    // DAO Governance Proposals & Voting Rights
+    const collectionProposals = (proposals || []).filter(
+      (p) =>
+        !p.collection ||
+        p.collection.toLowerCase() === activeCollection.name.toLowerCase() ||
+        p.collection === activeCollection.symbol
+    );
+    const activeProposals = collectionProposals.filter((p) => p.status === 'Voting open');
+    const pastProposals = collectionProposals.filter((p) => p.status !== 'Voting open');
+
+    const userTokensInCollection = (userNfts || []).filter(
+      (t) =>
+        t.collection.toLowerCase() === activeCollection.name.toLowerCase() ||
+        t.collection === activeCollection.symbol
+    );
+    const userVotingPower = userTokensInCollection.length;
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
@@ -399,6 +426,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             { id: 'traits', label: `Traits (${traits.length})`, icon: Sparkles },
             { id: 'activity', label: 'Activity', icon: Activity },
             { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+            { id: 'dao', label: 'DAO', icon: Landmark },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = collectionTab === tab.id;
@@ -1066,6 +1094,543 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               </div>
             </div>
           </section>
+        )}
+
+        {/* ===================================================================
+            TAB 7: DAO (ROUND BALL ASSET ORB, TREASURY HOLDINGS & VOTES)
+           =================================================================== */}
+        {collectionTab === 'dao' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+            {/* Top Row: Round Ball Orb + Treasury Holdings Card */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '28px',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#15151B',
+                border: '1px solid #2A2A33',
+                borderRadius: '24px',
+                padding: '32px',
+                boxSizing: 'border-box',
+              }}
+            >
+              {/* THE ROUND BALL (TREASURY ASSET ORB - MATCHING IMAGE 2) */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '320px',
+                  height: '320px',
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  boxShadow:
+                    '0 0 60px rgba(168, 85, 247, 0.45), 0 0 120px rgba(139, 92, 246, 0.25), inset 0 0 50px rgba(255, 255, 255, 0.35), inset 0 -25px 45px rgba(124, 58, 237, 0.5)',
+                  border: '2px solid rgba(255, 255, 255, 0.4)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#0D0D14',
+                  flexShrink: 0,
+                }}
+              >
+                {/* Image 2 Luminous Ribbon Sculpture Background */}
+                <img
+                  src="/images/dao-orb.jpg"
+                  alt="DAO Treasury Orb"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    filter: 'brightness(0.92) contrast(1.15)',
+                    transform: 'scale(1.05)',
+                  }}
+                />
+
+                {/* Soft Glass Specular Sheen & Radial Depth */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background:
+                      'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.06) 50%, rgba(139,92,246,0.4) 100%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+
+                {/* Dynamic Asset Liquid Level Across Bottom Hemisphere */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '36%',
+                    background:
+                      'linear-gradient(180deg, rgba(168, 85, 247, 0.25) 0%, rgba(139, 92, 246, 0.7) 100%)',
+                    backdropFilter: 'blur(3px)',
+                    borderTop: '1.5px solid rgba(255, 255, 255, 0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingBottom: '12px',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: '#FFFFFF',
+                      textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                      background: 'rgba(10,10,13,0.6)',
+                      padding: '4px 12px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                    }}
+                  >
+                    10.00 NEAR • 100% Reserve
+                  </span>
+                </div>
+
+                {/* Central Asset Badge HUD Inside the Orb */}
+                <div
+                  style={{
+                    position: 'relative',
+                    zIndex: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(10, 10, 14, 0.78)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: '22px',
+                    padding: '16px 24px',
+                    boxShadow: '0 12px 36px rgba(0,0,0,0.65)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: '#000000',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: '#86EFAC',
+                      }}
+                    >
+                      N
+                    </div>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#F4F4F5', letterSpacing: '0.05em' }}>
+                      NEAR
+                    </span>
+                    <span className="success-badge" style={{ fontSize: '10px', padding: '2px 6px' }}>
+                      Asset Inside
+                    </span>
+                  </div>
+
+                  <strong
+                    style={{
+                      fontSize: '32px',
+                      fontWeight: 800,
+                      fontFamily: 'Space Grotesk',
+                      color: '#FFFFFF',
+                      letterSpacing: '-0.02em',
+                      marginTop: '4px',
+                    }}
+                  >
+                    10.00 NEAR
+                  </strong>
+
+                  <span style={{ fontSize: '13px', color: '#A1A1AA' }}>~$52.00 USD</span>
+
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      color: '#D8B4FE',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.07em',
+                      marginTop: '2px',
+                    }}
+                  >
+                    DAO Treasury Collateral
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Side: DAO Treasury Holdings Breakdown Card */}
+              <div
+                style={{
+                  flex: '1 1 360px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '18px',
+                  minWidth: 0,
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="gold-badge">100% On-Chain Reserve</span>
+                    <span className="neutral-badge">dao.qrm1.testnet</span>
+                  </div>
+                  <h2 style={{ margin: '8px 0 4px', fontSize: '26px', fontWeight: 700 }}>
+                    {activeCollection.name} DAO Treasury
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
+                    50% of collection mint revenues are permanently locked into this community treasury.
+                    Every minted NFT represents 1 governance share and voting right over treasury disbursements.
+                  </p>
+                </div>
+
+                {/* 4 Stat Boxes */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>TREASURY VALUE</span>
+                    <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>10.00 NEAR</strong>
+                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>~$52.00 USD</span>
+                  </div>
+                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>ASSET ALLOCATION</span>
+                    <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>100% NEAR</strong>
+                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Native protocol token</span>
+                  </div>
+                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>PER-NFT SHARE</span>
+                    <strong style={{ display: 'block', fontSize: '18px', color: '#F4F4F5', marginTop: '2px' }}>0.50 NEAR</strong>
+                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Equal distribution pool</span>
+                  </div>
+                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>QUORUM REQUIREMENT</span>
+                    <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>51% Majority</strong>
+                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>11 of 20 votes to pass</span>
+                  </div>
+                </div>
+
+                {/* Treasury Assets Table */}
+                <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '14px', overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', color: '#71717A', fontSize: '11px', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '6px 8px' }}>Asset</th>
+                        <th style={{ padding: '6px 8px' }}>Amount</th>
+                        <th style={{ padding: '6px 8px' }}>USD Value</th>
+                        <th style={{ padding: '6px 8px' }}>Share</th>
+                        <th style={{ padding: '6px 8px' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#86EFAC', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>N</div>
+                            <strong>NEAR (Native)</strong>
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
+                          10.00 NEAR
+                        </td>
+                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                          ~$52.00
+                        </td>
+                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                          100.0%
+                        </td>
+                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                          <span className="success-badge" style={{ fontSize: '11px' }}>Liquid Reserve</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyContract('dao.qrm1.testnet')}
+                    className="btn-secondary"
+                    style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Copy size={14} /> Copy DAO Address
+                  </button>
+                  <a
+                    href="https://testnet.nearblocks.io/address/dao.qrm1.testnet"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary"
+                    style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+                  >
+                    <ExternalLink size={14} /> View DAO on NearBlocks
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Section: Neat Active Votes and Past Votes */}
+            <section
+              style={{
+                background: '#15151B',
+                border: '1px solid #2A2A33',
+                borderRadius: '24px',
+                padding: '24px',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>DAO Governance &amp; Proposals</h2>
+                  <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                    Cast on-chain votes using your {activeCollection.name} NFT voting rights.
+                  </span>
+                </div>
+
+                {/* Active vs Past Votes Toggle Pills */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setDaoVoteFilter('active')}
+                    style={{
+                      minHeight: '36px',
+                      padding: '0 16px',
+                      borderRadius: '999px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: daoVoteFilter === 'active' ? '#F5A524' : '#1D1D25',
+                      color: daoVoteFilter === 'active' ? '#111113' : '#D4D4D8',
+                      border: daoVoteFilter === 'active' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                    }}
+                  >
+                    Active Votes ({activeProposals.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDaoVoteFilter('past')}
+                    style={{
+                      minHeight: '36px',
+                      padding: '0 16px',
+                      borderRadius: '999px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: daoVoteFilter === 'past' ? '#F5A524' : '#1D1D25',
+                      color: daoVoteFilter === 'past' ? '#111113' : '#D4D4D8',
+                      border: daoVoteFilter === 'past' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                    }}
+                  >
+                    Past Votes ({pastProposals.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* User Voting Power Banner */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '14px',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  borderRadius: '16px',
+                  background: '#1D1D25',
+                  border: '1px solid #2A2A33',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <CheckSquare size={18} color="#F5A524" />
+                  <span style={{ fontSize: '14px' }}>
+                    Connected Account: <strong style={{ color: '#F4F4F5' }}>{walletAccountId || 'Not Connected'}</strong>
+                  </span>
+                </div>
+                <div>
+                  {userVotingPower > 0 ? (
+                    <span className="success-badge" style={{ fontSize: '13px', padding: '4px 12px' }}>
+                      Your Voting Power: {userVotingPower} {userVotingPower === 1 ? 'Vote' : 'Votes'} ({userTokensInCollection.map((t) => `#${t.token_id}`).join(', ')})
+                    </span>
+                  ) : (
+                    <span className="neutral-badge" style={{ fontSize: '12px' }}>
+                      0 Voting Power (Hold {activeCollection.name} NFTs to vote)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* ACTIVE VOTES LIST */}
+              {daoVoteFilter === 'active' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {activeProposals.length === 0 ? (
+                    <div style={{ padding: '36px', textAlign: 'center', color: '#71717A' }}>
+                      No active proposals currently open for voting in this collection.
+                    </div>
+                  ) : (
+                    activeProposals.map((prop) => {
+                      const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
+                      const yesPct = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
+                      return (
+                        <div
+                          key={prop.id}
+                          style={{
+                            background: '#1D1D25',
+                            border: '1px solid #2A2A33',
+                            borderRadius: '18px',
+                            padding: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '14px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span className="gold-badge">Proposal #{prop.id}</span>
+                              <span className="neutral-badge">{prop.kind}</span>
+                              <span className="success-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <Clock size={12} /> {prop.time_remaining} left
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '13px', color: '#86EFAC', fontWeight: 600 }}>
+                              {prop.quorum_percent}% Quorum Reached
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 600 }}>{prop.title}</h3>
+                            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.5, color: '#A1A1AA' }}>
+                              {prop.description}
+                            </p>
+                          </div>
+
+                          {prop.route && (
+                            <div style={{ fontSize: '13px', color: '#D4D4D8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ color: '#71717A' }}>Route:</span>
+                              <strong>{prop.route}</strong>
+                            </div>
+                          )}
+
+                          {/* Quorum Progress Bar */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
+                              <span>Yes: {prop.votes_yes} ({yesPct}%)</span>
+                              <span>No: {prop.votes_no}</span>
+                              <span>Abstain: {prop.votes_abstain}</span>
+                            </div>
+                            <div style={{ width: '100%', height: '8px', background: '#2A2A33', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                              <div style={{ width: `${yesPct}%`, height: '100%', background: '#86EFAC' }} />
+                              <div style={{ width: `${totalVotes > 0 ? ((prop.votes_no / totalVotes) * 100) : 0}%`, height: '100%', background: '#EF4444' }} />
+                            </div>
+                          </div>
+
+                          {/* Voting Action Buttons */}
+                          {onCastVote && (
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px solid #2A2A33', paddingTop: '12px' }}>
+                              <button
+                                type="button"
+                                disabled={userVotingPower === 0}
+                                onClick={() => onCastVote(prop.id, 'yes')}
+                                className="btn-secondary"
+                                style={{
+                                  minHeight: '38px',
+                                  padding: '0 18px',
+                                  fontSize: '13px',
+                                  color: userVotingPower > 0 ? '#86EFAC' : '#71717A',
+                                  borderColor: userVotingPower > 0 ? 'rgba(34,197,94,0.4)' : '#2A2A33',
+                                }}
+                              >
+                                Vote Yes ({userVotingPower} {userVotingPower === 1 ? 'Vote' : 'Votes'})
+                              </button>
+                              <button
+                                type="button"
+                                disabled={userVotingPower === 0}
+                                onClick={() => onCastVote(prop.id, 'no')}
+                                className="btn-secondary"
+                                style={{
+                                  minHeight: '38px',
+                                  padding: '0 18px',
+                                  fontSize: '13px',
+                                  color: userVotingPower > 0 ? '#EF4444' : '#71717A',
+                                  borderColor: userVotingPower > 0 ? 'rgba(239,68,68,0.4)' : '#2A2A33',
+                                }}
+                              >
+                                Vote No
+                              </button>
+                              <button
+                                type="button"
+                                disabled={userVotingPower === 0}
+                                onClick={() => onCastVote(prop.id, 'abstain')}
+                                className="btn-secondary"
+                                style={{ minHeight: '38px', padding: '0 18px', fontSize: '13px' }}
+                              >
+                                Abstain
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* PAST VOTES LIST */}
+              {daoVoteFilter === 'past' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {pastProposals.length === 0 ? (
+                    <div style={{ padding: '36px', textAlign: 'center', color: '#71717A' }}>
+                      No past proposals recorded yet for this collection.
+                    </div>
+                  ) : (
+                    pastProposals.map((prop) => (
+                      <div
+                        key={prop.id}
+                        style={{
+                          background: '#1D1D25',
+                          border: '1px solid #2A2A33',
+                          borderRadius: '16px',
+                          padding: '18px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span className="neutral-badge">Proposal #{prop.id}</span>
+                            <span className="success-badge">● Passed &amp; Executed</span>
+                            <span className="neutral-badge">{prop.kind}</span>
+                          </div>
+                          <span style={{ fontSize: '12px', color: '#86EFAC', fontWeight: 600 }}>
+                            {prop.votes_yes} Yes • {prop.votes_no} No (Quorum: {prop.quorum_percent}%)
+                          </span>
+                        </div>
+
+                        <div>
+                          <strong style={{ fontSize: '16px', display: 'block', marginBottom: '4px' }}>{prop.title}</strong>
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
+                            {prop.description}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
         )}
 
         {/* Quick Offer Modal */}

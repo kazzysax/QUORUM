@@ -34,19 +34,19 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v10',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v10',
-  OFFERS: 'quorum_testnet_offers_v10',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v10',
-  PROPOSALS: 'quorum_testnet_proposals_v10',
-  COLLECTIONS: 'quorum_testnet_collections_v10',
+  USER_NFTS: 'quorum_testnet_user_nfts_v11',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v11',
+  OFFERS: 'quorum_testnet_offers_v11',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v11',
+  PROPOSALS: 'quorum_testnet_proposals_v11',
+  COLLECTIONS: 'quorum_testnet_collections_v11',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v10')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v11')) {
       localStorage.removeItem(k);
     }
   }
@@ -876,6 +876,8 @@ export function App() {
             listings={marketListings}
             selectedCollectionId={selectedCollectionId}
             walletAccountId={wallet.accountId}
+            proposals={proposals}
+            userNfts={displayedUserNfts}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => {
               setSelectedCollectionId(colId);
@@ -883,6 +885,7 @@ export function App() {
             onBuyListing={handleBuyListing}
             onPlaceOffer={handlePlaceOffer}
             onAcceptOffer={handleAcceptOffer}
+            onCastVote={handleCastVote}
           />
         )}
 
@@ -902,6 +905,8 @@ export function App() {
             listings={marketListings}
             selectedCollectionId={selectedCollectionId || 'molten-hours'}
             walletAccountId={wallet.accountId}
+            proposals={proposals}
+            userNfts={displayedUserNfts}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => {
               setSelectedCollectionId(colId);
@@ -909,6 +914,7 @@ export function App() {
             onBuyListing={handleBuyListing}
             onPlaceOffer={handlePlaceOffer}
             onAcceptOffer={handleAcceptOffer}
+            onCastVote={handleCastVote}
           />
         )}
 
