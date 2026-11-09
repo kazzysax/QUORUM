@@ -105,12 +105,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectCo
             <button
               onClick={() => {
                 if (onSelectCollection) onSelectCollection('molten-hours');
-                onNavigate('mint');
+                onNavigate('marketplace');
               }}
               className="btn-secondary"
               style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
             >
-              Mint Molten Hours
+              Explore Molten Hours
+            </button>
+            <button
+              onClick={() => {
+                if (onSelectCollection) onSelectCollection('tidewater');
+                onNavigate('marketplace');
+              }}
+              className="btn-secondary"
+              style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
+            >
+              Explore Tidewater
             </button>
             <button
               onClick={() => onNavigate('launch')}

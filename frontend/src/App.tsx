@@ -26,7 +26,6 @@ import {
 } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
-import { MintPage } from './pages/MintPage';
 import { PortfolioPage } from './pages/PortfolioPage';
 import { VotingsPage } from './pages/VotingsPage';
 import { LaunchPage } from './pages/LaunchPage';
@@ -35,23 +34,23 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v8',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v8',
-  OFFERS: 'quorum_testnet_offers_v8',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v8',
-  PROPOSALS: 'quorum_testnet_proposals_v8',
-  COLLECTIONS: 'quorum_testnet_collections_v8',
+  USER_NFTS: 'quorum_testnet_user_nfts_v9',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v9',
+  OFFERS: 'quorum_testnet_offers_v9',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v9',
+  PROPOSALS: 'quorum_testnet_proposals_v9',
+  COLLECTIONS: 'quorum_testnet_collections_v9',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v8')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v9')) {
       localStorage.removeItem(k);
     }
   }
-} catch (_) {}
+} catch (_) { }
 
 function loadStored<T>(key: string, fallback: T): T {
   try {
@@ -75,7 +74,7 @@ function persistState<T>(key: string, data: T): void {
 
 export function App() {
   const [currentPage, setCurrentPage] = useState<Page>('marketplace');
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string>('molten-hours');
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -173,7 +172,7 @@ export function App() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       isMounted = false;
@@ -231,9 +230,6 @@ export function App() {
     }
   };
 
-  // Active collection being viewed
-  const activeCollection = collections.find((c) => c.id === selectedCollectionId) || collections[0];
-
   // User NFTs strictly filtered to the connected wallet account
   // When disconnected (!wallet.connected), returns empty array [] so no mock NFTs are visible!
   const displayedUserNfts = useMemo(() => {
@@ -246,15 +242,6 @@ export function App() {
       return false;
     });
   }, [wallet.connected, wallet.accountId, userNfts]);
-
-  // Mint Handler: Collection is capped at 20 pieces each
-  const handleMint = (_stage: 'pre' | 'pub', _totalNear: number) => {
-    addToast(
-      'info',
-      'Mint Concluded (20/20 Minted)',
-      `Both collections are capped at 20 pieces each on NEAR testnet. Explore the 34 available listings in the Marketplace.`
-    );
-  };
 
   // Buy Listing Handler with real NEAR testnet transaction execution
   const handleBuyListing = async (token: TokenItem) => {
@@ -887,10 +874,10 @@ export function App() {
           <MarketplacePage
             collections={collections}
             listings={marketListings}
+            selectedCollectionId={selectedCollectionId}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => {
               setSelectedCollectionId(colId);
-              setCurrentPage('mint');
             }}
             onBuyListing={handleBuyListing}
           />
@@ -901,16 +888,21 @@ export function App() {
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => {
               setSelectedCollectionId(colId);
-              setCurrentPage('mint');
+              setCurrentPage('marketplace');
             }}
           />
         )}
 
         {currentPage === 'mint' && (
-          <MintPage
-            collection={activeCollection}
+          <MarketplacePage
+            collections={collections}
+            listings={marketListings}
+            selectedCollectionId={selectedCollectionId || 'molten-hours'}
             onNavigate={setCurrentPage}
-            onMint={handleMint}
+            onSelectCollection={(colId) => {
+              setSelectedCollectionId(colId);
+            }}
+            onBuyListing={handleBuyListing}
           />
         )}
 

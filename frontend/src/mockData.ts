@@ -45,23 +45,9 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
   },
 ];
 
-// 6 pieces held by the connected testnet user (3 Molten Hours + 3 Tidewater)
+// 5 unburned pieces held by the connected testnet user (2 Molten Hours + 3 Tidewater; Molten #1 was burned on testnet)
 export const INITIAL_USER_NFTS: TokenItem[] = [
-  // Molten Hours pieces
-  {
-    id: 'molt-1',
-    token_id: '1',
-    owner_id: 'malekoala9992.testnet',
-    collection: 'Molten Hours',
-    title: 'Molten Hours #1',
-    asset: 'NEAR',
-    backing: '0.50 NEAR',
-    backing_status: 'credited',
-    image: '/images/molten-0.jpg',
-    votes_cast: 3,
-    unclaimed_distribution: '0.00 NEAR',
-    vault_account: 'v1.molten.qrm1.testnet',
-  },
+  // Molten Hours pieces (Piece #1 was burned for 0.45 NEAR floor redemption)
   {
     id: 'molt-2',
     token_id: '2',
