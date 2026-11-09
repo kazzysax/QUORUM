@@ -139,8 +139,8 @@ async function main() {
       outputDirectory: 'dist'
     },
     meta: {
-      gitCommitSha: '4f1fecc',
-      gitCommitMessage: 'fix(vaults): eradicate USDT, back all NFTs 100% with native NEAR, and route transactions to verified testnet accounts',
+      gitCommitSha: '9621dd6',
+      gitCommitMessage: 'feat(onchain): deploy Molten Hours and Tidewater to testnet, mint and transfer 6 NFTs to malekoala9992.testnet',
       actor: 'antigravity'
     }
   };

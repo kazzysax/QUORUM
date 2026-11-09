@@ -13,7 +13,7 @@ export function getNearConnector(): NearConnector {
         version: string;
       },
       signIn: {
-        contractId: 'quorum.testnet',
+        contractId: 'qrm1.testnet',
       },
     });
   }

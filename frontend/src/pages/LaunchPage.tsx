@@ -10,7 +10,7 @@ import {
 
 interface LaunchPageProps {
   onNavigate: (page: Page) => void;
-  onCollectionCreated: (col: CollectionItem) => void;
+  onCollectionCreated: (col: CollectionItem) => void | Promise<void>;
   creatorAccount?: string;
 }
 
@@ -94,13 +94,13 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
 
   const daoAccountName = `dao.${(name || 'collection').toLowerCase().replace(/[^a-z0-9]/g, '')}.testnet`;
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     const collectionId = (name || 'collection').toLowerCase().replace(/[^a-z0-9]/g, '-');
     const newCollection: CollectionItem = {
       id: collectionId,
       name: name.trim() || 'Untitled Collection',
       symbol: (symbol.trim() || 'NFT').toUpperCase(),
-      creator: creatorAccount || 'creator.testnet',
+      creator: creatorAccount || 'qrm1.testnet',
       description: desc.trim() || 'Collection launched on Quorum with keyless DAO and per-NFT vault backing.',
       cover_image: bannerPreview || '/images/banner-molten.jpg',
       avatar_image: avatarPreview || artPreview || '/images/molten-0.jpg',
@@ -118,7 +118,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
       ],
     };
 
-    onCollectionCreated(newCollection);
+    await onCollectionCreated(newCollection);
     onNavigate('marketplace');
   };
 
