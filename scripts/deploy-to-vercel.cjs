@@ -139,8 +139,8 @@ async function main() {
       outputDirectory: 'dist'
     },
     meta: {
-      gitCommitSha: '9621dd6',
-      gitCommitMessage: 'feat(onchain): deploy Molten Hours and Tidewater to testnet, mint and transfer 6 NFTs to malekoala9992.testnet',
+      gitCommitSha: '119e9d0',
+      gitCommitMessage: 'fix(onchain): wire burn, vault deposit, listing and launch to verified testnet contracts; auto-sync real NFTs from NEAR RPC',
       actor: 'antigravity'
     }
   };
