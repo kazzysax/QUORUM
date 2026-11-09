@@ -34,19 +34,19 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v9',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v9',
-  OFFERS: 'quorum_testnet_offers_v9',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v9',
-  PROPOSALS: 'quorum_testnet_proposals_v9',
-  COLLECTIONS: 'quorum_testnet_collections_v9',
+  USER_NFTS: 'quorum_testnet_user_nfts_v10',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v10',
+  OFFERS: 'quorum_testnet_offers_v10',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v10',
+  PROPOSALS: 'quorum_testnet_proposals_v10',
+  COLLECTIONS: 'quorum_testnet_collections_v10',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v9')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v10')) {
       localStorage.removeItem(k);
     }
   }
@@ -875,11 +875,14 @@ export function App() {
             collections={collections}
             listings={marketListings}
             selectedCollectionId={selectedCollectionId}
+            walletAccountId={wallet.accountId}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => {
               setSelectedCollectionId(colId);
             }}
             onBuyListing={handleBuyListing}
+            onPlaceOffer={handlePlaceOffer}
+            onAcceptOffer={handleAcceptOffer}
           />
         )}
 
@@ -898,11 +901,14 @@ export function App() {
             collections={collections}
             listings={marketListings}
             selectedCollectionId={selectedCollectionId || 'molten-hours'}
+            walletAccountId={wallet.accountId}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => {
               setSelectedCollectionId(colId);
             }}
             onBuyListing={handleBuyListing}
+            onPlaceOffer={handlePlaceOffer}
+            onAcceptOffer={handleAcceptOffer}
           />
         )}
 
@@ -943,6 +949,7 @@ export function App() {
             nfts={displayedUserNfts}
             salesHistory={salesHistory}
             walletConnected={wallet.connected}
+            walletAccountId={wallet.accountId}
             onOpenConnect={handleOpenOfficialConnect}
             onListNft={handleListNft}
             onCancelListing={handleCancelListing}
@@ -955,6 +962,9 @@ export function App() {
             userNfts={displayedUserNfts}
             marketListings={marketListings}
             userBalance={wallet.balanceNear}
+            walletConnected={wallet.connected}
+            walletAccountId={wallet.accountId}
+            onOpenConnect={handleOpenOfficialConnect}
             onNavigate={setCurrentPage}
             onAcceptOffer={handleAcceptOffer}
             onCancelOffer={handleCancelOffer}

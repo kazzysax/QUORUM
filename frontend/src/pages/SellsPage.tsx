@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import type { TokenItem, SaleRecord } from '../types';
-import { Tag, AlertCircle } from 'lucide-react';
+import { Tag } from 'lucide-react';
 
 interface SellsPageProps {
   nfts: TokenItem[];
   salesHistory: SaleRecord[];
   walletConnected?: boolean;
+  walletAccountId?: string;
   onOpenConnect?: () => void;
   onListNft: (token: TokenItem, priceNear: string) => void;
   onCancelListing: (token: TokenItem) => void;
@@ -15,6 +16,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
   nfts,
   salesHistory,
   walletConnected = true,
+  walletAccountId,
   onOpenConnect,
   onListNft,
   onCancelListing,
@@ -33,6 +35,11 @@ export const SellsPage: React.FC<SellsPageProps> = ({
 
   const activeListedTokens = nfts.filter((t) => !!t.price);
 
+  // Personalized sales history strictly for the connected wallet
+  const personalSales = walletAccountId
+    ? salesHistory.filter((s) => s.seller === walletAccountId || s.buyer === walletAccountId)
+    : [];
+
   const handleListSubmit = () => {
     if (!selectedNft || !isValidPrice) return;
     onListNft(selectedNft, priceNum.toFixed(2));
@@ -42,7 +49,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Sells</h1>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Sells</h1>
         </div>
         <div
           style={{
@@ -77,7 +84,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
           </div>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>Wallet Disconnected</h2>
           <p style={{ margin: 0, color: '#A1A1AA', fontSize: '15px', lineHeight: 1.6, maxWidth: '500px' }}>
-            Please connect your testnet wallet (<strong style={{ color: '#F4F4F5' }}>malekoala9992.testnet</strong>) to list your Keyless Vault NFTs for sale on the Quorum marketplace.
+            Connect your NEAR testnet wallet to view your personalized listings, list your held NFTs, and track your completed sales.
           </p>
           <button
             type="button"
@@ -96,13 +103,18 @@ export const SellsPage: React.FC<SellsPageProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Page Title */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Sells</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Sells & Listings</h1>
+          {walletAccountId && <span className="neutral-badge">{walletAccountId}</span>}
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start' }}>
-        {/* Left: List an NFT Form */}
+        {/* Left: List an NFT */}
         <section
           style={{
+            flex: '1 1 380px',
+            minWidth: 0,
             background: '#15151B',
             border: '1px solid #2A2A33',
             borderRadius: '24px',
@@ -111,132 +123,110 @@ export const SellsPage: React.FC<SellsPageProps> = ({
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
-            flex: '1 1 380px',
-            minWidth: 0,
           }}
         >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>List an NFT</h2>
-          </div>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>List an NFT</h2>
 
-          {/* NFT Selection */}
-          <div role="group" aria-label="Choose an NFT" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            {nfts.map((item) => {
-              const isSelected = item.id === selectedNftId;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedNftId(item.id)}
+          {nfts.length === 0 ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '16px', border: '1px solid #2A2A33' }}>
+              You do not hold any unlisted NFTs in your connected wallet. Acquire pieces from the Marketplace or view your Portfolio.
+            </div>
+          ) : (
+            <>
+              {/* NFT Selector */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 500, color: '#D4D4D8' }}>Select NFT to list</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' }}>
+                  {nfts.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setSelectedNftId(t.id)}
+                      style={{
+                        padding: '6px',
+                        borderRadius: '12px',
+                        background: selectedNftId === t.id ? 'rgba(245, 165, 36, 0.15)' : '#1D1D25',
+                        border: selectedNftId === t.id ? '2px solid #F5A524' : '1px solid #2A2A33',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <img src={t.image} alt={t.title} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px' }} />
+                      <span style={{ fontSize: '11px', color: '#F4F4F5', fontWeight: 600 }}>#{t.token_id}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedNft && (
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'center', padding: '12px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33' }}>
+                  <img src={selectedNft.image} alt={selectedNft.title} style={{ width: '56px', height: '56px', borderRadius: '10px', objectFit: 'cover' }} />
+                  <div>
+                    <strong style={{ fontSize: '15px' }}>{selectedNft.title}</strong>
+                    <span style={{ fontSize: '12px', color: '#A1A1AA', display: 'block' }}>Keyless Vault: {selectedNft.backing}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Price Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 500, color: '#D4D4D8' }}>Listing Price (NEAR)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={priceInput}
+                  onChange={(e) => setPriceInput(e.target.value)}
                   style={{
-                    flex: '1 1 140px',
-                    minWidth: 0,
-                    padding: '10px',
-                    borderRadius: '16px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
                     background: '#1D1D25',
-                    border: isSelected ? '1px solid #F5A524' : '1px solid #2A2A33',
+                    border: '1px solid #2A2A33',
                     color: '#F4F4F5',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    transition: 'all 0.15s ease',
+                    fontSize: '16px',
+                    fontFamily: 'Space Grotesk',
                   }}
-                >
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: '12px' }}
-                  />
-                  <span style={{ fontSize: '14px', fontWeight: 600 }}>{item.title}</span>
-                  <span style={{ fontSize: '12px', color: '#A1A1AA' }}>{item.asset} · {item.backing}</span>
-                </button>
-              );
-            })}
-          </div>
+                />
+              </div>
 
-          {/* Price input */}
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-            Price (NEAR)
-            <input
-              type="text"
-              inputMode="decimal"
-              value={priceInput}
-              onChange={(e) => setPriceInput(e.target.value)}
-              placeholder="e.g. 2.40"
-              style={{
-                minHeight: '50px',
-                borderRadius: '14px',
-                border: '1px solid #2A2A33',
-                background: '#1D1D25',
-                color: '#F4F4F5',
-                fontSize: '18px',
-                fontWeight: 600,
-                padding: '0 14px',
-              }}
-            />
-          </label>
+              {/* Fee Breakdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#A1A1AA' }}>
+                  <span>To DAO Treasury (5%)</span>
+                  <span>{toDao} NEAR</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#A1A1AA' }}>
+                  <span>Creator Royalty (5%)</span>
+                  <span>{royalty} NEAR</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #2A2A33', paddingTop: '8px', fontWeight: 600 }}>
+                  <span>You receive (90%)</span>
+                  <span style={{ color: '#86EFAC' }}>{netSeller} NEAR</span>
+                </div>
+              </div>
 
-          {/* Fee Calculation Breakdown */}
-          <div style={{ padding: '16px', borderRadius: '16px', background: '#1D1D25', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '14px' }}>
-              <span style={{ color: '#C4C4CC' }}>Sale price</span>
-              <span style={{ fontWeight: 500 }}>{isValidPrice ? priceNum.toFixed(2) : '0.00'} NEAR</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '14px' }}>
-              <span style={{ color: '#C4C4CC' }}>DAO treasury (5%)</span>
-              <span style={{ fontWeight: 500, color: '#A1A1AA' }}>− {toDao} NEAR</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '14px' }}>
-              <span style={{ color: '#C4C4CC' }}>Creator royalty (5%)</span>
-              <span style={{ fontWeight: 500, color: '#A1A1AA' }}>− {royalty} NEAR</span>
-            </div>
-            <div style={{ height: '1px', background: '#2A2A33' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '14px' }}>
-              <span style={{ color: '#C4C4CC' }}>You receive</span>
-              <span style={{ fontWeight: 700, fontSize: '16px', color: '#86EFAC' }}>{netSeller} NEAR</span>
-            </div>
-          </div>
-
-          {/* Vault warning */}
-          {selectedNft && (
-            <p
-              style={{
-                margin: 0,
-                padding: '12px 14px',
-                borderRadius: '12px',
-                border: '1px solid rgba(245,165,36,0.4)',
-                background: 'rgba(245,165,36,0.06)',
-                fontSize: '13px',
-                lineHeight: 1.55,
-                color: '#E4E4E7',
-                display: 'flex',
-                gap: '8px',
-              }}
-            >
-              <AlertCircle size={18} color="#F5A524" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span>
-                Selling #{selectedNft.token_id} also transfers its vault ({selectedNft.backing}). A buyer can burn for 90% of it, so pricing below that gives value away.
+              <button
+                type="button"
+                onClick={handleListSubmit}
+                disabled={!isValidPrice || !selectedNft}
+                className="btn-primary"
+                style={{ minHeight: '48px', fontSize: '15px' }}
+              >
+                <Tag size={16} /> List #{selectedNft?.token_id} for {isValidPrice ? priceNum.toFixed(2) : '0.00'} NEAR
+              </button>
+              <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                Non-custodial NEP-178 listing. You retain asset custody until an exact price match executes.
               </span>
-            </p>
+            </>
           )}
-
-          <button
-            type="button"
-            disabled={!isValidPrice || !selectedNft}
-            onClick={handleListSubmit}
-            className="btn-primary"
-            style={{ minHeight: '50px', fontSize: '15px' }}
-          >
-            <Tag size={16} /> List #{selectedNft?.token_id} for {isValidPrice ? priceNum.toFixed(2) : '0.00'} NEAR
-          </button>
-          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-            Non-custodial NEP-178 listing. You retain asset custody until an exact price match executes.
-          </span>
         </section>
 
-        {/* Right: Active Listings + Sales History */}
+        {/* Right: Active Listings + Personalized Sales History */}
         <div style={{ flex: '999 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Active Listings */}
           <section
@@ -251,9 +241,15 @@ export const SellsPage: React.FC<SellsPageProps> = ({
               gap: '20px',
             }}
           >
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Your active listings</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Your active listings</h2>
+              <span className="gold-badge">{activeListedTokens.length} Listed</span>
+            </div>
+
             {activeListedTokens.length === 0 ? (
-              <span style={{ fontSize: '14px', color: '#71717A' }}>No active listings currently. Select an NFT on the left to list.</span>
+              <span style={{ fontSize: '14px', color: '#71717A' }}>
+                You have no active listings. Select an NFT on the left to list it.
+              </span>
             ) : (
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {activeListedTokens.map((item) => (
@@ -277,7 +273,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
                     />
                     <span style={{ flex: '1 1 160px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       <strong style={{ fontSize: '15px' }}>{item.title}</strong>
-                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Listed today</span>
+                      <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Vault: {item.backing}</span>
                     </span>
                     <strong style={{ fontSize: '16px', color: '#F5A524' }}>{item.price} NEAR</strong>
                     <button
@@ -294,7 +290,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
             )}
           </section>
 
-          {/* Sales History */}
+          {/* Personalized Sales History */}
           <section
             style={{
               background: '#15151B',
@@ -307,33 +303,71 @@ export const SellsPage: React.FC<SellsPageProps> = ({
               gap: '20px',
             }}
           >
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Sales history</h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '500px' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
-                    <th style={{ padding: '8px' }}>NFT</th>
-                    <th style={{ padding: '8px' }}>Buyer</th>
-                    <th style={{ padding: '8px' }}>Price (NEAR)</th>
-                    <th style={{ padding: '8px' }}>To DAO</th>
-                    <th style={{ padding: '8px' }}>Royalty</th>
-                    <th style={{ padding: '8px' }}>You got</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {salesHistory.map((s, idx) => (
-                    <tr key={idx}>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>{s.nft_id}</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>{s.buyer}</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>{s.price_near}</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>{s.to_dao}</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>{s.royalty}</td>
-                      <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600, color: '#86EFAC' }}>{s.net_seller}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Your sales history</h2>
+              <span className="neutral-badge">{personalSales.length} Completed</span>
             </div>
+
+            {personalSales.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#71717A', fontSize: '14px' }}>
+                No completed sales yet for {walletAccountId || 'your wallet'}. When a buyer purchases one of your listings, your settlement and net earnings (90% seller payout) will appear here.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '500px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
+                      <th style={{ padding: '8px' }}>NFT</th>
+                      <th style={{ padding: '8px' }}>Role</th>
+                      <th style={{ padding: '8px' }}>Counterparty</th>
+                      <th style={{ padding: '8px' }}>Price (NEAR)</th>
+                      <th style={{ padding: '8px' }}>To DAO</th>
+                      <th style={{ padding: '8px' }}>Royalty</th>
+                      <th style={{ padding: '8px' }}>Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {personalSales.map((s, idx) => {
+                      const isSeller = s.seller === walletAccountId;
+                      return (
+                        <tr key={idx}>
+                          <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <strong>{s.nft_id}</strong>
+                          </td>
+                          <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <span className={isSeller ? 'success-badge' : 'neutral-badge'} style={{ fontSize: '11px' }}>
+                              {isSeller ? 'Sold' : 'Bought'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            {isSeller ? s.buyer : s.seller || 'Marketplace'}
+                          </td>
+                          <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600 }}>
+                            {s.price_near} NEAR
+                          </td>
+                          <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            {s.to_dao}
+                          </td>
+                          <td style={{ padding: '12px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            {s.royalty}
+                          </td>
+                          <td
+                            style={{
+                              padding: '12px 8px',
+                              borderTop: '1px solid #2A2A33',
+                              fontWeight: 600,
+                              color: isSeller ? '#86EFAC' : '#F4F4F5',
+                            }}
+                          >
+                            {isSeller ? `+${s.net_seller} NEAR` : `-${s.price_near} NEAR`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </div>
       </div>

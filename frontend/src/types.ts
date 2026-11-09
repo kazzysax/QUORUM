@@ -16,6 +16,50 @@ export interface TokenItem {
   vault_account?: string;
 }
 
+export interface CollectionStats {
+  floorPrice: string;
+  floorChange1D: string;
+  topOffer: string;
+  volume24H: string;
+  totalVolume: string;
+  listedCount: number;
+  listedPercent: number;
+  uniqueOwnersCount: number;
+  uniqueOwnersPercent: number;
+  contractId: string;
+  createdDate: string;
+  royaltyPercent: number;
+}
+
+export interface CollectionTrait {
+  name: string;
+  category: string;
+  rarityPercent: number;
+  count: number;
+}
+
+export interface CollectionHolder {
+  rank: number;
+  accountId: string;
+  tokensHeld: string[];
+  count: number;
+  percent: number;
+  votingPower: number;
+  vaultValueNear: string;
+}
+
+export interface CollectionActivity {
+  id: string;
+  event: 'Mint' | 'Sale' | 'Burn & Redeem' | 'List' | 'Transfer' | 'Offer';
+  tokenId: string;
+  title: string;
+  priceNear?: string;
+  from: string;
+  to: string;
+  date: string;
+  txHash: string;
+}
+
 export interface CollectionItem {
   id: string;
   name: string;
@@ -35,6 +79,7 @@ export interface CollectionItem {
   status: 'live' | 'upcoming' | 'soldout';
   opens_in?: string;
   asset_weights: { asset: string; weight: number; percentage: number }[];
+  stats?: CollectionStats;
 }
 
 export interface ProposalItem {
@@ -69,11 +114,14 @@ export interface ActiveListing {
 export interface SaleRecord {
   nft_id: string;
   buyer: string;
+  seller?: string;
+  collection?: string;
   price_near: string;
   to_dao: string;
   royalty: string;
   net_seller: string;
   date: string;
+  tx_hash?: string;
 }
 
 export interface OfferItem {
@@ -82,6 +130,8 @@ export interface OfferItem {
   nft_title: string;
   image: string;
   from: string;
+  to?: string;
+  collection?: string;
   amount_near: string;
   expires_in: string;
   type: 'received' | 'made';

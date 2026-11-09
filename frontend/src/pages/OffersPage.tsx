@@ -7,6 +7,9 @@ interface OffersPageProps {
   userNfts: TokenItem[];
   marketListings: TokenItem[];
   userBalance: number;
+  walletConnected?: boolean;
+  walletAccountId?: string;
+  onOpenConnect?: () => void;
   onNavigate: (page: Page) => void;
   onAcceptOffer: (offer: OfferItem) => void;
   onCancelOffer: (offer: OfferItem) => void;
@@ -15,9 +18,12 @@ interface OffersPageProps {
 
 export const OffersPage: React.FC<OffersPageProps> = ({
   offers,
-  userNfts: _userNfts,
+  userNfts,
   marketListings,
   userBalance,
+  walletConnected = true,
+  walletAccountId,
+  onOpenConnect,
   onNavigate,
   onAcceptOffer,
   onCancelOffer,
@@ -30,7 +36,20 @@ export const OffersPage: React.FC<OffersPageProps> = ({
   const [offerAmount, setOfferAmount] = useState('1.20');
   const [expiresInDays, setExpiresInDays] = useState('7');
 
-  const filteredOffers = offers.filter((o) => (tab === 'rec' ? o.type === 'received' : o.type === 'made'));
+  // Personalized offers strictly for the connected user:
+  // 1. Received: Offers on NFTs currently held by the user in userNfts
+  const receivedOffers = offers.filter((o) =>
+    o.type === 'received' &&
+    (o.to === walletAccountId || userNfts.some((n) => n.id === o.nft_id || n.title.toLowerCase() === o.nft_title.toLowerCase()))
+  );
+
+  // 2. Made: Offers placed by this connected user
+  const madeOffers = offers.filter((o) =>
+    o.type === 'made' &&
+    (o.from === walletAccountId || !walletAccountId)
+  );
+
+  const filteredOffers = tab === 'rec' ? receivedOffers : madeOffers;
   const selectedListing = marketListings.find((l) => l.id === selectedListingId) || marketListings[0];
 
   const handlePlaceOfferSubmit = (e: React.FormEvent) => {
@@ -41,12 +60,67 @@ export const OffersPage: React.FC<OffersPageProps> = ({
     onPlaceOffer(selectedListing, amountNum.toFixed(2));
   };
 
+  if (!walletConnected) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Offers</h1>
+        </div>
+        <div
+          style={{
+            background: '#15151B',
+            border: '1px solid #2A2A33',
+            borderRadius: '24px',
+            padding: '56px 32px',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '18px',
+            maxWidth: '640px',
+            margin: '30px auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              background: 'rgba(245, 165, 36, 0.1)',
+              border: '1px solid rgba(245, 165, 36, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#F5A524',
+            }}
+          >
+            <Tag size={34} />
+          </div>
+          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>Wallet Disconnected</h2>
+          <p style={{ margin: 0, color: '#A1A1AA', fontSize: '15px', lineHeight: 1.6, maxWidth: '500px' }}>
+            Connect your NEAR testnet wallet to view incoming bids on your Keyless Vault NFTs and manage your active escrowed offers.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenConnect}
+            className="btn-primary"
+            style={{ minHeight: '46px', padding: '0 30px', fontSize: '15px', fontWeight: 600, marginTop: '8px' }}
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Page Title & Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Offers</h1>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Offers</h1>
+          {walletAccountId && <span className="neutral-badge">{walletAccountId}</span>}
           <span className="gold-badge">On-chain Escrow</span>
         </div>
         <div role="group" aria-label="Offer list" style={{ display: 'flex', gap: '8px' }}>
@@ -65,7 +139,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
               border: tab === 'rec' ? '1px solid #F5A524' : '1px solid #2A2A33',
             }}
           >
-            Received ({offers.filter((o) => o.type === 'received').length})
+            Received ({receivedOffers.length})
           </button>
           <button
             type="button"
@@ -82,7 +156,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
               border: tab === 'made' ? '1px solid #F5A524' : '1px solid #2A2A33',
             }}
           >
-            Made ({offers.filter((o) => o.type === 'made').length})
+            Made ({madeOffers.length})
           </button>
         </div>
       </div>
@@ -138,7 +212,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>
-              {tab === 'rec' ? 'Received Offers (Claimable)' : 'Offers You Placed'}
+              {tab === 'rec' ? 'Offers Received for Your Pieces' : 'Offers You Placed'}
             </h2>
             <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
               {filteredOffers.length} {filteredOffers.length === 1 ? 'offer' : 'offers'}
@@ -147,7 +221,9 @@ export const OffersPage: React.FC<OffersPageProps> = ({
 
           {filteredOffers.length === 0 ? (
             <div style={{ padding: '32px 16px', textAlign: 'center', color: '#71717A', fontSize: '14px' }}>
-              No {tab === 'rec' ? 'received' : 'active'} offers at the moment.
+              {tab === 'rec'
+                ? 'No active offers received on your held NFTs.'
+                : 'You have not placed any offers yet. Submit an offer using the form on the right.'}
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -173,7 +249,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
                   <span style={{ flex: '1 1 180px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <strong style={{ fontSize: '15px' }}>{o.nft_title}</strong>
                     <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-                      {tab === 'rec' ? `From ${o.from}` : `To ${o.from}`}
+                      {tab === 'rec' ? `From ${o.from}` : `Placed by you`}
                     </span>
                   </span>
                   <span style={{ flex: '0 1 120px', display: 'flex', flexDirection: 'column' }}>
@@ -248,7 +324,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
                   fontSize: '13px',
                 }}
               >
-                {marketListings.slice(0, 10).map((l) => (
+                {marketListings.slice(0, 15).map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.title} (Listed at {l.price} NEAR)
                   </option>
