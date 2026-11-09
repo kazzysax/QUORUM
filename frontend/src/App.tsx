@@ -35,19 +35,19 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v7',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v7',
-  OFFERS: 'quorum_testnet_offers_v7',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v7',
-  PROPOSALS: 'quorum_testnet_proposals_v7',
-  COLLECTIONS: 'quorum_testnet_collections_v7',
+  USER_NFTS: 'quorum_testnet_user_nfts_v8',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v8',
+  OFFERS: 'quorum_testnet_offers_v8',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v8',
+  PROPOSALS: 'quorum_testnet_proposals_v8',
+  COLLECTIONS: 'quorum_testnet_collections_v8',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && k.startsWith('quorum_testnet_') && !k.endsWith('_v7')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v8')) {
       localStorage.removeItem(k);
     }
   }
@@ -335,14 +335,26 @@ export function App() {
     try {
       addToast('info', 'Registering Listing On-Chain...', 'Please approve the listing authorization in your wallet.');
 
-      const nftContract = token.collection === 'Tidewater' ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+      const isTide = Boolean(
+        (token.collection && token.collection.toLowerCase().includes('tide')) ||
+        (token.id && token.id.toLowerCase().includes('tide')) ||
+        (token.title && token.title.toLowerCase().includes('tide'))
+      );
+      const nftContract = isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+
+      let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
+      if (!cleanTokenId) {
+        const match = (token.title || token.id || '').match(/#?(\d+)/);
+        cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
+      }
+
       const tx = await sendNearTransaction({
         receiverId: nftContract,
         actions: [
           createFunctionCallAction(
             'nft_approve',
             {
-              token_id: token.token_id,
+              token_id: cleanTokenId,
               account_id: 'mkt.qrm1.testnet',
               msg: JSON.stringify({ price: nearToYocto(priceNear) }),
             },
@@ -442,27 +454,41 @@ export function App() {
     const nearMatch = token.backing.match(/([\d.]+)\s*NEAR/i);
     const nearNum = nearMatch ? parseFloat(nearMatch[1]) : 0.50;
     const refundNear = nearNum * 0.9;
-    const tokenId = token.token_id || '1';
-    const burnContract = token.collection === 'Tidewater' ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+    const refundStr = refundNear.toFixed(2);
+
+    // Rigorously sanitize token ID to the exact numeric ID string used on-chain ('1', '2', '3')
+    let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
+    if (!cleanTokenId) {
+      const match = (token.title || token.id || '').match(/#?(\d+)/);
+      cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
+    }
+
+    const isTide = Boolean(
+      (token.collection && token.collection.toLowerCase().includes('tide')) ||
+      (token.id && token.id.toLowerCase().includes('tide')) ||
+      (token.title && token.title.toLowerCase().includes('tide'))
+    );
+    const burnContract = isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
 
     try {
-      addToast('info', 'Initiating Vault Dissolution & Burn...', 'Please sign the burn authorization in your wallet.');
+      addToast('info', 'Initiating Vault Dissolution & Burn...', `Burning #${cleanTokenId} on ${burnContract}. Please sign the burn authorization in your wallet.`);
 
       const tx = await sendNearTransaction({
         receiverId: burnContract,
         actions: [
           createFunctionCallAction(
             'burn_and_redeem',
-            { token_id: tokenId },
-            '0.000000000000000000000001', // 1 yoctoNEAR attached as required by contract
-            '150000000000000' // 150 Tgas
+            { token_id: cleanTokenId },
+            '0',
+            '150000000000000', // 150 Tgas
+            '1' // Exact 1 yoctoNEAR attached as required by contract
           ),
         ],
         signerId: wallet.accountId,
       });
 
-      const updatedUserNfts = userNfts.filter((t) => !(t.token_id === tokenId && t.collection === token.collection) && t.id !== token.id);
-      const updatedListings = marketListings.filter((l) => !(l.token_id === tokenId && l.collection === token.collection) && l.id !== token.id);
+      const updatedUserNfts = userNfts.filter((t) => !(t.token_id === cleanTokenId && t.collection === token.collection) && t.id !== token.id);
+      const updatedListings = marketListings.filter((l) => !(l.token_id === cleanTokenId && l.collection === token.collection) && l.id !== token.id);
 
       setUserNfts(updatedUserNfts);
       setMarketListings(updatedListings);
@@ -479,7 +505,7 @@ export function App() {
       addToast(
         'success',
         `${token.title} Burned & Redeemed!`,
-        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundNear.toFixed(2)} NEAR refunded to ${wallet.accountId}.`
+        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundStr} NEAR refunded to ${wallet.accountId}.`
       );
     } catch (err: any) {
       console.error('Burn error:', err);
@@ -498,11 +524,22 @@ export function App() {
     const addedNum = parseFloat(amount) || 0;
     if (addedNum <= 0) return;
 
-    const colPrefix = token.collection === 'Tidewater' ? 'tide' : 'molten';
-    const tokenId = token.token_id || '1';
+    const isTide = Boolean(
+      (token.collection && token.collection.toLowerCase().includes('tide')) ||
+      (token.id && token.id.toLowerCase().includes('tide')) ||
+      (token.title && token.title.toLowerCase().includes('tide'))
+    );
+    const colPrefix = isTide ? 'tide' : 'molten';
+
+    let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
+    if (!cleanTokenId) {
+      const match = (token.title || token.id || '').match(/#?(\d+)/);
+      cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
+    }
+
     const safeVaultAccount = (token.vault_account && token.vault_account.includes('.qrm1.testnet'))
       ? token.vault_account
-      : `v${tokenId}.${colPrefix}.qrm1.testnet`;
+      : `v${cleanTokenId}.${colPrefix}.qrm1.testnet`;
 
     try {
       addToast('info', `Depositing ${addedNum} NEAR to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
@@ -521,7 +558,7 @@ export function App() {
       });
 
       const updatedUserNfts = userNfts.map((t) => {
-        if (t.id !== token.id && !(t.token_id === tokenId && t.collection === token.collection)) return t;
+        if (t.id !== token.id && !(t.token_id === cleanTokenId && t.collection === token.collection)) return t;
 
         const nearMatch = t.backing.match(/([\d.]+)\s*NEAR/i);
         let currentNear = nearMatch ? parseFloat(nearMatch[1]) : 0.50;
@@ -657,24 +694,57 @@ export function App() {
       return;
     }
 
-    const offerNum = parseFloat(offer.amount_near || '1.0');
     try {
-      addToast('info', 'Accepting Offer On-Chain...', 'Please sign to transfer keyless vault rights.');
+      addToast('info', 'Accepting Offer On-Chain...', 'Please sign to transfer NFT & keyless vault rights to buyer.');
 
       const matchingNft = userNfts.find((t) => t.id === offer.nft_id || t.title === offer.nft_title);
+      const targetToken = matchingNft || userNfts[0];
 
+      if (!targetToken) {
+        addToast('error', 'Token Not Found', 'You do not own this token to accept an offer.');
+        return;
+      }
+
+      let cleanTokenId = String(targetToken.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
+      if (!cleanTokenId) {
+        const match = (targetToken.title || targetToken.id || '').match(/#?(\d+)/);
+        cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
+      }
+
+      const isTide = Boolean(
+        (targetToken.collection && targetToken.collection.toLowerCase().includes('tide')) ||
+        (targetToken.id && targetToken.id.toLowerCase().includes('tide')) ||
+        (targetToken.title && targetToken.title.toLowerCase().includes('tide'))
+      );
+      const nftContract = isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+      const buyerAccount = (offer.from && offer.from.endsWith('.testnet')) ? offer.from : 'qrm1.testnet';
+
+      // Real on-chain NEP-171 nft_transfer to the buyer
       const tx = await sendNearTransaction({
-        receiverId: offer.from || 'qrm1.testnet',
-        actions: [createTransferAction('0.001')],
+        receiverId: nftContract,
+        actions: [
+          createFunctionCallAction(
+            'nft_transfer',
+            {
+              receiver_id: buyerAccount,
+              token_id: cleanTokenId,
+              memo: `Accepted offer of ${offer.amount_near} NEAR on Quorum`,
+            },
+            '0',
+            '100000000000000',
+            '1' // 1 yoctoNEAR required by NEP-171 standard
+          ),
+        ],
         signerId: wallet.accountId,
       });
 
-      const updatedUserNfts = matchingNft ? userNfts.filter((t) => t.id !== matchingNft.id) : userNfts;
+      const updatedUserNfts = matchingNft ? userNfts.filter((t) => t.id !== matchingNft.id) : userNfts.slice(1);
       const updatedOffers = offers.filter((o) => o.id !== offer.id);
 
+      const offerNum = parseFloat(offer.amount_near || '1.0');
       const newSale: SaleRecord = {
-        nft_id: offer.nft_title,
-        buyer: offer.from,
+        nft_id: targetToken.title || offer.nft_title,
+        buyer: buyerAccount,
         price_near: offer.amount_near,
         to_dao: (offerNum * 0.05).toFixed(3),
         royalty: (offerNum * 0.05).toFixed(3),
@@ -699,7 +769,7 @@ export function App() {
       addToast(
         'success',
         'Offer Accepted On-Chain!',
-        `Received ${offer.amount_near} test NEAR (Tx: ${tx.hash.slice(0, 10)}...). Vault transferred to ${offer.from}.`
+        `Transferred #${cleanTokenId} to ${buyerAccount} (Tx: ${tx.hash.slice(0, 10)}...).`
       );
     } catch (err: any) {
       console.error('Accept offer error:', err);

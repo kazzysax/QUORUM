@@ -12,3 +12,4 @@ near contract call-function as-read-only molten.qrm1.testnet nft_token json-args
 
 echo "=== VERIFY: Vault v4.molten.qrm1.testnet was created ==="
 near account view-account-summary v4.molten.qrm1.testnet network-config testnet now || true
+

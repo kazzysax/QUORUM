@@ -13,3 +13,4 @@ for v in v1.molten.qrm1.testnet v2.molten.qrm1.testnet v3.molten.qrm1.testnet v1
   echo "--- $v ---"
   near account view-account-summary "$v" network-config testnet now || true
 done
+

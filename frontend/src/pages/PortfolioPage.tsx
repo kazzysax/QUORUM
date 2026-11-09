@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Page, TokenItem } from '../types';
 import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 
@@ -29,6 +29,12 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   const [showBurnModal, setShowBurnModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addAmount, setAddAmount] = useState('1.0');
+
+  useEffect(() => {
+    if (nfts.length > 0 && (!selectedTokenId || !nfts.some((t) => t.id === selectedTokenId))) {
+      setSelectedTokenId(nfts[0].id);
+    }
+  }, [nfts, selectedTokenId]);
 
   const selectedToken = nfts.find((t) => t.id === selectedTokenId) || nfts[0];
 

@@ -96,7 +96,10 @@ export async function disconnectNearConnect(): Promise<void> {
  * Converts a NEAR amount (e.g. "1.00", 0.05) to yoctoNEAR (10^24) string.
  */
 export function nearToYocto(nearAmount: string | number): string {
-  const parts = String(nearAmount).trim().split('.');
+  const str = String(nearAmount).trim();
+  if (str === '1yocto' || str === '1y') return '1';
+  if (/^\d+$/.test(str) && str.length > 20) return str;
+  const parts = str.split('.');
   const whole = parts[0] || '0';
   const fraction = (parts[1] || '').padEnd(24, '0').slice(0, 24);
   const combined = `${whole}${fraction}`.replace(/^0+/, '');
@@ -122,7 +125,8 @@ export function createFunctionCallAction(
   methodName: string,
   args: Record<string, any> = {},
   nearDeposit: string | number = '0',
-  gas: string = '30000000000000'
+  gas: string = '30000000000000',
+  exactDepositYocto?: string
 ) {
   return {
     type: 'FunctionCall',
@@ -130,7 +134,7 @@ export function createFunctionCallAction(
       methodName,
       args,
       gas,
-      deposit: nearToYocto(nearDeposit),
+      deposit: exactDepositYocto !== undefined ? exactDepositYocto : nearToYocto(nearDeposit),
     },
   };
 }

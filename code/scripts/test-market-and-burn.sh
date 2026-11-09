@@ -24,3 +24,4 @@ near contract call-function as-transaction molten.qrm1.testnet burn_and_redeem j
 
 echo "=== Verify Token #4 is burned / null ==="
 near contract call-function as-read-only molten.qrm1.testnet nft_token json-args '{"token_id":"4"}' network-config testnet now || true
+
