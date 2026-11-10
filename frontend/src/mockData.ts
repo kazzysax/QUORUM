@@ -19,7 +19,7 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
     cover_image: '/images/banner-molten.jpg',
     avatar_image: '/images/molten-0.jpg',
     supply: 20,
-    minted: 3,
+    minted: 20,
     price_near: '2.00',
     floor_price_near: '2.00',
     backing_summary: '0.50 NEAR in vault',
@@ -35,11 +35,11 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
       floorChange1D: '0%',
       topOffer: '1.80 NEAR',
       volume24H: '4.00 NEAR',
-      totalVolume: '6.00 NEAR',
-      listedCount: 1,
-      listedPercent: 33,
+      totalVolume: '24.00 NEAR',
+      listedCount: 17,
+      listedPercent: 85,
       uniqueOwnersCount: 2,
-      uniqueOwnersPercent: 67,
+      uniqueOwnersPercent: 10,
       contractId: 'molten.qrm1.testnet',
       createdDate: 'OCT 2026',
       royaltyPercent: 5,
@@ -54,7 +54,7 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
     cover_image: '/images/banner-tidewater.jpg',
     avatar_image: '/images/tidewater-0.jpg',
     supply: 20,
-    minted: 3,
+    minted: 20,
     price_near: '2.00',
     floor_price_near: '2.00',
     backing_summary: '0.50 NEAR in vault',
@@ -70,11 +70,11 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
       floorChange1D: '0%',
       topOffer: '1.50 NEAR',
       volume24H: '4.00 NEAR',
-      totalVolume: '6.00 NEAR',
-      listedCount: 0,
-      listedPercent: 0,
-      uniqueOwnersCount: 1,
-      uniqueOwnersPercent: 33,
+      totalVolume: '24.00 NEAR',
+      listedCount: 17,
+      listedPercent: 85,
+      uniqueOwnersCount: 2,
+      uniqueOwnersPercent: 10,
       contractId: 'tide.qrm1.testnet',
       createdDate: 'OCT 2026',
       royaltyPercent: 5,
@@ -89,9 +89,9 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
     cover_image: '/images/feather-banner.jpg',
     avatar_image: '/images/feather-avatar.jpg',
     supply: 20,
-    minted: 2,
+    minted: 20,
     price_near: '1.00',
-    floor_price_near: '1.10',
+    floor_price_near: '1.00',
     backing_summary: '0.50 NEAR in vault',
     royalty_percent: 5,
     change_24h: '+0%',
@@ -101,15 +101,15 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
       { asset: 'NEAR', weight: 1, percentage: 100 },
     ],
     stats: {
-      floorPrice: '1.10 NEAR',
+      floorPrice: '1.00 NEAR',
       floorChange1D: '0%',
       topOffer: '0.90 NEAR',
-      volume24H: '1.10 NEAR',
-      totalVolume: '2.10 NEAR',
-      listedCount: 1,
-      listedPercent: 50,
+      volume24H: '2.00 NEAR',
+      totalVolume: '20.00 NEAR',
+      listedCount: 17,
+      listedPercent: 85,
       uniqueOwnersCount: 2,
-      uniqueOwnersPercent: 100,
+      uniqueOwnersPercent: 10,
       contractId: 'feather.qrm1.testnet',
       createdDate: 'NOV 2026',
       royaltyPercent: 5,
@@ -117,9 +117,25 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
   },
 ];
 
-// 6 Real On-Chain NFTs held by malekoala9992.testnet across testnet contracts
+// Pieces held by the user (3 pieces per collection = 9 pieces total)
 export const INITIAL_USER_NFTS: TokenItem[] = [
-  // Molten Hours pieces (#2, #6)
+  // Molten Hours pieces (#1, #2, #3)
+  {
+    id: 'molt-1',
+    token_id: '1',
+    owner_id: 'malekoala9992.testnet',
+    collection: 'Molten Hours',
+    title: 'Molten Hours #1',
+    asset: 'NEAR',
+    backing: '0.50 NEAR',
+    backing_status: 'credited',
+    image: '/images/molten-0.jpg',
+    votes_cast: 2,
+    unclaimed_distribution: '0.00 NEAR',
+    vault_account: 'v1.molten.qrm1.testnet',
+    nft_contract: 'molten.qrm1.testnet',
+    is_on_chain: true,
+  },
   {
     id: 'molt-2',
     token_id: '2',
@@ -129,7 +145,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     asset: 'NEAR',
     backing: '0.50 NEAR',
     backing_status: 'credited',
-    image: '/images/molten-0.jpg',
+    image: '/images/molten-1.jpg',
     votes_cast: 1,
     unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v2.molten.qrm1.testnet',
@@ -137,18 +153,18 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     is_on_chain: true,
   },
   {
-    id: 'molt-6',
-    token_id: '6',
+    id: 'molt-3',
+    token_id: '3',
     owner_id: 'malekoala9992.testnet',
     collection: 'Molten Hours',
-    title: 'Molten Hours #6',
+    title: 'Molten Hours #3',
     asset: 'NEAR',
     backing: '0.50 NEAR',
     backing_status: 'credited',
-    image: '/images/molten-1.jpg',
+    image: '/images/molten-0.jpg',
     votes_cast: 1,
     unclaimed_distribution: '0.00 NEAR',
-    vault_account: 'v6.molten.qrm1.testnet',
+    vault_account: 'v3.molten.qrm1.testnet',
     nft_contract: 'molten.qrm1.testnet',
     is_on_chain: true,
   },
@@ -203,7 +219,7 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     is_on_chain: true,
   },
 
-  // Feather Protocol piece (#1)
+  // Feather Protocol pieces (#1, #2, #3)
   {
     id: 'feath-1',
     token_id: '1',
@@ -220,46 +236,103 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     nft_contract: 'feather.qrm1.testnet',
     is_on_chain: true,
   },
-];
-
-// Real secondary marketplace listings on-chain
-const generateMarketListings = (): TokenItem[] => {
-  const listings: TokenItem[] = [];
-
-  // Molten Hours #7 (owned by qrm1.testnet, verified on molten.qrm1.testnet)
-  listings.push({
-    id: 'm-molt-7',
-    token_id: '7',
-    owner_id: 'qrm1.testnet',
-    collection: 'Molten Hours',
-    title: 'Molten Hours #7',
-    asset: 'NEAR',
-    backing: '0.50 NEAR',
-    backing_status: 'credited',
-    price: '2.00',
-    image: '/images/molten-1.jpg',
-    vault_account: 'v7.molten.qrm1.testnet',
-    nft_contract: 'molten.qrm1.testnet',
-    is_on_chain: true,
-  });
-
-  // Feather Protocol #2 (owned by qrm1.testnet, verified and listed on mkt.qrm1.testnet)
-  listings.push({
-    id: 'm-feath-2',
+  {
+    id: 'feath-2',
     token_id: '2',
-    owner_id: 'qrm1.testnet',
+    owner_id: 'malekoala9992.testnet',
     collection: 'Feather Protocol',
     title: 'Feather Protocol #2',
     asset: 'NEAR',
     backing: '0.50 NEAR',
     backing_status: 'credited',
-    price: '1.10',
     image: '/images/feather-avatar.jpg',
+    votes_cast: 1,
+    unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v2.feather.qrm1.testnet',
     nft_contract: 'feather.qrm1.testnet',
-    approval_id: 1,
     is_on_chain: true,
-  });
+  },
+  {
+    id: 'feath-3',
+    token_id: '3',
+    owner_id: 'malekoala9992.testnet',
+    collection: 'Feather Protocol',
+    title: 'Feather Protocol #3',
+    asset: 'NEAR',
+    backing: '0.50 NEAR',
+    backing_status: 'credited',
+    image: '/images/feather-avatar.jpg',
+    votes_cast: 1,
+    unclaimed_distribution: '0.00 NEAR',
+    vault_account: 'v3.feather.qrm1.testnet',
+    nft_contract: 'feather.qrm1.testnet',
+    is_on_chain: true,
+  },
+];
+
+// The 17 remaining pieces of each collection (#4 to #20) listed on Marketplace (51 listings total)
+const generateMarketListings = (): TokenItem[] => {
+  const listings: TokenItem[] = [];
+
+  // 17 Molten Hours (#4 to #20) listed for 2.00 NEAR
+  for (let i = 4; i <= 20; i++) {
+    const numStr = String(i);
+    listings.push({
+      id: `m-molt-${numStr}`,
+      token_id: numStr,
+      owner_id: 'qrm1.testnet',
+      collection: 'Molten Hours',
+      title: `Molten Hours #${numStr}`,
+      asset: 'NEAR',
+      backing: '0.50 NEAR',
+      backing_status: 'credited',
+      price: '2.00',
+      image: i % 2 === 0 ? '/images/molten-0.jpg' : '/images/molten-1.jpg',
+      vault_account: `v${i}.molten.qrm1.testnet`,
+      nft_contract: 'molten.qrm1.testnet',
+      is_on_chain: true,
+    });
+  }
+
+  // 17 Tidewater (#4 to #20) listed for 2.00 NEAR
+  for (let i = 4; i <= 20; i++) {
+    const numStr = String(i);
+    listings.push({
+      id: `m-tide-${numStr}`,
+      token_id: numStr,
+      owner_id: 'qrm1.testnet',
+      collection: 'Tidewater',
+      title: `Tidewater #${numStr}`,
+      asset: 'NEAR',
+      backing: '0.50 NEAR',
+      backing_status: 'credited',
+      price: '2.00',
+      image: i % 2 === 0 ? '/images/tidewater-0.jpg' : '/images/tidewater-1.jpg',
+      vault_account: `v${i}.tide.qrm1.testnet`,
+      nft_contract: 'tide.qrm1.testnet',
+      is_on_chain: true,
+    });
+  }
+
+  // 17 Feather Protocol (#4 to #20) listed for 1.00 NEAR
+  for (let i = 4; i <= 20; i++) {
+    const numStr = String(i);
+    listings.push({
+      id: `m-feath-${numStr}`,
+      token_id: numStr,
+      owner_id: 'qrm1.testnet',
+      collection: 'Feather Protocol',
+      title: `Feather Protocol #${numStr}`,
+      asset: 'NEAR',
+      backing: '0.50 NEAR',
+      backing_status: 'credited',
+      price: '1.00',
+      image: '/images/feather-avatar.jpg',
+      vault_account: `v${i}.feather.qrm1.testnet`,
+      nft_contract: 'feather.qrm1.testnet',
+      is_on_chain: true,
+    });
+  }
 
   return listings;
 };
@@ -430,30 +503,39 @@ export const COLLECTION_HOLDERS: Record<string, CollectionHolder[]> = {
   'molten-hours': [
     {
       rank: 1,
-      accountId: 'malekoala9992.testnet',
-      tokensHeld: ['#2', '#6'],
-      count: 2,
-      percent: 67,
-      votingPower: 2,
-      vaultValueNear: '1.00 NEAR',
+      accountId: 'qrm1.testnet',
+      tokensHeld: ['#4', '#5', '#6', '#7', '#8', '#9', '#10', '#11', '#12', '#13', '#14', '#15', '#16', '#17', '#18', '#19', '#20'],
+      count: 17,
+      percent: 85,
+      votingPower: 17,
+      vaultValueNear: '8.50 NEAR',
     },
     {
       rank: 2,
-      accountId: 'qrm1.testnet',
-      tokensHeld: ['#7'],
-      count: 1,
-      percent: 33,
-      votingPower: 1,
-      vaultValueNear: '0.50 NEAR',
+      accountId: 'malekoala9992.testnet',
+      tokensHeld: ['#1', '#2', '#3'],
+      count: 3,
+      percent: 15,
+      votingPower: 3,
+      vaultValueNear: '1.50 NEAR',
     },
   ],
   'tidewater': [
     {
       rank: 1,
+      accountId: 'qrm1.testnet',
+      tokensHeld: ['#4', '#5', '#6', '#7', '#8', '#9', '#10', '#11', '#12', '#13', '#14', '#15', '#16', '#17', '#18', '#19', '#20'],
+      count: 17,
+      percent: 85,
+      votingPower: 17,
+      vaultValueNear: '8.50 NEAR',
+    },
+    {
+      rank: 2,
       accountId: 'malekoala9992.testnet',
       tokensHeld: ['#1', '#2', '#3'],
       count: 3,
-      percent: 100,
+      percent: 15,
       votingPower: 3,
       vaultValueNear: '1.50 NEAR',
     },
@@ -461,21 +543,21 @@ export const COLLECTION_HOLDERS: Record<string, CollectionHolder[]> = {
   'feather-protocol': [
     {
       rank: 1,
-      accountId: 'malekoala9992.testnet',
-      tokensHeld: ['#1'],
-      count: 1,
-      percent: 50,
-      votingPower: 1,
-      vaultValueNear: '0.50 NEAR',
+      accountId: 'qrm1.testnet',
+      tokensHeld: ['#4', '#5', '#6', '#7', '#8', '#9', '#10', '#11', '#12', '#13', '#14', '#15', '#16', '#17', '#18', '#19', '#20'],
+      count: 17,
+      percent: 85,
+      votingPower: 17,
+      vaultValueNear: '8.50 NEAR',
     },
     {
       rank: 2,
-      accountId: 'qrm1.testnet',
-      tokensHeld: ['#2'],
-      count: 1,
-      percent: 50,
-      votingPower: 1,
-      vaultValueNear: '0.50 NEAR',
+      accountId: 'malekoala9992.testnet',
+      tokensHeld: ['#1', '#2', '#3'],
+      count: 3,
+      percent: 15,
+      votingPower: 3,
+      vaultValueNear: '1.50 NEAR',
     },
   ],
 };

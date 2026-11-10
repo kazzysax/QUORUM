@@ -35,19 +35,19 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v15',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v15',
-  OFFERS: 'quorum_testnet_offers_v15',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v15',
-  PROPOSALS: 'quorum_testnet_proposals_v15',
-  COLLECTIONS: 'quorum_testnet_collections_v15',
+  USER_NFTS: 'quorum_testnet_user_nfts_v16',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v16',
+  OFFERS: 'quorum_testnet_offers_v16',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v16',
+  PROPOSALS: 'quorum_testnet_proposals_v16',
+  COLLECTIONS: 'quorum_testnet_collections_v16',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v15')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v16')) {
       localStorage.removeItem(k);
     }
   }
