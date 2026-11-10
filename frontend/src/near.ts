@@ -1,29 +1,49 @@
 // NEAR Protocol Testnet RPC Helpers
 import type { TokenItem } from './types';
 
-export const NEAR_TESTNET_RPC = 'https://rpc.testnet.near.org';
+export const NEAR_TESTNET_RPC = 'https://near-testnet.drpc.org';
 export const NEAR_TESTNET_EXPLORER = 'https://testnet.nearblocks.io';
+
+const RPC_ENDPOINTS = [
+  'https://near-testnet.drpc.org',
+  'https://test.rpc.fastnear.com',
+  'https://rpc.testnet.near.org',
+];
+
+export async function callNearRpc(payload: any): Promise<any> {
+  for (const endpoint of RPC_ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data && !data.error && data.result) {
+        return data;
+      }
+    } catch {
+      // try next fallback
+    }
+  }
+  return null;
+}
 
 export async function fetchNearAccountBalance(accountId: string): Promise<number | null> {
   try {
-    const res = await fetch(NEAR_TESTNET_RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'quorum-balance-check',
-        method: 'query',
-        params: {
-          request_type: 'view_account',
-          finality: 'final',
-          account_id: accountId.trim(),
-        },
-      }),
+    const data = await callNearRpc({
+      jsonrpc: '2.0',
+      id: 'quorum-balance-check',
+      method: 'query',
+      params: {
+        request_type: 'view_account',
+        finality: 'final',
+        account_id: accountId.trim(),
+      },
     });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.result && data.result.amount) {
+    if (data && data.result && data.result.amount) {
       const nearBn = BigInt(data.result.amount);
       const whole = nearBn / 10n ** 24n;
       const frac = (nearBn % 10n ** 24n) / 10n ** 20n;
@@ -105,26 +125,20 @@ export async function fetchTokensForOwner(accountId: string): Promise<TokenItem[
 
   for (const col of collections) {
     try {
-      const res = await fetch(NEAR_TESTNET_RPC, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: `tokens-${col.contract}`,
-          method: 'query',
-          params: {
-            request_type: 'call_function',
-            finality: 'final',
-            account_id: col.contract,
-            method_name: 'nft_tokens_for_owner',
-            args_base64: btoa(JSON.stringify({ account_id: accountId.trim() })),
-          },
-        }),
+      const data = await callNearRpc({
+        jsonrpc: '2.0',
+        id: `tokens-${col.contract}`,
+        method: 'query',
+        params: {
+          request_type: 'call_function',
+          finality: 'final',
+          account_id: col.contract,
+          method_name: 'nft_tokens_for_owner',
+          args_base64: btoa(JSON.stringify({ account_id: accountId.trim() })),
+        },
       });
 
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.result && data.result.result) {
+      if (data && data.result && data.result.result) {
         const decoded = new TextDecoder().decode(new Uint8Array(data.result.result));
         const parsed = JSON.parse(decoded);
         if (Array.isArray(parsed)) {
@@ -172,56 +186,44 @@ export async function fetchOnChainMarketplaceListings(): Promise<TokenItem[]> {
     const tokenIds = Array.from({ length: 20 }, (_, i) => String(i + 1));
     const queries = tokenIds.map(async (tokenId) => {
       try {
-        const res = await fetch(NEAR_TESTNET_RPC, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: `listing-${col.contract}-${tokenId}`,
-            method: 'query',
-            params: {
-              request_type: 'call_function',
-              finality: 'final',
-              account_id: 'mkt.qrm1.testnet',
-              method_name: 'get_listing',
-              args_base64: btoa(JSON.stringify({ nft: col.contract, token_id: tokenId })),
-            },
-          }),
+        const data = await callNearRpc({
+          jsonrpc: '2.0',
+          id: `listing-${col.contract}-${tokenId}`,
+          method: 'query',
+          params: {
+            request_type: 'call_function',
+            finality: 'final',
+            account_id: 'mkt.qrm1.testnet',
+            method_name: 'get_listing',
+            args_base64: btoa(JSON.stringify({ nft: col.contract, token_id: tokenId })),
+          },
         });
 
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.result && data.result.result) {
+        if (data && data.result && data.result.result) {
           const decoded = new TextDecoder().decode(new Uint8Array(data.result.result));
           const parsed = JSON.parse(decoded);
           if (parsed && parsed.seller && parsed.price) {
             // Verify that the token actually exists on-chain and is approved to mkt.qrm1.testnet
             let tokenValid = false;
             try {
-              const tokenRes = await fetch(NEAR_TESTNET_RPC, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  jsonrpc: '2.0',
-                  id: `verify-${col.contract}-${tokenId}`,
-                  method: 'query',
-                  params: {
-                    request_type: 'call_function',
-                    finality: 'final',
-                    account_id: col.contract,
-                    method_name: 'nft_token',
-                    args_base64: btoa(JSON.stringify({ token_id: tokenId })),
-                  },
-                }),
+              const tokenData = await callNearRpc({
+                jsonrpc: '2.0',
+                id: `verify-${col.contract}-${tokenId}`,
+                method: 'query',
+                params: {
+                  request_type: 'call_function',
+                  finality: 'final',
+                  account_id: col.contract,
+                  method_name: 'nft_token',
+                  args_base64: btoa(JSON.stringify({ token_id: tokenId })),
+                },
               });
-              if (tokenRes.ok) {
-                const tokenData = await tokenRes.json();
-                if (tokenData.result && tokenData.result.result) {
-                  const tokenDecoded = new TextDecoder().decode(new Uint8Array(tokenData.result.result));
-                  const realToken = JSON.parse(tokenDecoded);
-                  if (realToken && realToken.owner_id === parsed.seller && realToken.approved_account_ids && realToken.approved_account_ids['mkt.qrm1.testnet']) {
-                    tokenValid = true;
-                  }
+
+              if (tokenData && tokenData.result && tokenData.result.result) {
+                const tokenDecoded = new TextDecoder().decode(new Uint8Array(tokenData.result.result));
+                const realToken = JSON.parse(tokenDecoded);
+                if (realToken && realToken.owner_id === parsed.seller && realToken.approved_account_ids && realToken.approved_account_ids['mkt.qrm1.testnet']) {
+                  tokenValid = true;
                 }
               }
             } catch {
