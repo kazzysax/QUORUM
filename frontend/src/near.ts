@@ -113,6 +113,8 @@ export async function fetchTokensForOwner(accountId: string): Promise<TokenItem[
               votes_cast: 1,
               unclaimed_distribution: '0.00 NEAR',
               vault_account: `v${item.token_id}.${col.contract}`,
+              nft_contract: col.contract,
+              is_on_chain: true,
             });
           }
         }
@@ -123,5 +125,79 @@ export async function fetchTokensForOwner(accountId: string): Promise<TokenItem[
   }
 
   return allTokens;
+}
+
+/**
+ * Queries the live on-chain NEP-178 marketplace contract mkt.qrm1.testnet
+ * for active listings across Molten Hours, Tidewater, and Feather Protocol.
+ */
+export async function fetchOnChainMarketplaceListings(): Promise<TokenItem[]> {
+  const collections = [
+    { name: 'Molten Hours', contract: 'molten.qrm1.testnet', symbol: 'MOLT', image: '/images/molten-0.jpg' },
+    { name: 'Tidewater', contract: 'tide.qrm1.testnet', symbol: 'TIDE', image: '/images/tidewater-0.jpg' },
+    { name: 'Feather Protocol', contract: 'feather.qrm1.testnet', symbol: 'FEATH', image: '/images/feather-avatar.jpg' },
+  ];
+  const listings: TokenItem[] = [];
+
+  for (const col of collections) {
+    const tokenIds = Array.from({ length: 20 }, (_, i) => String(i + 1));
+    const queries = tokenIds.map(async (tokenId) => {
+      try {
+        const res = await fetch(NEAR_TESTNET_RPC, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: `listing-${col.contract}-${tokenId}`,
+            method: 'query',
+            params: {
+              request_type: 'call_function',
+              finality: 'final',
+              account_id: 'mkt.qrm1.testnet',
+              method_name: 'get_listing',
+              args_base64: btoa(JSON.stringify({ nft: col.contract, token_id: tokenId })),
+            },
+          }),
+        });
+
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.result && data.result.result) {
+          const decoded = new TextDecoder().decode(new Uint8Array(data.result.result));
+          const parsed = JSON.parse(decoded);
+          if (parsed && parsed.seller && parsed.price) {
+            const nearPriceBn = BigInt(parsed.price);
+            const whole = nearPriceBn / 10n**24n;
+            const frac = (nearPriceBn % 10n**24n) / 10n**22n;
+            const priceFormatted = frac > 0n ? `${whole}.${frac.toString().padStart(2, '0')}` : `${whole}.00`;
+
+            listings.push({
+              id: `mkt-${col.symbol.toLowerCase()}-${tokenId}`,
+              token_id: tokenId,
+              owner_id: parsed.seller,
+              collection: col.name,
+              title: `${col.name} #${tokenId}`,
+              price: priceFormatted,
+              asset: 'NEAR',
+              backing: '0.50 NEAR',
+              backing_status: 'credited',
+              image: col.image,
+              votes_cast: 1,
+              unclaimed_distribution: '0.00 NEAR',
+              vault_account: `v${tokenId}.${col.contract}`,
+              approval_id: parsed.approval_id,
+              nft_contract: col.contract,
+              is_on_chain: true,
+            });
+          }
+        }
+      } catch {
+        // Ignored for individual query timeout
+      }
+    });
+    await Promise.all(queries);
+  }
+
+  return listings;
 }
 

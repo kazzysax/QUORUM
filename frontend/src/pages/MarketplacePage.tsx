@@ -794,6 +794,28 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       >
                         0.50 NEAR Vault
                       </span>
+                      {token.is_on_chain && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            bottom: '10px',
+                            left: '10px',
+                            background: 'rgba(245,165,36,0.22)',
+                            border: '1px solid rgba(245,165,36,0.5)',
+                            color: '#FCD34D',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '8px',
+                            backdropFilter: 'blur(4px)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <ShieldCheck size={11} /> On-chain (mkt.qrm1)
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 4px' }}>
@@ -1318,607 +1340,607 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           const fillPercent = Math.min(92, Math.max(18, Math.round((treasuryNear / treasuryCapacity) * 100)));
 
           return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-            {/* Top Row: Round Ball Orb + Treasury Holdings Card */}
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '28px',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#15151B',
-                border: '1px solid #2A2A33',
-                borderRadius: '24px',
-                padding: '32px',
-                boxSizing: 'border-box',
-              }}
-            >
-              {/* THE ROUND BALL (TREASURY ASSET ORB - MATCHING IMAGE 2) */}
-              <div
-                style={{
-                  position: 'relative',
-                  width: '320px',
-                  height: '320px',
-                  borderRadius: '50%',
-                  overflow: 'hidden',
-                  boxShadow:
-                    '0 0 60px rgba(168, 85, 247, 0.45), 0 0 120px rgba(139, 92, 246, 0.25), inset 0 0 50px rgba(255, 255, 255, 0.35), inset 0 -25px 45px rgba(124, 58, 237, 0.5)',
-                  border: '2px solid rgba(255, 255, 255, 0.4)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: '#0D0D14',
-                  flexShrink: 0,
-                }}
-              >
-                {/* Image 2 Luminous Ribbon Sculpture Background */}
-                <img
-                  src="/images/dao-orb.jpg"
-                  alt="DAO Treasury Orb"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    filter: 'brightness(0.92) contrast(1.15)',
-                    transform: 'scale(1.05)',
-                  }}
-                />
-
-                {/* Soft Glass Specular Sheen & Radial Depth */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background:
-                      'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.06) 50%, rgba(139,92,246,0.4) 100%)',
-                    pointerEvents: 'none',
-                  }}
-                />
-
-                {/* Dynamic Asset Liquid Level Across Bottom Hemisphere */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: `${fillPercent}%`,
-                    background:
-                      'linear-gradient(180deg, rgba(168, 85, 247, 0.35) 0%, rgba(139, 92, 246, 0.75) 100%)',
-                    backdropFilter: 'blur(3px)',
-                    borderTop: '2px solid rgba(255, 255, 255, 0.55)',
-                    boxShadow: '0 0 25px rgba(168, 85, 247, 0.5)',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    justifyContent: 'center',
-                    paddingBottom: '12px',
-                    boxSizing: 'border-box',
-                    transition: 'height 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      color: '#FFFFFF',
-                      textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                      background: 'rgba(10,10,13,0.65)',
-                      padding: '4px 14px',
-                      borderRadius: '999px',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    Ⓝ {treasuryNear.toFixed(2)} NEAR • {fillPercent}% Filled
-                  </span>
-                </div>
-
-                {/* Central Asset Badge HUD Inside the Orb */}
-                <div
-                  style={{
-                    position: 'relative',
-                    zIndex: 2,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: 'rgba(10, 10, 14, 0.72)',
-                    backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    borderRadius: '22px',
-                    padding: '14px 22px',
-                    boxShadow: '0 12px 36px rgba(0,0,0,0.65)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        borderRadius: '50%',
-                        background: '#000000',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        color: '#86EFAC',
-                      }}
-                    >
-                      Ⓝ
-                    </div>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#F4F4F5', letterSpacing: '0.05em' }}>
-                      NEAR TREASURY
-                    </span>
-                    <span className="success-badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                      Live On-Chain
-                    </span>
-                  </div>
-
-                  <strong
-                    style={{
-                      fontSize: '28px',
-                      fontWeight: 800,
-                      fontFamily: 'Space Grotesk',
-                      color: '#FFFFFF',
-                      letterSpacing: '-0.02em',
-                      marginTop: '2px',
-                    }}
-                  >
-                    {treasuryNear.toFixed(2)} NEAR
-                  </strong>
-
-                  <span style={{ fontSize: '12px', color: '#D4D4D8' }}>
-                    ~${(treasuryNear * 5.2).toFixed(2)} USD • 100% Reserve
-                  </span>
-
-                  <span
-                    style={{
-                      fontSize: '10px',
-                      color: '#D8B4FE',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.07em',
-                    }}
-                  >
-                    tre.qrm1.testnet • Real-Time RPC
-                  </span>
-                </div>
-              </div>
-
-              {/* Right Side: DAO Treasury Holdings Breakdown Card */}
-              <div
-                style={{
-                  flex: '1 1 360px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '18px',
-                  minWidth: 0,
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className="gold-badge">100% On-Chain Verified</span>
-                    <span className="neutral-badge">tre.qrm1.testnet (Treasury)</span>
-                    <span className="neutral-badge">dao.qrm1.testnet (Gov)</span>
-                  </div>
-                  <h2 style={{ margin: '8px 0 4px', fontSize: '26px', fontWeight: 700 }}>
-                    {activeCollection.name} DAO Treasury
-                  </h2>
-                  <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-                    Quorum splits DAO governance across two dedicated on-chain accounts: the <strong>Treasury Vault</strong> (<code style={{ color: '#F5A524' }}>tre.qrm1.testnet</code>) which holds and disburses the pooled funds, and the <strong>Governance DAO</strong> (<code style={{ color: '#D8B4FE' }}>dao.qrm1.testnet</code>) which validates proposals and member votes. Both balances are live from NEAR testnet RPC.
-                  </p>
-                </div>
-
-                {/* 4 Stat Boxes */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>TREASURY VAULT</span>
-                    <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>
-                      {(daoBalances?.treasuryBalance ?? 10.00).toFixed(2)} NEAR
-                    </strong>
-                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>tre.qrm1.testnet</span>
-                  </div>
-                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>GOV DAO RESERVE</span>
-                    <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>
-                      {(daoBalances?.daoBalance ?? 2.20).toFixed(2)} NEAR
-                    </strong>
-                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>dao.qrm1.testnet</span>
-                  </div>
-                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>PER-NFT SHARE</span>
-                    <strong style={{ display: 'block', fontSize: '18px', color: '#F4F4F5', marginTop: '2px' }}>
-                      {((daoBalances?.treasuryBalance ?? 10.00) / 20).toFixed(2)} NEAR
-                    </strong>
-                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Equal distribution pool</span>
-                  </div>
-                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>COMBINED POOL</span>
-                    <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
-                      {(daoBalances?.totalBalance ?? 12.20).toFixed(2)} NEAR
-                    </strong>
-                    <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Total community NEAR</span>
-                  </div>
-                </div>
-
-                {/* Treasury Assets Table */}
-                <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '14px', overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', color: '#71717A', fontSize: '11px', textTransform: 'uppercase' }}>
-                        <th style={{ padding: '6px 8px' }}>Contract Account</th>
-                        <th style={{ padding: '6px 8px' }}>Role</th>
-                        <th style={{ padding: '6px 8px' }}>On-Chain Balance</th>
-                        <th style={{ padding: '6px 8px' }}>USD Value</th>
-                        <th style={{ padding: '6px 8px' }}>Explorer</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#86EFAC', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>T</div>
-                            <strong>tre.qrm1.testnet</strong>
-                          </div>
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
-                          Treasury Vault Pool
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
-                          {(daoBalances?.treasuryBalance ?? 10.0003).toFixed(4)} NEAR
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          ~${((daoBalances?.treasuryBalance ?? 10.0003) * 5.2).toFixed(2)}
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          <a
-                            href="https://testnet.nearblocks.io/address/tre.qrm1.testnet"
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: '#F5A524', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
-                          >
-                            NearBlocks <ExternalLink size={12} />
-                          </a>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#D8B4FE', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>D</div>
-                            <strong>dao.qrm1.testnet</strong>
-                          </div>
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
-                          Governance DAO
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#86EFAC', fontFamily: 'Space Grotesk' }}>
-                          {(daoBalances?.daoBalance ?? 2.1985).toFixed(4)} NEAR
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          ~${((daoBalances?.daoBalance ?? 2.1985) * 5.2).toFixed(2)}
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          <a
-                            href="https://testnet.nearblocks.io/address/dao.qrm1.testnet"
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: '#86EFAC', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
-                          >
-                            NearBlocks <ExternalLink size={12} />
-                          </a>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#FFFFFF' }}>
-                          TOTAL COMMUNITY ASSETS
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#D8B4FE', fontWeight: 600 }}>
-                          Quorum Ecosystem
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 800, color: '#FFFFFF', fontFamily: 'Space Grotesk' }}>
-                          {(daoBalances?.totalBalance ?? 12.1988).toFixed(4)} NEAR
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600 }}>
-                          ~${((daoBalances?.totalBalance ?? 12.1988) * 5.2).toFixed(2)}
-                        </td>
-                        <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                          <span className="success-badge" style={{ fontSize: '11px' }}>100% Verifiable</span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyContract('tre.qrm1.testnet')}
-                    className="btn-secondary"
-                    style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Copy size={14} /> Copy Treasury (tre.qrm1)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyContract('dao.qrm1.testnet')}
-                    className="btn-secondary"
-                    style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Copy size={14} /> Copy DAO (dao.qrm1)
-                  </button>
-                  <a
-                    href="https://testnet.nearblocks.io/address/tre.qrm1.testnet"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-secondary"
-                    style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
-                  >
-                    <ExternalLink size={14} /> View Treasury on NearBlocks
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Section: Neat Active Votes and Past Votes */}
-            <section
-              style={{
-                background: '#15151B',
-                border: '1px solid #2A2A33',
-                borderRadius: '24px',
-                padding: '24px',
-                boxSizing: 'border-box',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px',
-              }}
-            >
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>DAO Governance &amp; Proposals</h2>
-                  <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                    Cast on-chain votes using your {activeCollection.name} NFT voting rights.
-                  </span>
-                </div>
-
-                {/* Active vs Past Votes Toggle Pills */}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setDaoVoteFilter('active')}
-                    style={{
-                      minHeight: '36px',
-                      padding: '0 16px',
-                      borderRadius: '999px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      background: daoVoteFilter === 'active' ? '#F5A524' : '#1D1D25',
-                      color: daoVoteFilter === 'active' ? '#111113' : '#D4D4D8',
-                      border: daoVoteFilter === 'active' ? '1px solid #F5A524' : '1px solid #2A2A33',
-                    }}
-                  >
-                    Active Votes ({activeProposals.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDaoVoteFilter('past')}
-                    style={{
-                      minHeight: '36px',
-                      padding: '0 16px',
-                      borderRadius: '999px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      background: daoVoteFilter === 'past' ? '#F5A524' : '#1D1D25',
-                      color: daoVoteFilter === 'past' ? '#111113' : '#D4D4D8',
-                      border: daoVoteFilter === 'past' ? '1px solid #F5A524' : '1px solid #2A2A33',
-                    }}
-                  >
-                    Past Votes ({pastProposals.length})
-                  </button>
-                </div>
-              </div>
-
-              {/* User Voting Power Banner */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+              {/* Top Row: Round Ball Orb + Treasury Holdings Card */}
               <div
                 style={{
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: '14px',
+                  gap: '28px',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '14px 18px',
-                  borderRadius: '16px',
-                  background: '#1D1D25',
+                  justifyContent: 'center',
+                  background: '#15151B',
                   border: '1px solid #2A2A33',
+                  borderRadius: '24px',
+                  padding: '32px',
+                  boxSizing: 'border-box',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <CheckSquare size={18} color="#F5A524" />
-                  <span style={{ fontSize: '14px' }}>
-                    Connected Account: <strong style={{ color: '#F4F4F5' }}>{walletAccountId || 'Not Connected'}</strong>
-                  </span>
+                {/* THE ROUND BALL (TREASURY ASSET ORB - MATCHING IMAGE 2) */}
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '320px',
+                    height: '320px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    boxShadow:
+                      '0 0 60px rgba(168, 85, 247, 0.45), 0 0 120px rgba(139, 92, 246, 0.25), inset 0 0 50px rgba(255, 255, 255, 0.35), inset 0 -25px 45px rgba(124, 58, 237, 0.5)',
+                    border: '2px solid rgba(255, 255, 255, 0.4)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#0D0D14',
+                    flexShrink: 0,
+                  }}
+                >
+                  {/* Image 2 Luminous Ribbon Sculpture Background */}
+                  <img
+                    src="/images/dao-orb.jpg"
+                    alt="DAO Treasury Orb"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      filter: 'brightness(0.92) contrast(1.15)',
+                      transform: 'scale(1.05)',
+                    }}
+                  />
+
+                  {/* Soft Glass Specular Sheen & Radial Depth */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background:
+                        'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.06) 50%, rgba(139,92,246,0.4) 100%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+
+                  {/* Dynamic Asset Liquid Level Across Bottom Hemisphere */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: `${fillPercent}%`,
+                      background:
+                        'linear-gradient(180deg, rgba(168, 85, 247, 0.35) 0%, rgba(139, 92, 246, 0.75) 100%)',
+                      backdropFilter: 'blur(3px)',
+                      borderTop: '2px solid rgba(255, 255, 255, 0.55)',
+                      boxShadow: '0 0 25px rgba(168, 85, 247, 0.5)',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'center',
+                      paddingBottom: '12px',
+                      boxSizing: 'border-box',
+                      transition: 'height 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: '#FFFFFF',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                        background: 'rgba(10,10,13,0.65)',
+                        padding: '4px 14px',
+                        borderRadius: '999px',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                      }}
+                    >
+                      Ⓝ {treasuryNear.toFixed(2)} NEAR • {fillPercent}% Filled
+                    </span>
+                  </div>
+
+                  {/* Central Asset Badge HUD Inside the Orb */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      zIndex: 2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: 'rgba(10, 10, 14, 0.72)',
+                      backdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      borderRadius: '22px',
+                      padding: '14px 22px',
+                      boxShadow: '0 12px 36px rgba(0,0,0,0.65)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div
+                        style={{
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '50%',
+                          background: '#000000',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                          display: 'grid',
+                          placeItems: 'center',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          color: '#86EFAC',
+                        }}
+                      >
+                        Ⓝ
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#F4F4F5', letterSpacing: '0.05em' }}>
+                        NEAR TREASURY
+                      </span>
+                      <span className="success-badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                        Live On-Chain
+                      </span>
+                    </div>
+
+                    <strong
+                      style={{
+                        fontSize: '28px',
+                        fontWeight: 800,
+                        fontFamily: 'Space Grotesk',
+                        color: '#FFFFFF',
+                        letterSpacing: '-0.02em',
+                        marginTop: '2px',
+                      }}
+                    >
+                      {treasuryNear.toFixed(2)} NEAR
+                    </strong>
+
+                    <span style={{ fontSize: '12px', color: '#D4D4D8' }}>
+                      ~${(treasuryNear * 5.2).toFixed(2)} USD • 100% Reserve
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        color: '#D8B4FE',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.07em',
+                      }}
+                    >
+                      tre.qrm1.testnet • Real-Time RPC
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  {userVotingPower > 0 ? (
-                    <span className="success-badge" style={{ fontSize: '13px', padding: '4px 12px' }}>
-                      Your Voting Power: {userVotingPower} {userVotingPower === 1 ? 'Vote' : 'Votes'} ({userTokensInCollection.map((t) => `#${t.token_id}`).join(', ')})
-                    </span>
-                  ) : (
-                    <span className="neutral-badge" style={{ fontSize: '12px' }}>
-                      0 Voting Power (Hold {activeCollection.name} NFTs to vote)
-                    </span>
-                  )}
+
+                {/* Right Side: DAO Treasury Holdings Breakdown Card */}
+                <div
+                  style={{
+                    flex: '1 1 360px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '18px',
+                    minWidth: 0,
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="gold-badge">100% On-Chain Verified</span>
+                      <span className="neutral-badge">tre.qrm1.testnet (Treasury)</span>
+                      <span className="neutral-badge">dao.qrm1.testnet (Gov)</span>
+                    </div>
+                    <h2 style={{ margin: '8px 0 4px', fontSize: '26px', fontWeight: 700 }}>
+                      {activeCollection.name} DAO Treasury
+                    </h2>
+                    <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
+                      Quorum splits DAO governance across two dedicated on-chain accounts: the <strong>Treasury Vault</strong> (<code style={{ color: '#F5A524' }}>tre.qrm1.testnet</code>) which holds and disburses the pooled funds, and the <strong>Governance DAO</strong> (<code style={{ color: '#D8B4FE' }}>dao.qrm1.testnet</code>) which validates proposals and member votes. Both balances are live from NEAR testnet RPC.
+                    </p>
+                  </div>
+
+                  {/* 4 Stat Boxes */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>TREASURY VAULT</span>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>
+                        {(daoBalances?.treasuryBalance ?? 10.00).toFixed(2)} NEAR
+                      </strong>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>tre.qrm1.testnet</span>
+                    </div>
+                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>GOV DAO RESERVE</span>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>
+                        {(daoBalances?.daoBalance ?? 2.20).toFixed(2)} NEAR
+                      </strong>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>dao.qrm1.testnet</span>
+                    </div>
+                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>PER-NFT SHARE</span>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#F4F4F5', marginTop: '2px' }}>
+                        {((daoBalances?.treasuryBalance ?? 10.00) / 20).toFixed(2)} NEAR
+                      </strong>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Equal distribution pool</span>
+                    </div>
+                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>COMBINED POOL</span>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
+                        {(daoBalances?.totalBalance ?? 12.20).toFixed(2)} NEAR
+                      </strong>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Total community NEAR</span>
+                    </div>
+                  </div>
+
+                  {/* Treasury Assets Table */}
+                  <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '14px', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', color: '#71717A', fontSize: '11px', textTransform: 'uppercase' }}>
+                          <th style={{ padding: '6px 8px' }}>Contract Account</th>
+                          <th style={{ padding: '6px 8px' }}>Role</th>
+                          <th style={{ padding: '6px 8px' }}>On-Chain Balance</th>
+                          <th style={{ padding: '6px 8px' }}>USD Value</th>
+                          <th style={{ padding: '6px 8px' }}>Explorer</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#86EFAC', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>T</div>
+                              <strong>tre.qrm1.testnet</strong>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            Treasury Vault Pool
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
+                            {(daoBalances?.treasuryBalance ?? 10.0003).toFixed(4)} NEAR
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            ~${((daoBalances?.treasuryBalance ?? 10.0003) * 5.2).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <a
+                              href="https://testnet.nearblocks.io/address/tre.qrm1.testnet"
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#F5A524', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
+                            >
+                              NearBlocks <ExternalLink size={12} />
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#D8B4FE', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>D</div>
+                              <strong>dao.qrm1.testnet</strong>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            Governance DAO
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#86EFAC', fontFamily: 'Space Grotesk' }}>
+                            {(daoBalances?.daoBalance ?? 2.1985).toFixed(4)} NEAR
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            ~${((daoBalances?.daoBalance ?? 2.1985) * 5.2).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <a
+                              href="https://testnet.nearblocks.io/address/dao.qrm1.testnet"
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#86EFAC', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
+                            >
+                              NearBlocks <ExternalLink size={12} />
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#FFFFFF' }}>
+                            TOTAL COMMUNITY ASSETS
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#D8B4FE', fontWeight: 600 }}>
+                            Quorum Ecosystem
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 800, color: '#FFFFFF', fontFamily: 'Space Grotesk' }}>
+                            {(daoBalances?.totalBalance ?? 12.1988).toFixed(4)} NEAR
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600 }}>
+                            ~${((daoBalances?.totalBalance ?? 12.1988) * 5.2).toFixed(2)}
+                          </td>
+                          <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
+                            <span className="success-badge" style={{ fontSize: '11px' }}>100% Verifiable</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyContract('tre.qrm1.testnet')}
+                      className="btn-secondary"
+                      style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Copy size={14} /> Copy Treasury (tre.qrm1)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyContract('dao.qrm1.testnet')}
+                      className="btn-secondary"
+                      style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Copy size={14} /> Copy DAO (dao.qrm1)
+                    </button>
+                    <a
+                      href="https://testnet.nearblocks.io/address/tre.qrm1.testnet"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-secondary"
+                      style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+                    >
+                      <ExternalLink size={14} /> View Treasury on NearBlocks
+                    </a>
+                  </div>
                 </div>
               </div>
 
-              {/* ACTIVE VOTES LIST */}
-              {daoVoteFilter === 'active' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {activeProposals.length === 0 ? (
-                    <div style={{ padding: '36px', textAlign: 'center', color: '#71717A' }}>
-                      No active proposals currently open for voting in this collection.
-                    </div>
-                  ) : (
-                    activeProposals.map((prop) => {
-                      const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
-                      const yesPct = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
-                      return (
+              {/* Bottom Section: Neat Active Votes and Past Votes */}
+              <section
+                style={{
+                  background: '#15151B',
+                  border: '1px solid #2A2A33',
+                  borderRadius: '24px',
+                  padding: '24px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>DAO Governance &amp; Proposals</h2>
+                    <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                      Cast on-chain votes using your {activeCollection.name} NFT voting rights.
+                    </span>
+                  </div>
+
+                  {/* Active vs Past Votes Toggle Pills */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDaoVoteFilter('active')}
+                      style={{
+                        minHeight: '36px',
+                        padding: '0 16px',
+                        borderRadius: '999px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        background: daoVoteFilter === 'active' ? '#F5A524' : '#1D1D25',
+                        color: daoVoteFilter === 'active' ? '#111113' : '#D4D4D8',
+                        border: daoVoteFilter === 'active' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                      }}
+                    >
+                      Active Votes ({activeProposals.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDaoVoteFilter('past')}
+                      style={{
+                        minHeight: '36px',
+                        padding: '0 16px',
+                        borderRadius: '999px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        background: daoVoteFilter === 'past' ? '#F5A524' : '#1D1D25',
+                        color: daoVoteFilter === 'past' ? '#111113' : '#D4D4D8',
+                        border: daoVoteFilter === 'past' ? '1px solid #F5A524' : '1px solid #2A2A33',
+                      }}
+                    >
+                      Past Votes ({pastProposals.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* User Voting Power Banner */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '14px',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    borderRadius: '16px',
+                    background: '#1D1D25',
+                    border: '1px solid #2A2A33',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckSquare size={18} color="#F5A524" />
+                    <span style={{ fontSize: '14px' }}>
+                      Connected Account: <strong style={{ color: '#F4F4F5' }}>{walletAccountId || 'Not Connected'}</strong>
+                    </span>
+                  </div>
+                  <div>
+                    {userVotingPower > 0 ? (
+                      <span className="success-badge" style={{ fontSize: '13px', padding: '4px 12px' }}>
+                        Your Voting Power: {userVotingPower} {userVotingPower === 1 ? 'Vote' : 'Votes'} ({userTokensInCollection.map((t) => `#${t.token_id}`).join(', ')})
+                      </span>
+                    ) : (
+                      <span className="neutral-badge" style={{ fontSize: '12px' }}>
+                        0 Voting Power (Hold {activeCollection.name} NFTs to vote)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* ACTIVE VOTES LIST */}
+                {daoVoteFilter === 'active' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {activeProposals.length === 0 ? (
+                      <div style={{ padding: '36px', textAlign: 'center', color: '#71717A' }}>
+                        No active proposals currently open for voting in this collection.
+                      </div>
+                    ) : (
+                      activeProposals.map((prop) => {
+                        const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
+                        const yesPct = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
+                        return (
+                          <div
+                            key={prop.id}
+                            style={{
+                              background: '#1D1D25',
+                              border: '1px solid #2A2A33',
+                              borderRadius: '18px',
+                              padding: '20px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '14px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <span className="gold-badge">Proposal #{prop.id}</span>
+                                <span className="neutral-badge">{prop.kind}</span>
+                                <span className="success-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={12} /> {prop.time_remaining} left
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '13px', color: '#86EFAC', fontWeight: 600 }}>
+                                {prop.quorum_percent}% Quorum Reached
+                              </span>
+                            </div>
+
+                            <div>
+                              <h3 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 600 }}>{prop.title}</h3>
+                              <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.5, color: '#A1A1AA' }}>
+                                {prop.description}
+                              </p>
+                            </div>
+
+                            {prop.route && (
+                              <div style={{ fontSize: '13px', color: '#D4D4D8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: '#71717A' }}>Route:</span>
+                                <strong>{prop.route}</strong>
+                              </div>
+                            )}
+
+                            {/* Quorum Progress Bar */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
+                                <span>Yes: {prop.votes_yes} ({yesPct}%)</span>
+                                <span>No: {prop.votes_no}</span>
+                                <span>Abstain: {prop.votes_abstain}</span>
+                              </div>
+                              <div style={{ width: '100%', height: '8px', background: '#2A2A33', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                                <div style={{ width: `${yesPct}%`, height: '100%', background: '#86EFAC' }} />
+                                <div style={{ width: `${totalVotes > 0 ? ((prop.votes_no / totalVotes) * 100) : 0}%`, height: '100%', background: '#EF4444' }} />
+                              </div>
+                            </div>
+
+                            {/* Voting Action Buttons */}
+                            {onCastVote && (
+                              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px solid #2A2A33', paddingTop: '12px' }}>
+                                <button
+                                  type="button"
+                                  disabled={userVotingPower === 0}
+                                  onClick={() => onCastVote(prop.id, 'yes')}
+                                  className="btn-secondary"
+                                  style={{
+                                    minHeight: '38px',
+                                    padding: '0 18px',
+                                    fontSize: '13px',
+                                    color: userVotingPower > 0 ? '#86EFAC' : '#71717A',
+                                    borderColor: userVotingPower > 0 ? 'rgba(34,197,94,0.4)' : '#2A2A33',
+                                  }}
+                                >
+                                  Vote Yes ({userVotingPower} {userVotingPower === 1 ? 'Vote' : 'Votes'})
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={userVotingPower === 0}
+                                  onClick={() => onCastVote(prop.id, 'no')}
+                                  className="btn-secondary"
+                                  style={{
+                                    minHeight: '38px',
+                                    padding: '0 18px',
+                                    fontSize: '13px',
+                                    color: userVotingPower > 0 ? '#EF4444' : '#71717A',
+                                    borderColor: userVotingPower > 0 ? 'rgba(239,68,68,0.4)' : '#2A2A33',
+                                  }}
+                                >
+                                  Vote No
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={userVotingPower === 0}
+                                  onClick={() => onCastVote(prop.id, 'abstain')}
+                                  className="btn-secondary"
+                                  style={{ minHeight: '38px', padding: '0 18px', fontSize: '13px' }}
+                                >
+                                  Abstain
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {/* PAST VOTES LIST */}
+                {daoVoteFilter === 'past' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {pastProposals.length === 0 ? (
+                      <div style={{ padding: '36px', textAlign: 'center', color: '#71717A' }}>
+                        No past proposals recorded yet for this collection.
+                      </div>
+                    ) : (
+                      pastProposals.map((prop) => (
                         <div
                           key={prop.id}
                           style={{
                             background: '#1D1D25',
                             border: '1px solid #2A2A33',
-                            borderRadius: '18px',
-                            padding: '20px',
+                            borderRadius: '16px',
+                            padding: '18px',
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '14px',
+                            gap: '10px',
                           }}
                         >
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                              <span className="gold-badge">Proposal #{prop.id}</span>
+                              <span className="neutral-badge">Proposal #{prop.id}</span>
+                              <span className="success-badge">● Passed &amp; Executed</span>
                               <span className="neutral-badge">{prop.kind}</span>
-                              <span className="success-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} /> {prop.time_remaining} left
-                              </span>
                             </div>
-                            <span style={{ fontSize: '13px', color: '#86EFAC', fontWeight: 600 }}>
-                              {prop.quorum_percent}% Quorum Reached
+                            <span style={{ fontSize: '12px', color: '#86EFAC', fontWeight: 600 }}>
+                              {prop.votes_yes} Yes • {prop.votes_no} No (Quorum: {prop.quorum_percent}%)
                             </span>
                           </div>
 
                           <div>
-                            <h3 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 600 }}>{prop.title}</h3>
-                            <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.5, color: '#A1A1AA' }}>
+                            <strong style={{ fontSize: '16px', display: 'block', marginBottom: '4px' }}>{prop.title}</strong>
+                            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
                               {prop.description}
                             </p>
                           </div>
-
-                          {prop.route && (
-                            <div style={{ fontSize: '13px', color: '#D4D4D8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ color: '#71717A' }}>Route:</span>
-                              <strong>{prop.route}</strong>
-                            </div>
-                          )}
-
-                          {/* Quorum Progress Bar */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
-                              <span>Yes: {prop.votes_yes} ({yesPct}%)</span>
-                              <span>No: {prop.votes_no}</span>
-                              <span>Abstain: {prop.votes_abstain}</span>
-                            </div>
-                            <div style={{ width: '100%', height: '8px', background: '#2A2A33', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
-                              <div style={{ width: `${yesPct}%`, height: '100%', background: '#86EFAC' }} />
-                              <div style={{ width: `${totalVotes > 0 ? ((prop.votes_no / totalVotes) * 100) : 0}%`, height: '100%', background: '#EF4444' }} />
-                            </div>
-                          </div>
-
-                          {/* Voting Action Buttons */}
-                          {onCastVote && (
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px solid #2A2A33', paddingTop: '12px' }}>
-                              <button
-                                type="button"
-                                disabled={userVotingPower === 0}
-                                onClick={() => onCastVote(prop.id, 'yes')}
-                                className="btn-secondary"
-                                style={{
-                                  minHeight: '38px',
-                                  padding: '0 18px',
-                                  fontSize: '13px',
-                                  color: userVotingPower > 0 ? '#86EFAC' : '#71717A',
-                                  borderColor: userVotingPower > 0 ? 'rgba(34,197,94,0.4)' : '#2A2A33',
-                                }}
-                              >
-                                Vote Yes ({userVotingPower} {userVotingPower === 1 ? 'Vote' : 'Votes'})
-                              </button>
-                              <button
-                                type="button"
-                                disabled={userVotingPower === 0}
-                                onClick={() => onCastVote(prop.id, 'no')}
-                                className="btn-secondary"
-                                style={{
-                                  minHeight: '38px',
-                                  padding: '0 18px',
-                                  fontSize: '13px',
-                                  color: userVotingPower > 0 ? '#EF4444' : '#71717A',
-                                  borderColor: userVotingPower > 0 ? 'rgba(239,68,68,0.4)' : '#2A2A33',
-                                }}
-                              >
-                                Vote No
-                              </button>
-                              <button
-                                type="button"
-                                disabled={userVotingPower === 0}
-                                onClick={() => onCastVote(prop.id, 'abstain')}
-                                className="btn-secondary"
-                                style={{ minHeight: '38px', padding: '0 18px', fontSize: '13px' }}
-                              >
-                                Abstain
-                              </button>
-                            </div>
-                          )}
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-
-              {/* PAST VOTES LIST */}
-              {daoVoteFilter === 'past' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {pastProposals.length === 0 ? (
-                    <div style={{ padding: '36px', textAlign: 'center', color: '#71717A' }}>
-                      No past proposals recorded yet for this collection.
-                    </div>
-                  ) : (
-                    pastProposals.map((prop) => (
-                      <div
-                        key={prop.id}
-                        style={{
-                          background: '#1D1D25',
-                          border: '1px solid #2A2A33',
-                          borderRadius: '16px',
-                          padding: '18px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '10px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span className="neutral-badge">Proposal #{prop.id}</span>
-                            <span className="success-badge">● Passed &amp; Executed</span>
-                            <span className="neutral-badge">{prop.kind}</span>
-                          </div>
-                          <span style={{ fontSize: '12px', color: '#86EFAC', fontWeight: 600 }}>
-                            {prop.votes_yes} Yes • {prop.votes_no} No (Quorum: {prop.quorum_percent}%)
-                          </span>
-                        </div>
-
-                        <div>
-                          <strong style={{ fontSize: '16px', display: 'block', marginBottom: '4px' }}>{prop.title}</strong>
-                          <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
-                            {prop.description}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </section>
-          </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </section>
+            </div>
           );
         })()}
 
@@ -2452,6 +2474,28 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 >
                   0.50 NEAR Vault
                 </span>
+                {token.is_on_chain && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: '10px',
+                      left: '10px',
+                      background: 'rgba(245,165,36,0.22)',
+                      border: '1px solid rgba(245,165,36,0.5)',
+                      color: '#FCD34D',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '8px',
+                      backdropFilter: 'blur(4px)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <ShieldCheck size={11} /> On-chain (mkt.qrm1)
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 4px' }}>

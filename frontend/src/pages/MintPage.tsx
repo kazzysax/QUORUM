@@ -234,8 +234,8 @@ export const MintPage: React.FC<MintPageProps> = ({
                 collection.id === 'feather-protocol'
                   ? ['/images/feather-avatar.jpg', '/images/feather-banner.jpg', '/images/feather-avatar.jpg', '/images/feather-banner.jpg']
                   : collection.id === 'molten-hours'
-                  ? ['/images/molten-0.jpg', '/images/molten-1.jpg', '/images/molten-0.jpg', '/images/molten-1.jpg']
-                  : ['/images/tidewater-0.jpg', '/images/tidewater-1.jpg', '/images/tidewater-0.jpg', '/images/tidewater-1.jpg']
+                    ? ['/images/molten-0.jpg', '/images/molten-1.jpg', '/images/molten-0.jpg', '/images/molten-1.jpg']
+                    : ['/images/tidewater-0.jpg', '/images/tidewater-1.jpg', '/images/tidewater-0.jpg', '/images/tidewater-1.jpg']
               ).map((img, idx) => (
                 <div
                   key={idx}

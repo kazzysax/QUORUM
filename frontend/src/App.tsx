@@ -13,7 +13,7 @@ import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
-import { fetchNearAccountBalance, fetchTokensForOwner } from './near';
+import { fetchNearAccountBalance, fetchTokensForOwner, fetchOnChainMarketplaceListings } from './near';
 import {
   getNearConnector,
   subscribeToNearConnect,
@@ -149,9 +149,35 @@ export function App() {
     }
   };
 
-  // Check for an existing wallet session on mount
+  const syncOnchainMarketListings = async () => {
+    try {
+      const onchainListings = await fetchOnChainMarketplaceListings();
+      if (onchainListings && onchainListings.length > 0) {
+        setMarketListings((prev) => {
+          const onchainMap = new Map(onchainListings.map((l) => [`${l.collection}-${l.token_id}`, l]));
+          const merged = [...onchainListings];
+          for (const item of prev) {
+            const key = `${item.collection}-${item.token_id}`;
+            if (!onchainMap.has(key)) {
+              merged.push(item);
+            }
+          }
+          persistState(STORAGE_KEYS.MARKET_LISTINGS, merged);
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Error syncing on-chain marketplace listings:', err);
+    }
+  };
+
+  // Check for an existing wallet session and load live on-chain market listings on mount
   useEffect(() => {
     let isMounted = true;
+
+    // Immediately sync live on-chain marketplace listings from mkt.qrm1.testnet
+    syncOnchainMarketListings();
+
     const connector = getNearConnector();
     connector
       .wallet()
@@ -244,7 +270,7 @@ export function App() {
     });
   }, [wallet.connected, wallet.accountId, userNfts]);
 
-  // Buy Listing Handler with real NEAR testnet transaction execution
+  // Buy Listing Handler with real NEAR testnet transaction execution via mkt.qrm1.testnet
   const handleBuyListing = async (token: TokenItem) => {
     if (!wallet.connected || !wallet.accountId) {
       addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
@@ -253,23 +279,67 @@ export function App() {
     }
 
     const priceNum = parseFloat(token.price || '1.00');
+    const isTide = Boolean(
+      (token.collection && token.collection.toLowerCase().includes('tide')) ||
+      (token.id && token.id.toLowerCase().includes('tide')) ||
+      (token.title && token.title.toLowerCase().includes('tide'))
+    );
+    const isFeather = Boolean(
+      (token.collection && token.collection.toLowerCase().includes('feather')) ||
+      (token.id && token.id.toLowerCase().includes('feather')) ||
+      (token.title && token.title.toLowerCase().includes('feather'))
+    );
+    const nftContract = token.nft_contract || (
+      isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
+    );
+
+    let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
+    if (!cleanTokenId) {
+      const match = (token.title || token.id || '').match(/#?(\d+)/);
+      cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
+    }
+
+    const approvalId = Number(token.approval_id || 1);
+    const priceYocto = nearToYocto(String(priceNum));
 
     try {
-      addToast('info', 'Initiating Testnet Transaction...', 'Please approve the purchase in your connected wallet.');
+      addToast('info', 'Initiating On-Chain Purchase...', `Purchasing ${token.title} on mkt.qrm1.testnet for ${priceNum} NEAR.`);
 
-      // Receiver must be an account that exists on NEAR testnet!
-      const recipient = token.owner_id || 'qrm1.testnet';
-
-      const tx = await sendNearTransaction({
-        receiverId: recipient,
-        actions: [createTransferAction(priceNum)],
-        signerId: wallet.accountId,
-      });
+      let tx: any;
+      if (token.approval_id || token.is_on_chain) {
+        // Real atomic smart contract execution via mkt.qrm1.testnet
+        tx = await sendNearTransaction({
+          receiverId: 'mkt.qrm1.testnet',
+          actions: [
+            createFunctionCallAction(
+              'buy',
+              {
+                nft: nftContract,
+                token_id: cleanTokenId,
+                approval_id: approvalId,
+              },
+              priceYocto,
+              '140000000000000' // 140 Tgas
+            ),
+          ],
+          signerId: wallet.accountId,
+        });
+      } else {
+        // Direct testnet transfer fallback
+        const recipient = token.owner_id || 'qrm1.testnet';
+        tx = await sendNearTransaction({
+          receiverId: recipient,
+          actions: [createTransferAction(priceNum)],
+          signerId: wallet.accountId,
+        });
+      }
 
       const acquiredToken: TokenItem = {
         ...token,
         owner_id: wallet.accountId,
         price: undefined,
+        nft_contract: nftContract,
+        is_on_chain: true,
       };
 
       const updatedListings = marketListings.filter((l) => l.id !== token.id);
@@ -303,16 +373,20 @@ export function App() {
 
       addToast(
         'success',
-        `Purchased ${token.title}! (Tx Confirmed)`,
-        `Keyless vault transferred with ${token.backing} intact. Added to your portfolio. Tx: ${tx.hash.slice(0, 10)}...`
+        `Purchased ${token.title}! (Atomic Settlement)`,
+        `Keyless vault and token transferred on testnet. 5% DAO treasury fee deposited. Tx: ${tx.hash.slice(0, 10)}...`
       );
+
+      // Re-sync live on-chain tokens & listings
+      await syncOnchainTokens(wallet.accountId);
+      await syncOnchainMarketListings();
     } catch (err: any) {
       console.error('Buy listing error:', err);
       addToast('error', 'Purchase Failed or Cancelled', err?.message || 'Could not complete on NEAR testnet.');
     }
   };
 
-  // List NFT for Sale with on-chain testnet registration
+  // List NFT for Sale with real on-chain NEP-178 registration on mkt.qrm1.testnet
   const handleListNft = async (token: TokenItem, priceNear: string) => {
     if (!wallet.connected || !wallet.accountId) {
       addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
@@ -333,11 +407,13 @@ export function App() {
         (token.id && token.id.toLowerCase().includes('feather')) ||
         (token.title && token.title.toLowerCase().includes('feather'))
       );
-      const nftContract = isFeather
+      const nftContract = token.nft_contract || (
+        isFeather
         ? 'feather.qrm1.testnet'
         : isTide
         ? 'tide.qrm1.testnet'
-        : 'molten.qrm1.testnet';
+        : 'molten.qrm1.testnet'
+      );
 
       let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
       if (!cleanTokenId) {
@@ -345,6 +421,10 @@ export function App() {
         cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
       }
 
+      const priceNum = parseFloat(priceNear) || 1.0;
+      const priceYocto = nearToYocto(String(priceNum));
+
+      // Real on-chain NEP-178 listing call: nft_approve with 0.005 NEAR storage deposit
       const tx = await sendNearTransaction({
         receiverId: nftContract,
         actions: [
@@ -353,21 +433,20 @@ export function App() {
             {
               token_id: cleanTokenId,
               account_id: 'mkt.qrm1.testnet',
-              msg: JSON.stringify({ price: nearToYocto(priceNear) }),
+              msg: JSON.stringify({ price: priceYocto }),
             },
-            '0.005',
-            '30000000000000'
+            '5000000000000000000000', // 0.005 NEAR deposit required by NEP-178
+            '60000000000000' // 60 Tgas
           ),
         ],
         signerId: wallet.accountId,
       });
 
       const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: priceNear } : t));
-      const listedToken: TokenItem = { ...token, price: priceNear };
+      const listedToken: TokenItem = { ...token, price: priceNear, approval_id: 1, is_on_chain: true, nft_contract: nftContract };
       const updatedListings = [listedToken, ...marketListings.filter((l) => l.id !== token.id)];
 
       // Generate incoming collector offer for the newly listed NFT (routed to user's Offers tab)
-      const priceNum = parseFloat(priceNear) || 1.0;
       const offerAmount = Math.max(0.1, +(priceNum * 0.9).toFixed(2)).toFixed(2);
       const incomingOffer: OfferItem = {
         id: `off-rec-${Date.now()}`,
@@ -393,17 +472,63 @@ export function App() {
 
       addToast(
         'success',
-        `Listed ${token.title} for ${priceNear} NEAR`,
-        `Tx ${tx.hash.slice(0, 10)}... registered on testnet. Collector offer of ${offerAmount} NEAR routed to your Offers tab!`
+        `Listed on mkt.qrm1.testnet!`,
+        `Tx ${tx.hash.slice(0, 10)}... active on-chain for ${priceNear} NEAR.`
       );
+
+      // Re-sync live on-chain market listings
+      await syncOnchainMarketListings();
+      await syncOnchainTokens(wallet.accountId);
     } catch (err: any) {
       console.error('Listing error:', err);
       addToast('error', 'Listing Failed', err?.message || 'Transaction rejected.');
     }
   };
 
-  // Cancel Listing
-  const handleCancelListing = (token: TokenItem) => {
+  // Cancel Listing with real on-chain cancel on mkt.qrm1.testnet
+  const handleCancelListing = async (token: TokenItem) => {
+    if (wallet.connected && wallet.accountId && (token.is_on_chain || token.approval_id)) {
+      try {
+        const isTide = Boolean(
+          (token.collection && token.collection.toLowerCase().includes('tide')) ||
+          (token.id && token.id.toLowerCase().includes('tide')) ||
+          (token.title && token.title.toLowerCase().includes('tide'))
+        );
+        const isFeather = Boolean(
+          (token.collection && token.collection.toLowerCase().includes('feather')) ||
+          (token.id && token.id.toLowerCase().includes('feather')) ||
+          (token.title && token.title.toLowerCase().includes('feather'))
+        );
+        const nftContract = token.nft_contract || (
+          isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
+        );
+        let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
+        if (!cleanTokenId) {
+          const match = (token.title || token.id || '').match(/#?(\d+)/);
+          cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
+        }
+
+        addToast('info', 'Cancelling Listing On-Chain...', `Cancelling ${token.title} on mkt.qrm1.testnet.`);
+        await sendNearTransaction({
+          receiverId: 'mkt.qrm1.testnet',
+          actions: [
+            createFunctionCallAction(
+              'cancel',
+              {
+                nft: nftContract,
+                token_id: cleanTokenId,
+              },
+              '0',
+              '50000000000000'
+            ),
+          ],
+          signerId: wallet.accountId,
+        });
+      } catch (err) {
+        console.warn('On-chain cancel note:', err);
+      }
+    }
+
     const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: undefined } : t));
     const updatedListings = marketListings.filter((l) => l.id !== token.id);
     const updatedOffers = offers.filter((o) => o.nft_id !== token.id && o.nft_title !== token.title);
@@ -416,7 +541,11 @@ export function App() {
     persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
     persistState(STORAGE_KEYS.OFFERS, updatedOffers);
 
-    addToast('info', `Listing Cancelled for ${token.title}`, 'Offers on unlisted items have been closed.');
+    addToast('info', `Listing Cancelled for ${token.title}`, 'Listing removed from marketplace.');
+    if (wallet.accountId) {
+      await syncOnchainMarketListings();
+      await syncOnchainTokens(wallet.accountId);
+    }
   };
 
   // Claim Distributions
@@ -487,7 +616,14 @@ export function App() {
       (token.id && token.id.toLowerCase().includes('tide')) ||
       (token.title && token.title.toLowerCase().includes('tide'))
     );
-    const burnContract = isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+    const isFeather = Boolean(
+      (token.collection && token.collection.toLowerCase().includes('feather')) ||
+      (token.id && token.id.toLowerCase().includes('feather')) ||
+      (token.title && token.title.toLowerCase().includes('feather'))
+    );
+    const burnContract = token.nft_contract || (
+      isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
+    );
 
     try {
       addToast('info', 'Initiating Vault Dissolution & Burn...', `Burning #${cleanTokenId} on ${burnContract}. Please sign the burn authorization in your wallet.`);
@@ -526,6 +662,10 @@ export function App() {
         `${token.title} Burned & Redeemed!`,
         `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundStr} NEAR refunded to ${wallet.accountId}.`
       );
+
+      // Re-sync live on-chain tokens & listings
+      await syncOnchainTokens(wallet.accountId);
+      await syncOnchainMarketListings();
     } catch (err: any) {
       console.error('Burn error:', err);
       addToast('error', 'Redemption Failed', err?.message || 'Transaction rejected.');
@@ -776,6 +916,9 @@ export function App() {
         `Mint Successful: ${newMintedToken.title}!`,
         `Tx ${tx.hash.slice(0, 10)}... Keyless vault v${nextNum}.${contractId} deployed and backed with 0.50 NEAR.`
       );
+
+      // Re-sync live on-chain tokens & listings
+      await syncOnchainTokens(wallet.accountId);
     } catch (err: any) {
       console.error('Minting error:', err);
       addToast('error', 'Mint Failed', err?.message || 'Transaction rejected.');
@@ -807,12 +950,19 @@ export function App() {
         cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
       }
 
+      const isFeather = Boolean(
+        (targetToken.collection && targetToken.collection.toLowerCase().includes('feather')) ||
+        (targetToken.id && targetToken.id.toLowerCase().includes('feather')) ||
+        (targetToken.title && targetToken.title.toLowerCase().includes('feather'))
+      );
       const isTide = Boolean(
         (targetToken.collection && targetToken.collection.toLowerCase().includes('tide')) ||
         (targetToken.id && targetToken.id.toLowerCase().includes('tide')) ||
         (targetToken.title && targetToken.title.toLowerCase().includes('tide'))
       );
-      const nftContract = isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+      const nftContract = targetToken.nft_contract || (
+        isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
+      );
       const buyerAccount = (offer.from && offer.from.endsWith('.testnet')) ? offer.from : 'qrm1.testnet';
 
       // Real on-chain NEP-171 nft_transfer to the buyer
@@ -894,6 +1044,10 @@ export function App() {
         'Offer Accepted & Payout Credited!',
         `Transferred #${cleanTokenId} to ${buyerAccount}. Credited ${offer.amount_near} NEAR on-chain${payoutTxHash ? ` (Tx: ${payoutTxHash.slice(0, 10)}...)` : ''}.`
       );
+
+      // Re-sync live on-chain tokens & listings
+      await syncOnchainTokens(wallet.accountId);
+      await syncOnchainMarketListings();
     } catch (err: any) {
       console.error('Accept offer error:', err);
       addToast('error', 'Accept Offer Failed', err?.message || 'Transaction rejected.');

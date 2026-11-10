@@ -14,6 +14,9 @@ export interface TokenItem {
   votes_cast?: number;
   unclaimed_distribution?: string;
   vault_account?: string;
+  approval_id?: number;
+  nft_contract?: string;
+  is_on_chain?: boolean;
 }
 
 export interface CollectionStats {

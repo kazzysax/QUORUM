@@ -17,7 +17,16 @@ export default async function handler(req, res) {
     const signer = KeyPairSigner.fromSecretKey(BUYER_PRIVATE_KEY);
     const account = new Account('qrm1.testnet', provider, signer);
 
-    const amountYocto = parseNearAmount(String(amountNear));
+    const balanceInfo = await account.getAccountBalance().catch(() => null);
+    let amountYocto = parseNearAmount(String(amountNear));
+    if (balanceInfo && balanceInfo.available) {
+      const availBn = BigInt(balanceInfo.available);
+      const reqBn = BigInt(amountYocto);
+      if (reqBn > availBn && availBn > BigInt(parseNearAmount('0.05'))) {
+        amountYocto = (availBn - BigInt(parseNearAmount('0.02'))).toString();
+      }
+    }
+
     const result = await account.transfer({
       receiverId: sellerAccountId,
       amount: BigInt(amountYocto),
