@@ -9,3 +9,4 @@ near contract call-function as-transaction tide.qrm1.testnet mint json-args '{"s
 
 echo "=== BURN Token #4 on tide.qrm1.testnet ==="
 near contract call-function as-transaction tide.qrm1.testnet burn_and_redeem json-args '{"token_id":"4"}' prepaid-gas '150 Tgas' attached-deposit '1 yoctoNEAR' sign-as qrm1.testnet $NET
+

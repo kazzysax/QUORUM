@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Page, CollectionItem } from '../types';
 import { ArrowLeft, ShieldCheck, Sparkles, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { fetchLiveDaoBalances, type DaoBalances } from '../near';
 
 interface MintPageProps {
   collection: CollectionItem;
@@ -15,6 +16,17 @@ export const MintPage: React.FC<MintPageProps> = ({
 }) => {
   const [stage, setStage] = useState<'pre' | 'pub'>('pub');
   const [minting, setMinting] = useState(false);
+  const [daoBalances, setDaoBalances] = useState<DaoBalances | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchLiveDaoBalances().then((res) => {
+      if (mounted) setDaoBalances(res);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const isPre = stage === 'pre';
   const price = 1.00;
@@ -24,8 +36,8 @@ export const MintPage: React.FC<MintPageProps> = ({
   const stageStatus = isSoldOut
     ? 'Mint Concluded · 100% Minted'
     : isPre
-    ? 'Allowlist only · ended'
-    : 'Open to everyone · Live';
+      ? 'Allowlist only · ended'
+      : 'Open to everyone · Live';
   const mintedPercent = Math.min(100, Math.round((collection.minted / collection.supply) * 100));
 
   const handleMintClick = async () => {
@@ -289,49 +301,51 @@ export const MintPage: React.FC<MintPageProps> = ({
             <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>{collection.name}</h2>
           </div>
 
-          {/* Stage Status */}
-          <div
-            role="group"
-            aria-label="Stage"
-            style={{ display: 'flex', gap: '6px', padding: '4px', background: '#1D1D25', borderRadius: '14px' }}
-          >
-            <button
-              type="button"
-              onClick={() => setStage('pre')}
-              style={{
-                flex: 1,
-                minHeight: '44px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                background: isPre ? '#F5A524' : 'transparent',
-                color: isPre ? '#111113' : '#D4D4D8',
-                border: 0,
-                transition: 'all 0.15s ease',
-              }}
+          {/* Stage Status: only visible while mint is ongoing; disappears once minted out / concluded */}
+          {!isSoldOut && (
+            <div
+              role="group"
+              aria-label="Stage"
+              style={{ display: 'flex', gap: '6px', padding: '4px', background: '#1D1D25', borderRadius: '14px' }}
             >
-              Presale (Ended)
-            </button>
-            <button
-              type="button"
-              onClick={() => setStage('pub')}
-              style={{
-                flex: 1,
-                minHeight: '44px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                background: !isPre ? '#F5A524' : 'transparent',
-                color: !isPre ? '#111113' : '#D4D4D8',
-                border: 0,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Public (Sold Out)
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => setStage('pre')}
+                style={{
+                  flex: 1,
+                  minHeight: '44px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: isPre ? '#F5A524' : 'transparent',
+                  color: isPre ? '#111113' : '#D4D4D8',
+                  border: 0,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Presale (Ended)
+              </button>
+              <button
+                type="button"
+                onClick={() => setStage('pub')}
+                style={{
+                  flex: 1,
+                  minHeight: '44px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: !isPre ? '#F5A524' : 'transparent',
+                  color: !isPre ? '#111113' : '#D4D4D8',
+                  border: 0,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Public (Sold Out)
+              </button>
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             <span className="gold-badge">{stageStatus}</span>
@@ -359,11 +373,13 @@ export const MintPage: React.FC<MintPageProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
             <div style={{ padding: '14px', borderRadius: '14px', border: '1px solid #2A2A33', background: '#1D1D25' }}>
               <span style={{ fontSize: '12px', color: '#A1A1AA' }}>In DAO Treasury</span>
-              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px' }}>20.00 NEAR</strong>
+              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#F5A524' }}>
+                {daoBalances ? `${daoBalances.treasuryBalance.toFixed(2)} NEAR` : '10.00 NEAR'}
+              </strong>
             </div>
             <div style={{ padding: '14px', borderRadius: '14px', border: '1px solid #2A2A33', background: '#1D1D25' }}>
               <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Per-NFT Vault</span>
-              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#F5A524' }}>1.00 NEAR</strong>
+              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#86EFAC' }}>0.50 NEAR</strong>
             </div>
           </div>
 

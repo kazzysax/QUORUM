@@ -36,11 +36,21 @@ export const OffersPage: React.FC<OffersPageProps> = ({
   const [offerAmount, setOfferAmount] = useState('1.20');
   const [expiresInDays, setExpiresInDays] = useState('7');
 
-  // Personalized offers strictly for the connected user:
-  // 1. Received: Offers on NFTs currently held by the user in userNfts
-  const receivedOffers = offers.filter((o) =>
-    o.type === 'received' &&
-    (o.to === walletAccountId || userNfts.some((n) => n.id === o.nft_id || n.title.toLowerCase() === o.nft_title.toLowerCase()))
+  // Offers are strictly accepted ONLY for NFTs actively listed for sale.
+  // An incoming offer appears in the user's Received tab when it targets a token the user has listed in Sells.
+  const isHeldAndListed = (nftId?: string, nftTitle?: string) => {
+    return userNfts.some(
+      (n) =>
+        (n.id === nftId || n.title.toLowerCase() === (nftTitle || '').toLowerCase()) &&
+        Boolean(n.price)
+    );
+  };
+
+  const receivedOffers = offers.filter(
+    (o) =>
+      o.type === 'received' &&
+      (o.to === walletAccountId || !o.to || o.to === 'malekoala9992.testnet') &&
+      isHeldAndListed(o.nft_id, o.nft_title)
   );
 
   // 2. Made: Offers placed by this connected user
@@ -220,10 +230,32 @@ export const OffersPage: React.FC<OffersPageProps> = ({
           </div>
 
           {filteredOffers.length === 0 ? (
-            <div style={{ padding: '32px 16px', textAlign: 'center', color: '#71717A', fontSize: '14px' }}>
-              {tab === 'rec'
-                ? 'No active offers received on your held NFTs.'
-                : 'You have not placed any offers yet. Submit an offer using the form on the right.'}
+            <div style={{ padding: '36px 20px', textAlign: 'center', color: '#A1A1AA', fontSize: '14px', background: '#1D1D25', borderRadius: '16px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              {tab === 'rec' ? (
+                <>
+                  <Tag size={28} color="#F5A524" />
+                  <strong style={{ fontSize: '16px', color: '#F4F4F5' }}>No Active Offers on Listed NFTs</strong>
+                  <span style={{ maxWidth: '440px', lineHeight: 1.6 }}>
+                    Offers are strictly received for pieces you have actively listed for sale. List one of your held NFTs in your Sells tab to receive collector offers.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('sells')}
+                    className="btn-primary"
+                    style={{ minHeight: '38px', padding: '0 20px', fontSize: '13px', marginTop: '4px' }}
+                  >
+                    Go to Your Sells <ArrowRight size={14} style={{ marginLeft: '4px' }} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Tag size={28} color="#A1A1AA" />
+                  <strong style={{ fontSize: '16px', color: '#F4F4F5' }}>No Offers Placed</strong>
+                  <span style={{ maxWidth: '440px', lineHeight: 1.6 }}>
+                    You have not placed any offers yet. Submit an offer using the form on the right.
+                  </span>
+                </>
+              )}
             </div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>

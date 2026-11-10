@@ -80,25 +80,46 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
       royaltyPercent: 5,
     },
   },
+  {
+    id: 'feather-protocol',
+    name: 'Feather Protocol',
+    symbol: 'FEATH',
+    creator: 'qrm1.testnet',
+    description: 'Iridescent celestial feathers forged in radiant cosmic light. 20 pieces total. Every piece holds 0.50 NEAR in its own keyless vault and 1 vote in the Feather DAO (10 NEAR Treasury).',
+    cover_image: '/images/feather-banner.jpg',
+    avatar_image: '/images/feather-avatar.jpg',
+    supply: 20,
+    minted: 1,
+    price_near: '1.00',
+    floor_price_near: '1.00',
+    backing_summary: '0.50 NEAR in vault',
+    royalty_percent: 5,
+    change_24h: '+0%',
+    change_positive: true,
+    status: 'live',
+    asset_weights: [
+      { asset: 'NEAR', weight: 1, percentage: 100 },
+    ],
+    stats: {
+      floorPrice: '1.00 NEAR',
+      floorChange1D: '0%',
+      topOffer: '0.90 NEAR',
+      volume24H: '1.03 NEAR',
+      totalVolume: '1.03 NEAR',
+      listedCount: 0,
+      listedPercent: 0,
+      uniqueOwnersCount: 1,
+      uniqueOwnersPercent: 100,
+      contractId: 'feather.qrm1.testnet',
+      createdDate: 'NOV 2026',
+      royaltyPercent: 5,
+    },
+  },
 ];
 
-// 5 unburned pieces held by the connected testnet user (2 Molten Hours + 3 Tidewater; Molten #1 was burned on testnet)
+// Unburned pieces held by the connected testnet user (Molten Hours + Tidewater + Feather Protocol #1)
 export const INITIAL_USER_NFTS: TokenItem[] = [
-  // Molten Hours pieces (Piece #1 was burned for 0.45 NEAR floor redemption)
-  {
-    id: 'molt-2',
-    token_id: '2',
-    owner_id: 'malekoala9992.testnet',
-    collection: 'Molten Hours',
-    title: 'Molten Hours #2',
-    asset: 'NEAR',
-    backing: '0.50 NEAR',
-    backing_status: 'credited',
-    image: '/images/molten-1.jpg',
-    votes_cast: 5,
-    unclaimed_distribution: '0.00 NEAR',
-    vault_account: 'v2.molten.qrm1.testnet',
-  },
+  // Molten Hours pieces (Piece #1 was burned for 0.45 NEAR floor redemption, Piece #2 was accepted in offer settlement)
   {
     id: 'molt-3',
     token_id: '3',
@@ -156,6 +177,22 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     votes_cast: 2,
     unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v3.tide.qrm1.testnet',
+  },
+
+  // Feather Protocol piece held by user (Verified on NEAR testnet contract feather.qrm1.testnet)
+  {
+    id: 'feath-1',
+    token_id: '1',
+    owner_id: 'malekoala9992.testnet',
+    collection: 'Feather Protocol',
+    title: 'Feather Protocol #1',
+    asset: 'NEAR',
+    backing: '0.50 NEAR',
+    backing_status: 'credited',
+    image: '/images/feather-avatar.jpg',
+    votes_cast: 0,
+    unclaimed_distribution: '0.00 NEAR',
+    vault_account: 'v1.feather.qrm1.testnet',
   },
 ];
 
@@ -395,6 +432,17 @@ export const COLLECTION_HOLDERS: Record<string, CollectionHolder[]> = {
       vaultValueNear: '1.50 NEAR',
     },
   ],
+  'feather-protocol': [
+    {
+      rank: 1,
+      accountId: 'malekoala9992.testnet',
+      tokensHeld: ['#1'],
+      count: 1,
+      percent: 100,
+      votingPower: 1,
+      vaultValueNear: '0.50 NEAR',
+    },
+  ],
 };
 
 export const COLLECTION_TRAITS: Record<string, CollectionTrait[]> = {
@@ -411,6 +459,16 @@ export const COLLECTION_TRAITS: Record<string, CollectionTrait[]> = {
   'tidewater': [
     { name: 'Abyssal Teal Crest', category: 'Visual Element', rarityPercent: 50, count: 10 },
     { name: 'Golden Tidal Flecks', category: 'Visual Element', rarityPercent: 50, count: 10 },
+    { name: '0.50 Native NEAR Vault', category: 'Vault Reserve', rarityPercent: 100, count: 20 },
+    { name: '1 DAO Share / Vote', category: 'Governance Weight', rarityPercent: 100, count: 20 },
+    { name: 'NEP-171 Standard', category: 'Token Interface', rarityPercent: 100, count: 20 },
+    { name: 'NEP-178 Non-Custodial', category: 'Execution Security', rarityPercent: 100, count: 20 },
+    { name: '90% Floor Liquidation', category: 'Redemption Rights', rarityPercent: 100, count: 20 },
+    { name: 'Gen 1 Genesis', category: 'Edition', rarityPercent: 100, count: 20 },
+  ],
+  'feather-protocol': [
+    { name: 'Iridescent Luminescent Vane', category: 'Visual Element', rarityPercent: 50, count: 10 },
+    { name: 'Celestial Glass Quill', category: 'Visual Element', rarityPercent: 50, count: 10 },
     { name: '0.50 Native NEAR Vault', category: 'Vault Reserve', rarityPercent: 100, count: 20 },
     { name: '1 DAO Share / Vote', category: 'Governance Weight', rarityPercent: 100, count: 20 },
     { name: 'NEP-171 Standard', category: 'Token Interface', rarityPercent: 100, count: 20 },
@@ -535,6 +593,30 @@ export const COLLECTION_ACTIVITY: Record<string, CollectionActivity[]> = {
       txHash: '3KjN91xP6w4V',
     },
   ],
+  'feather-protocol': [
+    {
+      id: 'act-feath-transfer-1',
+      event: 'Transfer',
+      tokenId: '1',
+      title: 'Feather Protocol #1',
+      priceNear: '1.03 NEAR',
+      from: 'qrm1.testnet',
+      to: 'malekoala9992.testnet',
+      date: 'Just now',
+      txHash: '7FhY82mP3k9W',
+    },
+    {
+      id: 'act-feath-mint-1',
+      event: 'Mint',
+      tokenId: '1',
+      title: 'Feather Protocol #1 (Minted)',
+      priceNear: '1.03 NEAR',
+      from: 'feather.qrm1.testnet',
+      to: 'malekoala9992.testnet',
+      date: 'Just now',
+      txHash: '4KpZ83vM1y7Q',
+    },
+  ],
 };
 
 export const COLLECTION_OFFERS: Record<string, OfferItem[]> = {
@@ -583,6 +665,30 @@ export const COLLECTION_OFFERS: Record<string, OfferItem[]> = {
       from: 'dao.qrm1.testnet',
       amount_near: '1.40',
       expires_in: '6 days',
+      type: 'received',
+    },
+  ],
+  'feather-protocol': [
+    {
+      id: 'col-off-feath-2',
+      nft_id: 'feath-2',
+      nft_title: 'Feather Protocol #2',
+      image: '/images/feather-avatar.jpg',
+      collection: 'Feather Protocol',
+      from: 'qrm1.testnet',
+      amount_near: '0.85',
+      expires_in: '4 days',
+      type: 'received',
+    },
+    {
+      id: 'col-off-feath-4',
+      nft_id: 'm-feath-4',
+      nft_title: 'Feather Protocol #4',
+      image: '/images/feather-avatar.jpg',
+      collection: 'Feather Protocol',
+      from: 'dao.qrm1.testnet',
+      amount_near: '0.80',
+      expires_in: '5 days',
       type: 'received',
     },
   ],

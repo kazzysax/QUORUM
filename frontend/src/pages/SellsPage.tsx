@@ -246,6 +246,20 @@ export const SellsPage: React.FC<SellsPageProps> = ({
               <span className="gold-badge">{activeListedTokens.length} Listed</span>
             </div>
 
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: '14px',
+                background: 'rgba(245,165,36,0.08)',
+                border: '1px solid rgba(245,165,36,0.25)',
+                fontSize: '13px',
+                lineHeight: 1.55,
+                color: '#FFD572',
+              }}
+            >
+              💡 <strong>Offers routed to your Offers tab:</strong> In accordance with Quorum protocol rules, offers are accepted only for NFTs actively listed for sale. Once listed here, collector offers on your pieces will automatically route to your <strong>Offers</strong> tab for acceptance.
+            </div>
+
             {activeListedTokens.length === 0 ? (
               <span style={{ fontSize: '14px', color: '#71717A' }}>
                 You have no active listings. Select an NFT on the left to list it.

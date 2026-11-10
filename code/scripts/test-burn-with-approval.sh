@@ -14,3 +14,4 @@ echo "=== 3. Try burning Token #5 while approved ==="
 near contract call-function as-transaction molten.qrm1.testnet burn_and_redeem json-args '{"token_id":"5"}' prepaid-gas '150 Tgas' attached-deposit '1 yoctoNEAR' sign-as qrm1.testnet $NET
 
 echo "=== Success! ==="
+

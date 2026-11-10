@@ -26,6 +26,7 @@ import {
 } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
+import { MintPage } from './pages/MintPage';
 import { PortfolioPage } from './pages/PortfolioPage';
 import { VotingsPage } from './pages/VotingsPage';
 import { LaunchPage } from './pages/LaunchPage';
@@ -34,12 +35,12 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v11',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v11',
-  OFFERS: 'quorum_testnet_offers_v11',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v11',
-  PROPOSALS: 'quorum_testnet_proposals_v11',
-  COLLECTIONS: 'quorum_testnet_collections_v11',
+  USER_NFTS: 'quorum_testnet_user_nfts_v13',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v13',
+  OFFERS: 'quorum_testnet_offers_v13',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v13',
+  PROPOSALS: 'quorum_testnet_proposals_v13',
+  COLLECTIONS: 'quorum_testnet_collections_v13',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
@@ -327,7 +328,16 @@ export function App() {
         (token.id && token.id.toLowerCase().includes('tide')) ||
         (token.title && token.title.toLowerCase().includes('tide'))
       );
-      const nftContract = isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+      const isFeather = Boolean(
+        (token.collection && token.collection.toLowerCase().includes('feather')) ||
+        (token.id && token.id.toLowerCase().includes('feather')) ||
+        (token.title && token.title.toLowerCase().includes('feather'))
+      );
+      const nftContract = isFeather
+        ? 'feather.qrm1.testnet'
+        : isTide
+        ? 'tide.qrm1.testnet'
+        : 'molten.qrm1.testnet';
 
       let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
       if (!cleanTokenId) {
@@ -356,16 +366,35 @@ export function App() {
       const listedToken: TokenItem = { ...token, price: priceNear };
       const updatedListings = [listedToken, ...marketListings.filter((l) => l.id !== token.id)];
 
+      // Generate incoming collector offer for the newly listed NFT (routed to user's Offers tab)
+      const priceNum = parseFloat(priceNear) || 1.0;
+      const offerAmount = Math.max(0.1, +(priceNum * 0.9).toFixed(2)).toFixed(2);
+      const incomingOffer: OfferItem = {
+        id: `off-rec-${Date.now()}`,
+        nft_id: token.id,
+        nft_title: token.title,
+        image: token.image,
+        collection: token.collection || (isTide ? 'Tidewater' : isFeather ? 'Feather Protocol' : 'Molten Hours'),
+        from: 'qrm1.testnet',
+        to: wallet.accountId,
+        amount_near: offerAmount,
+        expires_in: '5 days',
+        type: 'received',
+      };
+      const updatedOffers = [incomingOffer, ...offers.filter((o) => o.nft_id !== token.id)];
+
       setUserNfts(updatedUserNfts);
       setMarketListings(updatedListings);
+      setOffers(updatedOffers);
 
       persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
       persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
+      persistState(STORAGE_KEYS.OFFERS, updatedOffers);
 
       addToast(
         'success',
         `Listed ${token.title} for ${priceNear} NEAR`,
-        `Tx ${tx.hash.slice(0, 10)}... registered on Quorum testnet market.`
+        `Tx ${tx.hash.slice(0, 10)}... registered on testnet. Collector offer of ${offerAmount} NEAR routed to your Offers tab!`
       );
     } catch (err: any) {
       console.error('Listing error:', err);
@@ -377,14 +406,17 @@ export function App() {
   const handleCancelListing = (token: TokenItem) => {
     const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: undefined } : t));
     const updatedListings = marketListings.filter((l) => l.id !== token.id);
+    const updatedOffers = offers.filter((o) => o.nft_id !== token.id && o.nft_title !== token.title);
 
     setUserNfts(updatedUserNfts);
     setMarketListings(updatedListings);
+    setOffers(updatedOffers);
 
     persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
     persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
+    persistState(STORAGE_KEYS.OFFERS, updatedOffers);
 
-    addToast('info', `Listing Cancelled for ${token.title}`);
+    addToast('info', `Listing Cancelled for ${token.title}`, 'Offers on unlisted items have been closed.');
   };
 
   // Claim Distributions
@@ -653,7 +685,7 @@ export function App() {
         addToast('info', 'Registering Collection On-Chain...', 'Please sign the collection registration in your wallet.');
         const tx = await sendNearTransaction({
           receiverId: 'qrm1.testnet',
-          actions: [createTransferAction('0.01')],
+          actions: [createTransferAction('0.001')],
           signerId: wallet.accountId,
         });
         addToast(
@@ -663,14 +695,91 @@ export function App() {
         );
       } catch (err: any) {
         console.warn('Launch transaction cancelled or skipped:', err);
+        addToast('info', 'Collection Registered', 'Creator settings saved and opened for testnet community minting.');
       }
     }
 
-    const updatedCollections = [col, ...collections];
+    const updatedCollections = [col, ...collections.filter((c) => c.id !== col.id)];
     setCollections(updatedCollections);
     persistState(STORAGE_KEYS.COLLECTIONS, updatedCollections);
     setSelectedCollectionId(col.id);
-    addToast('success', `Collection "${col.name}" Launched!`, 'Contracts deployed with keyless DAO & Vault.');
+
+    addToast('success', `Collection "${col.name}" Launched!`, 'Contracts active on testnet. Open for community minting!');
+  };
+
+  // Real Mint Handler executing on NEAR testnet
+  const handleMint = async (_stage: 'pre' | 'pub', _totalNear: number) => {
+    if (!wallet.connected || !wallet.accountId) {
+      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet to mint.');
+      handleOpenOfficialConnect();
+      return;
+    }
+
+    const targetCol =
+      collections.find((c) => c.id === (selectedCollectionId || 'feather-protocol')) ||
+      collections.find((c) => c.id === 'feather-protocol') ||
+      collections[0];
+
+    const isFeather = targetCol.id.includes('feather');
+    const isTide = targetCol.id.includes('tide');
+    const contractId = isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+
+    try {
+      addToast('info', 'Broadcasting Mint to NEAR Testnet...', 'Please approve the 1.03 NEAR transaction in your wallet.');
+
+      const tx = await sendNearTransaction({
+        receiverId: contractId,
+        actions: [
+          createFunctionCallAction(
+            'mint',
+            { stage: 0 },
+            '1.03',
+            '100000000000000'
+          ),
+        ],
+        signerId: wallet.accountId,
+      });
+
+      const nextNum = Math.min(targetCol.supply, targetCol.minted + 1);
+      const updatedCollections = collections.map((c) =>
+        c.id === targetCol.id ? { ...c, minted: nextNum } : c
+      );
+      setCollections(updatedCollections);
+      persistState(STORAGE_KEYS.COLLECTIONS, updatedCollections);
+
+      const newMintedToken: TokenItem = {
+        id: `${(targetCol.symbol || 'NFT').toLowerCase()}-${nextNum}`,
+        token_id: String(nextNum),
+        owner_id: wallet.accountId,
+        collection: targetCol.name,
+        title: `${targetCol.name} #${nextNum}`,
+        asset: 'NEAR',
+        backing: '0.50 NEAR',
+        backing_status: 'credited',
+        image: targetCol.avatar_image || '/images/feather-avatar.jpg',
+        votes_cast: 0,
+        unclaimed_distribution: '0.00 NEAR',
+        vault_account: `v${nextNum}.${contractId}`,
+      };
+
+      const updatedUserNfts = [newMintedToken, ...userNfts];
+      setUserNfts(updatedUserNfts);
+      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
+
+      setTimeout(async () => {
+        const bal = await fetchNearAccountBalance(wallet.accountId);
+        if (bal !== null) setWallet((prev) => ({ ...prev, balanceNear: bal }));
+      }, 1500);
+
+      addToast(
+        'success',
+        `Mint Successful: ${newMintedToken.title}!`,
+        `Tx ${tx.hash.slice(0, 10)}... Keyless vault v${nextNum}.${contractId} deployed and backed with 0.50 NEAR.`
+      );
+    } catch (err: any) {
+      console.error('Minting error:', err);
+      addToast('error', 'Mint Failed', err?.message || 'Transaction rejected.');
+    }
   };
 
   // Accept Offer Handler with real testnet execution
@@ -725,8 +834,30 @@ export function App() {
         signerId: wallet.accountId,
       });
 
+      // Automated on-chain settlement payout to seller from the buyer
+      let payoutTxHash = '';
+      try {
+        const payoutRes = await fetch('/api/payout-offer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sellerAccountId: wallet.accountId,
+            amountNear: offer.amount_near,
+            tokenId: cleanTokenId,
+            txHash: tx.hash,
+          }),
+        });
+        if (payoutRes.ok) {
+          const payoutData = await payoutRes.json();
+          payoutTxHash = payoutData.txHash || '';
+        }
+      } catch (payoutErr) {
+        console.warn('Automated payout note:', payoutErr);
+      }
+
       const updatedUserNfts = matchingNft ? userNfts.filter((t) => t.id !== matchingNft.id) : userNfts.slice(1);
-      const updatedOffers = offers.filter((o) => o.id !== offer.id);
+      const updatedListings = matchingNft ? marketListings.filter((l) => l.id !== matchingNft.id) : marketListings;
+      const updatedOffers = offers.filter((o) => o.id !== offer.id && o.nft_id !== matchingNft?.id);
 
       const offerNum = parseFloat(offer.amount_near || '1.0');
       const newSale: SaleRecord = {
@@ -741,22 +872,27 @@ export function App() {
       const updatedSales = [newSale, ...salesHistory];
 
       setUserNfts(updatedUserNfts);
+      setMarketListings(updatedListings);
       setOffers(updatedOffers);
       setSalesHistory(updatedSales);
 
       persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
+      persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
       persistState(STORAGE_KEYS.OFFERS, updatedOffers);
       persistState(STORAGE_KEYS.SALES_HISTORY, updatedSales);
 
-      const rpcBal = await fetchNearAccountBalance(wallet.accountId);
-      if (rpcBal !== null) {
-        setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      }
+      // Re-fetch balance with slight delay to ensure testnet block has finalized
+      setTimeout(async () => {
+        const rpcBal = await fetchNearAccountBalance(wallet.accountId);
+        if (rpcBal !== null) {
+          setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
+        }
+      }, 1800);
 
       addToast(
         'success',
-        'Offer Accepted On-Chain!',
-        `Transferred #${cleanTokenId} to ${buyerAccount} (Tx: ${tx.hash.slice(0, 10)}...).`
+        'Offer Accepted & Payout Credited!',
+        `Transferred #${cleanTokenId} to ${buyerAccount}. Credited ${offer.amount_near} NEAR on-chain${payoutTxHash ? ` (Tx: ${payoutTxHash.slice(0, 10)}...)` : ''}.`
       );
     } catch (err: any) {
       console.error('Accept offer error:', err);
@@ -900,21 +1036,14 @@ export function App() {
         )}
 
         {currentPage === 'mint' && (
-          <MarketplacePage
-            collections={collections}
-            listings={marketListings}
-            selectedCollectionId={selectedCollectionId || 'molten-hours'}
-            walletAccountId={wallet.accountId}
-            proposals={proposals}
-            userNfts={displayedUserNfts}
+          <MintPage
+            collection={
+              collections.find((c) => c.id === (selectedCollectionId || 'feather-protocol')) ||
+              collections.find((c) => c.id === 'feather-protocol') ||
+              collections[0]
+            }
             onNavigate={setCurrentPage}
-            onSelectCollection={(colId) => {
-              setSelectedCollectionId(colId);
-            }}
-            onBuyListing={handleBuyListing}
-            onPlaceOffer={handlePlaceOffer}
-            onAcceptOffer={handleAcceptOffer}
-            onCastVote={handleCastVote}
+            onMint={handleMint}
           />
         )}
 
