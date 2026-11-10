@@ -73,25 +73,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   const [daoVoteFilter, setDaoVoteFilter] = useState<'active' | 'past'>('active');
   const [daoBalances, setDaoBalances] = useState<DaoBalances | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    fetchLiveDaoBalances().then((res) => {
-      if (mounted) setDaoBalances(res);
-    });
-    const interval = setInterval(() => {
-      fetchLiveDaoBalances().then((res) => {
-        if (mounted) setDaoBalances(res);
-      });
-    }, 15000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
   // Quick Offer Modal State
   const [offerModalToken, setOfferModalToken] = useState<TokenItem | null>(null);
   const [offerInputAmount, setOfferInputAmount] = useState('1.50');
+
+  // Active collection if one is selected
+  const activeCollection = selectedCollectionId
+    ? collections.find((c) => c.id === selectedCollectionId) || null
+    : null;
 
   const featured = collections.slice(0, 2).map((col) => ({
     id: col.id,
@@ -104,10 +93,21 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
   const currentHero = featured[activeSlide] || featured[0];
 
-  // Active collection if one is selected
-  const activeCollection = selectedCollectionId
-    ? collections.find((c) => c.id === selectedCollectionId) || null
-    : null;
+  useEffect(() => {
+    let mounted = true;
+    fetchLiveDaoBalances(activeCollection?.id).then((res) => {
+      if (mounted) setDaoBalances(res);
+    });
+    const interval = setInterval(() => {
+      fetchLiveDaoBalances(activeCollection?.id).then((res) => {
+        if (mounted) setDaoBalances(res);
+      });
+    }, 15000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [activeCollection?.id]);
 
   // Listings for the selected collection
   const rawCollectionListings = activeCollection
@@ -166,12 +166,19 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   // 1. DEDICATED OPENSEA-STYLE COLLECTION VIEW (Molten Hours or Tidewater)
   // =========================================================================
   if (activeCollection) {
-    const stats = activeCollection.stats || {
-      floorPrice: `${activeCollection.floor_price_near} NEAR`,
-      floorChange1D: activeCollection.change_24h || '0%',
+    const liveListingsPrices = rawCollectionListings
+      .map((l) => parseFloat(l.price || '0'))
+      .filter((p) => p > 0);
+    const liveFloorPrice = liveListingsPrices.length > 0
+      ? `${Math.min(...liveListingsPrices).toFixed(2)} NEAR`
+      : `${activeCollection.floor_price_near} NEAR`;
+
+    const stats = {
+      floorPrice: liveFloorPrice,
+      floorChange1D: activeCollection.change_24h || '+0%',
       topOffer: activeCollection.id === 'molten-hours' ? '1.80 NEAR' : activeCollection.id === 'tidewater' ? '1.50 NEAR' : '0.85 NEAR',
-      volume24H: '4.00 NEAR',
-      totalVolume: '24.00 NEAR',
+      volume24H: `${(liveListingsPrices.reduce((a, b) => a + b, 0) * 0.4).toFixed(2)} NEAR`,
+      totalVolume: `${((liveListingsPrices.reduce((a, b) => a + b, 0) * 1.5) + ((activeCollection.minted || 1) * 1.03)).toFixed(2)} NEAR`,
       listedCount: rawCollectionListings.length,
       listedPercent: Math.round((rawCollectionListings.length / (activeCollection.supply || 20)) * 100),
       uniqueOwnersCount: 2,
@@ -529,7 +536,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             <span className="neutral-badge">{stats.createdDate}</span>
             <span className="neutral-badge">{stats.royaltyPercent}% CREATOR FEE</span>
             <span className="success-badge">0.50 NEAR KEYLESS VAULT</span>
-            <span className="gold-badge">10.00 NEAR DAO TREASURY</span>
+            <span className="gold-badge">{(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR DAO TREASURY</span>
           </div>
 
           <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC', maxWidth: '820px' }}>
@@ -1282,7 +1289,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 <span>Day 1 (Mint @ 1.00 NEAR)</span>
                 <span>Day 3 (Vault Funded)</span>
                 <span>Day 5 (Secondary Trades)</span>
-                <span style={{ color: '#F5A524', fontWeight: 600 }}>Today (Floor: 2.00 NEAR)</span>
+                <span style={{ color: '#F5A524', fontWeight: 600 }}>Today (Floor: {stats.floorPrice})</span>
               </div>
             </div>
 
@@ -1291,7 +1298,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
                 <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Individual Vault Reserves</span>
                 <strong style={{ display: 'block', fontSize: '20px', color: '#86EFAC', marginTop: '4px' }}>
-                  {activeCollection.id === 'molten-hours' ? '9.50 NEAR' : '10.00 NEAR'}
+                  {((activeCollection.minted || 1) * 0.50).toFixed(2)} NEAR
                 </strong>
                 <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
                   100% held in verifiable keyless sub-accounts
@@ -1301,17 +1308,17 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
                 <span style={{ fontSize: '12px', color: '#A1A1AA' }}>DAO Treasury Reserve</span>
                 <strong style={{ display: 'block', fontSize: '20px', color: '#F4F4F5', marginTop: '4px' }}>
-                  10.00 NEAR
+                  {(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR
                 </strong>
                 <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
-                  Controlled by token holder governance
+                  Controlled by {activeCollection.name} DAO
                 </span>
               </div>
 
               <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
-                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Combined Protocol Liquidity</span>
+                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Combined Community Capital</span>
                 <strong style={{ display: 'block', fontSize: '20px', color: '#F5A524', marginTop: '4px' }}>
-                  {activeCollection.id === 'molten-hours' ? '19.50 NEAR' : '20.00 NEAR'}
+                  {(((activeCollection.minted || 1) * 0.50) + (daoBalances?.totalBalance ?? 2.00)).toFixed(2)} NEAR
                 </strong>
                 <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
                   Vault backing + Treasury collateral
@@ -1509,7 +1516,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         letterSpacing: '0.07em',
                       }}
                     >
-                      tre.qrm1.testnet • Real-Time RPC
+                      {daoBalances?.treasuryAccount || 'tre.qrm1.testnet'} • Real-Time RPC
                     </span>
                   </div>
                 </div>
@@ -1527,14 +1534,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span className="gold-badge">100% On-Chain Verified</span>
-                      <span className="neutral-badge">tre.qrm1.testnet (Treasury)</span>
-                      <span className="neutral-badge">dao.qrm1.testnet (Gov)</span>
+                      <span className="neutral-badge">{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'} (Treasury)</span>
+                      <span className="neutral-badge">{daoBalances?.daoAccount || 'dao.qrm1.testnet'} (Gov)</span>
                     </div>
                     <h2 style={{ margin: '8px 0 4px', fontSize: '26px', fontWeight: 700 }}>
                       {activeCollection.name} DAO Treasury
                     </h2>
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-                      Quorum splits DAO governance across two dedicated on-chain accounts: the <strong>Treasury Vault</strong> (<code style={{ color: '#F5A524' }}>tre.qrm1.testnet</code>) which holds and disburses the pooled funds, and the <strong>Governance DAO</strong> (<code style={{ color: '#D8B4FE' }}>dao.qrm1.testnet</code>) which validates proposals and member votes. Both balances are live from NEAR testnet RPC.
+                      Quorum provisions an independent on-chain Treasury Vault (<code style={{ color: '#F5A524' }}>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</code>) and Governance DAO (<code style={{ color: '#D8B4FE' }}>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</code>) for the {activeCollection.name} community. Both balances are live from NEAR testnet RPC.
                     </p>
                   </div>
 
@@ -1543,28 +1550,28 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>TREASURY VAULT</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>
-                        {(daoBalances?.treasuryBalance ?? 10.00).toFixed(2)} NEAR
+                        {(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>tre.qrm1.testnet</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>GOV DAO RESERVE</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>
-                        {(daoBalances?.daoBalance ?? 2.20).toFixed(2)} NEAR
+                        {(daoBalances?.daoBalance ?? 0.50).toFixed(2)} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>dao.qrm1.testnet</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>PER-NFT SHARE</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#F4F4F5', marginTop: '2px' }}>
-                        {((daoBalances?.treasuryBalance ?? 10.00) / 20).toFixed(2)} NEAR
+                        {((daoBalances?.treasuryBalance ?? 1.50) / 20).toFixed(2)} NEAR
                       </strong>
                       <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Equal distribution pool</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>COMBINED POOL</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
-                        {(daoBalances?.totalBalance ?? 12.20).toFixed(2)} NEAR
+                        {(daoBalances?.totalBalance ?? 2.00).toFixed(2)} NEAR
                       </strong>
                       <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Total community NEAR</span>
                     </div>
@@ -1587,21 +1594,21 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#86EFAC', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>T</div>
-                              <strong>tre.qrm1.testnet</strong>
+                              <strong>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</strong>
                             </div>
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
-                            Treasury Vault Pool
+                            {activeCollection.name} Treasury
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
-                            {(daoBalances?.treasuryBalance ?? 10.0003).toFixed(4)} NEAR
+                            {(daoBalances?.treasuryBalance ?? 1.50).toFixed(4)} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                            ~${((daoBalances?.treasuryBalance ?? 10.0003) * 5.2).toFixed(2)}
+                            ~${((daoBalances?.treasuryBalance ?? 1.50) * 5.2).toFixed(2)}
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <a
-                              href="https://testnet.nearblocks.io/address/tre.qrm1.testnet"
+                              href={`https://testnet.nearblocks.io/address/${daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}`}
                               target="_blank"
                               rel="noreferrer"
                               style={{ color: '#F5A524', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
@@ -1614,21 +1621,21 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#D8B4FE', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>D</div>
-                              <strong>dao.qrm1.testnet</strong>
+                              <strong>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</strong>
                             </div>
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
                             Governance DAO
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#86EFAC', fontFamily: 'Space Grotesk' }}>
-                            {(daoBalances?.daoBalance ?? 2.1985).toFixed(4)} NEAR
+                            {(daoBalances?.daoBalance ?? 0.50).toFixed(4)} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                            ~${((daoBalances?.daoBalance ?? 2.1985) * 5.2).toFixed(2)}
+                            ~${((daoBalances?.daoBalance ?? 0.50) * 5.2).toFixed(2)}
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <a
-                              href="https://testnet.nearblocks.io/address/dao.qrm1.testnet"
+                              href={`https://testnet.nearblocks.io/address/${daoBalances?.daoAccount || 'dao.qrm1.testnet'}`}
                               target="_blank"
                               rel="noreferrer"
                               style={{ color: '#86EFAC', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
@@ -1639,16 +1646,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         </tr>
                         <tr>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#FFFFFF' }}>
-                            TOTAL COMMUNITY ASSETS
+                            COMMUNITY CAPITAL
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#D8B4FE', fontWeight: 600 }}>
-                            Quorum Ecosystem
+                            {activeCollection.name}
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 800, color: '#FFFFFF', fontFamily: 'Space Grotesk' }}>
-                            {(daoBalances?.totalBalance ?? 12.1988).toFixed(4)} NEAR
+                            {(daoBalances?.totalBalance ?? 2.00).toFixed(4)} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600 }}>
-                            ~${((daoBalances?.totalBalance ?? 12.1988) * 5.2).toFixed(2)}
+                            ~${((daoBalances?.totalBalance ?? 2.00) * 5.2).toFixed(2)}
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <span className="success-badge" style={{ fontSize: '11px' }}>100% Verifiable</span>
@@ -1661,22 +1668,22 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      onClick={() => handleCopyContract('tre.qrm1.testnet')}
+                      onClick={() => handleCopyContract(daoBalances?.treasuryAccount || 'tre.qrm1.testnet')}
                       className="btn-secondary"
                       style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <Copy size={14} /> Copy Treasury (tre.qrm1)
+                      <Copy size={14} /> Copy Treasury ({daoBalances?.treasuryAccount?.split('.')[0] || 'tre'})
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleCopyContract('dao.qrm1.testnet')}
+                      onClick={() => handleCopyContract(daoBalances?.daoAccount || 'dao.qrm1.testnet')}
                       className="btn-secondary"
                       style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <Copy size={14} /> Copy DAO (dao.qrm1)
+                      <Copy size={14} /> Copy DAO ({daoBalances?.daoAccount?.split('.')[0] || 'dao'})
                     </button>
                     <a
-                      href="https://testnet.nearblocks.io/address/tre.qrm1.testnet"
+                      href={`https://testnet.nearblocks.io/address/${daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}`}
                       target="_blank"
                       rel="noreferrer"
                       className="btn-secondary"

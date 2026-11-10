@@ -153,18 +153,8 @@ export function App() {
     try {
       const onchainListings = await fetchOnChainMarketplaceListings();
       if (onchainListings && onchainListings.length > 0) {
-        setMarketListings((prev) => {
-          const onchainMap = new Map(onchainListings.map((l) => [`${l.collection}-${l.token_id}`, l]));
-          const merged = [...onchainListings];
-          for (const item of prev) {
-            const key = `${item.collection}-${item.token_id}`;
-            if (!onchainMap.has(key)) {
-              merged.push(item);
-            }
-          }
-          persistState(STORAGE_KEYS.MARKET_LISTINGS, merged);
-          return merged;
-        });
+        setMarketListings(onchainListings);
+        persistState(STORAGE_KEYS.MARKET_LISTINGS, onchainListings);
       }
     } catch (err) {
       console.warn('Error syncing on-chain marketplace listings:', err);
@@ -409,10 +399,10 @@ export function App() {
       );
       const nftContract = token.nft_contract || (
         isFeather
-        ? 'feather.qrm1.testnet'
-        : isTide
-        ? 'tide.qrm1.testnet'
-        : 'molten.qrm1.testnet'
+          ? 'feather.qrm1.testnet'
+          : isTide
+            ? 'tide.qrm1.testnet'
+            : 'molten.qrm1.testnet'
       );
 
       let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');

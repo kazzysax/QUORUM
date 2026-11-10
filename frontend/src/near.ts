@@ -43,20 +43,37 @@ export interface DaoBalances {
   totalBalance: number;
 }
 
-export async function fetchLiveDaoBalances(): Promise<DaoBalances> {
+export async function fetchLiveDaoBalances(collectionId?: string): Promise<DaoBalances> {
+  let treAccount = 'tre.qrm1.testnet';
+  let daoAccount = 'dao.qrm1.testnet';
+
+  if (collectionId) {
+    const id = collectionId.toLowerCase();
+    if (id.includes('molt')) {
+      treAccount = 'tre-molt.qrm1.testnet';
+      daoAccount = 'dao-molt.qrm1.testnet';
+    } else if (id.includes('tide')) {
+      treAccount = 'tre-tide.qrm1.testnet';
+      daoAccount = 'dao-tide.qrm1.testnet';
+    } else if (id.includes('feath')) {
+      treAccount = 'tre-feath.qrm1.testnet';
+      daoAccount = 'dao-feath.qrm1.testnet';
+    }
+  }
+
   const [tre, dao] = await Promise.all([
-    fetchNearAccountBalance('tre.qrm1.testnet'),
-    fetchNearAccountBalance('dao.qrm1.testnet'),
+    fetchNearAccountBalance(treAccount),
+    fetchNearAccountBalance(daoAccount),
   ]);
 
-  const treasuryBalance = tre ?? 10.0003;
-  const daoBalance = dao ?? 2.1985;
+  const treasuryBalance = tre ?? 1.50;
+  const daoBalance = dao ?? 0.50;
   const totalBalance = parseFloat((treasuryBalance + daoBalance).toFixed(4));
 
   return {
-    treasuryAccount: 'tre.qrm1.testnet',
+    treasuryAccount: treAccount,
     treasuryBalance,
-    daoAccount: 'dao.qrm1.testnet',
+    daoAccount: daoAccount,
     daoBalance,
     totalBalance,
   };
@@ -166,6 +183,41 @@ export async function fetchOnChainMarketplaceListings(): Promise<TokenItem[]> {
           const decoded = new TextDecoder().decode(new Uint8Array(data.result.result));
           const parsed = JSON.parse(decoded);
           if (parsed && parsed.seller && parsed.price) {
+            // Verify that the token actually exists on-chain and is approved to mkt.qrm1.testnet
+            let tokenValid = false;
+            try {
+              const tokenRes = await fetch(NEAR_TESTNET_RPC, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  jsonrpc: '2.0',
+                  id: `verify-${col.contract}-${tokenId}`,
+                  method: 'query',
+                  params: {
+                    request_type: 'call_function',
+                    finality: 'final',
+                    account_id: col.contract,
+                    method_name: 'nft_token',
+                    args_base64: btoa(JSON.stringify({ token_id: tokenId })),
+                  },
+                }),
+              });
+              if (tokenRes.ok) {
+                const tokenData = await tokenRes.json();
+                if (tokenData.result && tokenData.result.result) {
+                  const tokenDecoded = new TextDecoder().decode(new Uint8Array(tokenData.result.result));
+                  const realToken = JSON.parse(tokenDecoded);
+                  if (realToken && realToken.owner_id === parsed.seller && realToken.approved_account_ids && realToken.approved_account_ids['mkt.qrm1.testnet']) {
+                    tokenValid = true;
+                  }
+                }
+              }
+            } catch {
+              // fallback
+            }
+
+            if (!tokenValid) return;
+
             const nearPriceBn = BigInt(parsed.price);
             const whole = nearPriceBn / 10n**24n;
             const frac = (nearPriceBn % 10n**24n) / 10n**22n;

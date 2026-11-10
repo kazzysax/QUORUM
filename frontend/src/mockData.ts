@@ -117,22 +117,40 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
   },
 ];
 
-// Unburned pieces held by the connected testnet user (Molten Hours + Tidewater + Feather Protocol #1)
+// Real on-chain pieces held by the connected testnet user malekoala9992.testnet (Molten Hours + Tidewater + Feather Protocol)
 export const INITIAL_USER_NFTS: TokenItem[] = [
-  // Molten Hours pieces (Piece #1 was burned for 0.45 NEAR floor redemption, Piece #2 was accepted in offer settlement)
+  // Molten Hours pieces
   {
-    id: 'molt-3',
-    token_id: '3',
+    id: 'molt-2',
+    token_id: '2',
     owner_id: 'malekoala9992.testnet',
     collection: 'Molten Hours',
-    title: 'Molten Hours #3',
+    title: 'Molten Hours #2',
     asset: 'NEAR',
     backing: '0.50 NEAR',
     backing_status: 'credited',
     image: '/images/molten-0.jpg',
-    votes_cast: 2,
+    votes_cast: 1,
     unclaimed_distribution: '0.00 NEAR',
-    vault_account: 'v3.molten.qrm1.testnet',
+    vault_account: 'v2.molten.qrm1.testnet',
+    nft_contract: 'molten.qrm1.testnet',
+    is_on_chain: true,
+  },
+  {
+    id: 'molt-6',
+    token_id: '6',
+    owner_id: 'malekoala9992.testnet',
+    collection: 'Molten Hours',
+    title: 'Molten Hours #6',
+    asset: 'NEAR',
+    backing: '0.50 NEAR',
+    backing_status: 'credited',
+    image: '/images/molten-1.jpg',
+    votes_cast: 1,
+    unclaimed_distribution: '0.00 NEAR',
+    vault_account: 'v6.molten.qrm1.testnet',
+    nft_contract: 'molten.qrm1.testnet',
+    is_on_chain: true,
   },
 
   // Tidewater pieces
@@ -149,6 +167,8 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     votes_cast: 4,
     unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v1.tide.qrm1.testnet',
+    nft_contract: 'tide.qrm1.testnet',
+    is_on_chain: true,
   },
   {
     id: 'tide-2',
@@ -163,6 +183,8 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     votes_cast: 1,
     unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v2.tide.qrm1.testnet',
+    nft_contract: 'tide.qrm1.testnet',
+    is_on_chain: true,
   },
   {
     id: 'tide-3',
@@ -177,6 +199,8 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     votes_cast: 2,
     unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v3.tide.qrm1.testnet',
+    nft_contract: 'tide.qrm1.testnet',
+    is_on_chain: true,
   },
 
   // Feather Protocol piece held by user (Verified on NEAR testnet contract feather.qrm1.testnet)
@@ -190,9 +214,11 @@ export const INITIAL_USER_NFTS: TokenItem[] = [
     backing: '0.50 NEAR',
     backing_status: 'credited',
     image: '/images/feather-avatar.jpg',
-    votes_cast: 0,
+    votes_cast: 1,
     unclaimed_distribution: '0.00 NEAR',
     vault_account: 'v1.feather.qrm1.testnet',
+    nft_contract: 'feather.qrm1.testnet',
+    is_on_chain: true,
   },
 ];
 
