@@ -50,20 +50,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
 
   const [acknowledged, setAcknowledged] = useState(false);
 
-  const handleLoadFeatherPreset = () => {
-    setName('Feather Protocol');
-    setSymbol('FEATH');
-    setDesc('Iridescent celestial feathers forged in radiant cosmic light. Each piece holds 0.50 NEAR in a keyless vault and 1 governance vote in the Feather DAO.');
-    setSupply(20);
-    setPubPrice('1.00');
-    setPrePrice('0.80');
-    setRoyalty(5.0);
-    setBannerPreview('/images/feather-banner.jpg');
-    setAvatarPreview('/images/feather-avatar.jpg');
-    setArtPreview('/images/feather-avatar.jpg');
-    setAcknowledged(true);
-    setStep(5);
-  };
+
 
   const steps = ['Details', 'Artwork', 'Pricing', 'Vault Assets', 'DAO Governance', 'Review'];
 
@@ -237,44 +224,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
         </ol>
       </nav>
 
-      {/* Quick Test Preset Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(90deg, rgba(168,85,247,0.12) 0%, rgba(245,165,36,0.12) 100%)',
-          border: '1px solid rgba(168,85,247,0.3)',
-          borderRadius: '16px',
-          padding: '14px 18px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img
-            src="/images/feather-avatar.jpg"
-            alt="Feather Protocol"
-            style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)' }}
-          />
-          <div>
-            <strong style={{ fontSize: '14px', color: '#FFFFFF', display: 'block' }}>
-              Test Quick Launch: Feather Protocol Preset
-            </strong>
-            <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-              Autofills celestial feather artwork, 20 supply, 1.00 NEAR floor, 5% royalty, and Feather DAO governance parameters.
-            </span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={handleLoadFeatherPreset}
-          className="btn-primary"
-          style={{ minHeight: '38px', padding: '0 18px', fontSize: '13px', background: 'linear-gradient(135deg, #A855F7 0%, #F5A524 100%)', color: '#000', fontWeight: 700 }}
-        >
-          ✨ Autofill &amp; Test Launch
-        </button>
-      </div>
+
 
       {/* Main Form Content & Live Preview Card */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-start' }}>
