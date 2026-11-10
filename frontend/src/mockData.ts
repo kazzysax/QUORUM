@@ -89,9 +89,9 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
     cover_image: '/images/feather-banner.jpg',
     avatar_image: '/images/feather-avatar.jpg',
     supply: 20,
-    minted: 1,
+    minted: 2,
     price_near: '1.00',
-    floor_price_near: '1.00',
+    floor_price_near: '1.10',
     backing_summary: '0.50 NEAR in vault',
     royalty_percent: 5,
     change_24h: '+0%',
@@ -101,14 +101,14 @@ export const INITIAL_COLLECTIONS: CollectionItem[] = [
       { asset: 'NEAR', weight: 1, percentage: 100 },
     ],
     stats: {
-      floorPrice: '1.00 NEAR',
+      floorPrice: '1.10 NEAR',
       floorChange1D: '0%',
       topOffer: '0.90 NEAR',
       volume24H: '1.03 NEAR',
-      totalVolume: '1.03 NEAR',
-      listedCount: 0,
-      listedPercent: 0,
-      uniqueOwnersCount: 1,
+      totalVolume: '2.13 NEAR',
+      listedCount: 1,
+      listedPercent: 50,
+      uniqueOwnersCount: 2,
       uniqueOwnersPercent: 100,
       contractId: 'feather.qrm1.testnet',
       createdDate: 'NOV 2026',
@@ -261,6 +261,24 @@ const generateMarketListings = (): TokenItem[] => {
       vault_account: `v${i}.tide.qrm1.testnet`,
     });
   }
+
+  // Verified on-chain listing for Feather Protocol #2 on mkt.qrm1.testnet
+  listings.push({
+    id: 'm-feath-2',
+    token_id: '2',
+    owner_id: 'qrm1.testnet',
+    collection: 'Feather Protocol',
+    title: 'Feather Protocol #2',
+    asset: 'NEAR',
+    backing: '0.50 NEAR',
+    backing_status: 'credited',
+    price: '1.10',
+    image: '/images/feather-avatar.jpg',
+    vault_account: 'v2.feather.qrm1.testnet',
+    nft_contract: 'feather.qrm1.testnet',
+    approval_id: 1,
+    is_on_chain: true,
+  });
 
   return listings;
 };
@@ -483,7 +501,16 @@ export const COLLECTION_HOLDERS: Record<string, CollectionHolder[]> = {
       accountId: 'malekoala9992.testnet',
       tokensHeld: ['#1'],
       count: 1,
-      percent: 100,
+      percent: 50,
+      votingPower: 1,
+      vaultValueNear: '0.50 NEAR',
+    },
+    {
+      rank: 2,
+      accountId: 'qrm1.testnet',
+      tokensHeld: ['#2'],
+      count: 1,
+      percent: 50,
       votingPower: 1,
       vaultValueNear: '0.50 NEAR',
     },
