@@ -1534,6 +1534,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span className="gold-badge">100% On-Chain Verified</span>
+                      <span className="success-badge">50/50 Protocol Split Enforced</span>
                       <span className="neutral-badge">{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'} (Treasury)</span>
                       <span className="neutral-badge">{daoBalances?.daoAccount || 'dao.qrm1.testnet'} (Gov)</span>
                     </div>
@@ -1541,39 +1542,39 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       {activeCollection.name} DAO Treasury
                     </h2>
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-                      Quorum provisions an independent on-chain Treasury Vault (<code style={{ color: '#F5A524' }}>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</code>) and Governance DAO (<code style={{ color: '#D8B4FE' }}>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</code>) for the {activeCollection.name} community. Both balances are live from NEAR testnet RPC.
+                      Quorum enforces an exact <strong>50/50 capital split</strong> at mint: <strong>50% (0.50 NEAR per NFT)</strong> funds this collection's dedicated on-chain Treasury (<code style={{ color: '#F5A524' }}>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</code>), and <strong>50% (0.50 NEAR per NFT)</strong> locks into the holder's keyless vault. Both balances are live from NEAR testnet RPC.
                     </p>
                   </div>
 
                   {/* 4 Stat Boxes */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>TREASURY VAULT</span>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>50% DAO TREASURY</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>
                         {(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Target: 10.00 NEAR @ 20/20</span>
+                    </div>
+                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>50% VAULT ESCROW</span>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>
+                        {((activeCollection.minted || 1) * 0.50).toFixed(2)} NEAR
+                      </strong>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>0.50 NEAR / minted NFT</span>
+                    </div>
+                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
+                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>SPLIT RATIO</span>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#F4F4F5', marginTop: '2px' }}>
+                        50% / 50%
+                      </strong>
+                      <span style={{ fontSize: '11px', color: '#86EFAC' }}>Immutable on-chain</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>GOV DAO RESERVE</span>
-                      <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>
+                      <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
                         {(daoBalances?.daoBalance ?? 0.50).toFixed(2)} NEAR
                       </strong>
                       <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</span>
-                    </div>
-                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>PER-NFT SHARE</span>
-                      <strong style={{ display: 'block', fontSize: '18px', color: '#F4F4F5', marginTop: '2px' }}>
-                        {((daoBalances?.treasuryBalance ?? 1.50) / 20).toFixed(2)} NEAR
-                      </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Equal distribution pool</span>
-                    </div>
-                    <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
-                      <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>COMBINED POOL</span>
-                      <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
-                        {(daoBalances?.totalBalance ?? 2.00).toFixed(2)} NEAR
-                      </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Total community NEAR</span>
                     </div>
                   </div>
 

@@ -25,8 +25,8 @@ export async function fetchNearAccountBalance(accountId: string): Promise<number
     const data = await res.json();
     if (data.result && data.result.amount) {
       const nearBn = BigInt(data.result.amount);
-      const whole = nearBn / 10n**24n;
-      const frac = (nearBn % 10n**24n) / 10n**20n;
+      const whole = nearBn / 10n ** 24n;
+      const frac = (nearBn % 10n ** 24n) / 10n ** 20n;
       return parseFloat(`${whole}.${frac.toString().padStart(4, '0')}`);
     }
     return null;
@@ -219,8 +219,8 @@ export async function fetchOnChainMarketplaceListings(): Promise<TokenItem[]> {
             if (!tokenValid) return;
 
             const nearPriceBn = BigInt(parsed.price);
-            const whole = nearPriceBn / 10n**24n;
-            const frac = (nearPriceBn % 10n**24n) / 10n**22n;
+            const whole = nearPriceBn / 10n ** 24n;
+            const frac = (nearPriceBn % 10n ** 24n) / 10n ** 22n;
             const priceFormatted = frac > 0n ? `${whole}.${frac.toString().padStart(2, '0')}` : `${whole}.00`;
 
             listings.push({
