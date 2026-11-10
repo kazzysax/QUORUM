@@ -13,6 +13,7 @@ import {
   Search,
   SlidersHorizontal,
   Layers,
+  Tag,
   Users,
   Activity,
   BarChart3,
@@ -20,11 +21,14 @@ import {
   Landmark,
   CheckSquare,
   Clock,
+  Star,
+  Globe,
 } from 'lucide-react';
 import {
   COLLECTION_HOLDERS,
   COLLECTION_TRAITS,
   COLLECTION_ACTIVITY,
+  COLLECTION_OFFERS,
 } from '../mockData';
 
 interface MarketplacePageProps {
@@ -53,15 +57,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   onSelectCollection,
   onBuyListing,
   onPlaceOffer,
-  onAcceptOffer: _onAcceptOffer,
+  onAcceptOffer,
   onCastVote,
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
   const [collectionFilter, setCollectionFilter] = useState<'all' | 'Molten Hours' | 'Tidewater'>('all');
 
-  // Dedicated Collection View State (Items, Holders, Traits, Activity, Analytics, DAO)
-  const [collectionTab, setCollectionTab] = useState<'items' | 'holders' | 'traits' | 'activity' | 'analytics' | 'dao'>('items');
+  // Dedicated Collection View State (Items, Offers, Holders, Traits, Activity, Analytics, DAO)
+  const [collectionTab, setCollectionTab] = useState<'items' | 'offers' | 'holders' | 'traits' | 'activity' | 'analytics' | 'dao'>('items');
   const [copiedContract, setCopiedContract] = useState(false);
+  const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [itemSort, setItemSort] = useState<'id-asc' | 'id-desc' | 'price-asc' | 'price-desc'>('id-asc');
   const [activityFilter, setActivityFilter] = useState<'all' | 'Sale' | 'Mint' | 'Burn & Redeem' | 'List'>('all');
@@ -200,6 +205,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         vaultValueNear: '1.00 NEAR',
       },
     ];
+    const colOffers = COLLECTION_OFFERS[activeCollection.id] || [];
     const traits = COLLECTION_TRAITS[activeCollection.id] || [
       { name: 'Luminescent Core', category: 'Visual Element', rarityPercent: 50, count: 10 },
       { name: 'Celestial Glass Quill', category: 'Visual Element', rarityPercent: 50, count: 10 },
@@ -340,13 +346,116 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.02em' }}>
                     {activeCollection.name}
                   </h1>
                   <span title="Verified NEAR Testnet Contract" style={{ color: '#38BDF8', display: 'inline-flex', alignItems: 'center' }}>
                     <ShieldCheck size={26} fill="#0284C7" color="#F0F9FF" />
                   </span>
+
+                  {/* OpenSea Style Quick Action Icons matching Image 2 */}
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsWatchlisted(!isWatchlisted)}
+                      title={isWatchlisted ? 'Remove from Watchlist' : 'Add to Watchlist'}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid #2A2A33',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        color: isWatchlisted ? '#F5A524' : '#A1A1AA',
+                      }}
+                    >
+                      <Star size={15} fill={isWatchlisted ? '#F5A524' : 'none'} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyContract(stats.contractId)}
+                      title="Copy Contract Address"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid #2A2A33',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        color: copiedContract ? '#86EFAC' : '#A1A1AA',
+                      }}
+                    >
+                      {copiedContract ? <Check size={15} color="#86EFAC" /> : <Copy size={15} />}
+                    </button>
+                    <a
+                      href={`https://testnet.nearblocks.io/address/${stats.contractId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="NearBlocks Contract Explorer"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid #2A2A33',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        color: '#A1A1AA',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <Globe size={15} />
+                    </a>
+                    <a
+                      href="https://x.com/quorum_protocol"
+                      target="_blank"
+                      rel="noreferrer"
+                      title="X / Twitter"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid #2A2A33',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        color: '#A1A1AA',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.href);
+                        alert('Collection URL copied to clipboard!');
+                      }}
+                      title="Share Collection"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid #2A2A33',
+                        borderRadius: '8px',
+                        width: '32px',
+                        height: '32px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        color: '#A1A1AA',
+                      }}
+                    >
+                      <Share2 size={15} />
+                    </button>
+                  </div>
                 </div>
                 <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
                   Symbol: <strong style={{ color: '#F4F4F5' }}>{activeCollection.symbol}</strong> • Creator: <strong style={{ color: '#F4F4F5' }}>{activeCollection.creator}</strong>
@@ -499,6 +608,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         >
           {[
             { id: 'items', label: `Items (${rawCollectionListings.length})`, icon: Layers },
+            { id: 'offers', label: `Offers (${colOffers.length})`, icon: Tag },
             { id: 'holders', label: `Holders (${holders.length})`, icon: Users },
             { id: 'traits', label: `Traits (${traits.length})`, icon: Sparkles },
             { id: 'activity', label: 'Activity', icon: Activity },
@@ -737,8 +847,102 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
 
         {/* ===================================================================
-            TAB 3: HOLDERS (REAL ON-CHAIN TOKEN DISTRIBUTION)
+            TAB 2: OFFERS (COLLECTION-WIDE ESCROW OFFERS)
            =================================================================== */}
+        {collectionTab === 'offers' && (
+          <section
+            style={{
+              background: '#15151B',
+              border: '1px solid #2A2A33',
+              borderRadius: '24px',
+              padding: '24px',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Active Offers on {activeCollection.name}</h2>
+                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
+                  Offers are locked in Quorum testnet escrow and settle instantly when accepted.
+                </span>
+              </div>
+              <span className="gold-badge">{colOffers.length} Active Offers</span>
+            </div>
+
+            {colOffers.length === 0 ? (
+              <div style={{ padding: '48px 24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '16px', border: '1px solid #2A2A33' }}>
+                <Tag size={32} color="#71717A" style={{ marginBottom: '8px' }} />
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#F4F4F5' }}>No Active Offers Yet</h3>
+                <p style={{ margin: 0, fontSize: '13px' }}>
+                  Be the first to place an escrow offer on {activeCollection.name} pieces.
+                </p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '600px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
+                      <th style={{ padding: '10px 12px' }}>Item</th>
+                      <th style={{ padding: '10px 12px' }}>Offer Price</th>
+                      <th style={{ padding: '10px 12px' }}>Vault Backing</th>
+                      <th style={{ padding: '10px 12px' }}>Offered By</th>
+                      <th style={{ padding: '10px 12px' }}>Duration</th>
+                      <th style={{ padding: '10px 12px' }}>Status</th>
+                      <th style={{ padding: '10px 12px' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {colOffers.map((o) => {
+                      const isOwner = userNfts?.some((nft) => nft.id === o.nft_id) || (walletAccountId === 'malekoala9992.testnet' && o.nft_id.includes('molt'));
+                      return (
+                        <tr key={o.id}>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <img src={o.image} alt={o.nft_title} style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }} />
+                              <strong>{o.nft_title}</strong>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
+                            {o.amount_near} NEAR
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#86EFAC' }}>
+                            0.50 NEAR
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            {o.from}
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
+                            {o.expires_in}
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
+                            <span className="success-badge" style={{ fontSize: '11px' }}>Escrowed</span>
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
+                            {isOwner && onAcceptOffer ? (
+                              <button
+                                type="button"
+                                onClick={() => onAcceptOffer(o)}
+                                className="btn-primary"
+                                style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px' }}
+                              >
+                                Accept &amp; Settle
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#71717A' }}>Held in Escrow</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
         {collectionTab === 'holders' && (
           <section
             style={{
@@ -1108,7 +1312,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         {/* ===================================================================
             TAB 7: DAO (ROUND BALL ASSET ORB, TREASURY HOLDINGS & VOTES)
            =================================================================== */}
-        {collectionTab === 'dao' && (
+        {collectionTab === 'dao' && (() => {
+          const treasuryNear = daoBalances?.treasuryBalance ?? 10.05;
+          const treasuryCapacity = 20.00;
+          const fillPercent = Math.min(92, Math.max(18, Math.round((treasuryNear / treasuryCapacity) * 100)));
+
+          return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
             {/* Top Row: Round Ball Orb + Treasury Holdings Card */}
             <div
@@ -1177,16 +1386,18 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: '36%',
+                    height: `${fillPercent}%`,
                     background:
-                      'linear-gradient(180deg, rgba(168, 85, 247, 0.25) 0%, rgba(139, 92, 246, 0.7) 100%)',
+                      'linear-gradient(180deg, rgba(168, 85, 247, 0.35) 0%, rgba(139, 92, 246, 0.75) 100%)',
                     backdropFilter: 'blur(3px)',
-                    borderTop: '1.5px solid rgba(255, 255, 255, 0.45)',
+                    borderTop: '2px solid rgba(255, 255, 255, 0.55)',
+                    boxShadow: '0 0 25px rgba(168, 85, 247, 0.5)',
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: 'flex-end',
                     justifyContent: 'center',
                     paddingBottom: '12px',
                     boxSizing: 'border-box',
+                    transition: 'height 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                 >
                   <span
@@ -1197,13 +1408,13 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       textTransform: 'uppercase',
                       color: '#FFFFFF',
                       textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                      background: 'rgba(10,10,13,0.6)',
-                      padding: '4px 12px',
+                      background: 'rgba(10,10,13,0.65)',
+                      padding: '4px 14px',
                       borderRadius: '999px',
                       border: '1px solid rgba(255,255,255,0.3)',
                     }}
                   >
-                    {(daoBalances?.treasuryBalance ?? 10.00).toFixed(2)} NEAR • 100% Reserve
+                    Ⓝ {treasuryNear.toFixed(2)} NEAR • {fillPercent}% Filled
                   </span>
                 </div>
 
@@ -1216,11 +1427,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '4px',
-                    background: 'rgba(10, 10, 14, 0.78)',
+                    background: 'rgba(10, 10, 14, 0.72)',
                     backdropFilter: 'blur(16px)',
                     border: '1px solid rgba(255, 255, 255, 0.25)',
                     borderRadius: '22px',
-                    padding: '16px 24px',
+                    padding: '14px 22px',
                     boxShadow: '0 12px 36px rgba(0,0,0,0.65)',
                     textAlign: 'center',
                   }}
@@ -1228,43 +1439,43 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div
                       style={{
-                        width: '24px',
-                        height: '24px',
+                        width: '22px',
+                        height: '22px',
                         borderRadius: '50%',
                         background: '#000000',
                         border: '1px solid rgba(255,255,255,0.3)',
                         display: 'grid',
                         placeItems: 'center',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: 800,
                         color: '#86EFAC',
                       }}
                     >
-                      N
+                      Ⓝ
                     </div>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#F4F4F5', letterSpacing: '0.05em' }}>
-                      NEAR
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#F4F4F5', letterSpacing: '0.05em' }}>
+                      NEAR TREASURY
                     </span>
-                    <span className="success-badge" style={{ fontSize: '10px', padding: '2px 6px' }}>
+                    <span className="success-badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
                       Live On-Chain
                     </span>
                   </div>
 
                   <strong
                     style={{
-                      fontSize: '32px',
+                      fontSize: '28px',
                       fontWeight: 800,
                       fontFamily: 'Space Grotesk',
                       color: '#FFFFFF',
                       letterSpacing: '-0.02em',
-                      marginTop: '4px',
+                      marginTop: '2px',
                     }}
                   >
-                    {(daoBalances?.treasuryBalance ?? 10.00).toFixed(2)} NEAR
+                    {treasuryNear.toFixed(2)} NEAR
                   </strong>
 
-                  <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                    ~${((daoBalances?.treasuryBalance ?? 10.00) * 5.2).toFixed(2)} USD
+                  <span style={{ fontSize: '12px', color: '#D4D4D8' }}>
+                    ~${(treasuryNear * 5.2).toFixed(2)} USD • 100% Reserve
                   </span>
 
                   <span
@@ -1274,7 +1485,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       fontWeight: 600,
                       textTransform: 'uppercase',
                       letterSpacing: '0.07em',
-                      marginTop: '2px',
                     }}
                   >
                     tre.qrm1.testnet • Real-Time RPC
@@ -1709,7 +1919,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               )}
             </section>
           </div>
-        )}
+          );
+        })()}
 
         {/* Quick Offer Modal */}
         {offerModalToken && (

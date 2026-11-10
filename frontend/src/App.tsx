@@ -964,6 +964,17 @@ export function App() {
     }
   };
 
+  const handleNavigate = (page: Page) => {
+    if (page === 'mint') {
+      const currentCol = collections.find((c) => c.id === selectedCollectionId);
+      if (!currentCol || currentCol.minted >= currentCol.supply) {
+        const liveCol = collections.find((c) => c.minted < c.supply);
+        if (liveCol) setSelectedCollectionId(liveCol.id);
+      }
+    }
+    setCurrentPage(page);
+  };
+
   return (
     <div
       style={{
@@ -979,7 +990,7 @@ export function App() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentPage={currentPage}
-        onNavigate={setCurrentPage}
+        onNavigate={handleNavigate}
         onOpenWallet={() => setIsWalletOpen(true)}
         onOpenConnect={handleOpenOfficialConnect}
         walletConnected={wallet.connected}
@@ -1037,9 +1048,12 @@ export function App() {
 
         {currentPage === 'mint' && (
           <MintPage
+            collections={collections}
+            selectedCollectionId={selectedCollectionId}
+            onSelectCollection={(colId) => setSelectedCollectionId(colId)}
             collection={
-              collections.find((c) => c.id === (selectedCollectionId || 'feather-protocol')) ||
-              collections.find((c) => c.id === 'feather-protocol') ||
+              collections.find((c) => c.id === selectedCollectionId) ||
+              collections.find((c) => c.minted < c.supply) ||
               collections[0]
             }
             onNavigate={setCurrentPage}

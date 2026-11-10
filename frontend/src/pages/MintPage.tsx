@@ -5,12 +5,17 @@ import { fetchLiveDaoBalances, type DaoBalances } from '../near';
 
 interface MintPageProps {
   collection: CollectionItem;
+  collections?: CollectionItem[];
+  selectedCollectionId?: string | null;
+  onSelectCollection?: (collectionId: string) => void;
   onNavigate: (page: Page) => void;
   onMint: (stage: 'pre' | 'pub', totalNear: number) => void;
 }
 
 export const MintPage: React.FC<MintPageProps> = ({
   collection,
+  collections,
+  onSelectCollection,
   onNavigate,
   onMint,
 }) => {
@@ -81,26 +86,77 @@ export const MintPage: React.FC<MintPageProps> = ({
           }}
         />
 
-        <button
-          onClick={() => onNavigate('marketplace')}
-          style={{
-            position: 'relative',
-            alignSelf: 'flex-start',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            minHeight: '40px',
-            padding: '0 14px',
-            borderRadius: '999px',
-            background: 'rgba(10,10,13,0.7)',
-            border: '1px solid #2A2A33',
-            color: '#F4F4F5',
-            fontSize: '13px',
-            cursor: 'pointer',
-          }}
-        >
-          <ArrowLeft size={14} /> Back to Marketplace
-        </button>
+        <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button
+            onClick={() => onNavigate('marketplace')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              minHeight: '40px',
+              padding: '0 16px',
+              borderRadius: '999px',
+              background: 'rgba(10,10,13,0.7)',
+              border: '1px solid #2A2A33',
+              color: '#F4F4F5',
+              fontSize: '13px',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeft size={14} /> Back to Marketplace
+          </button>
+
+          {/* Collection Switcher Pills on Mint Page */}
+          {collections && collections.length > 0 && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {collections.map((col) => {
+                const isCur = col.id === collection.id;
+                const isColSoldOut = col.minted >= col.supply;
+                return (
+                  <button
+                    key={col.id}
+                    type="button"
+                    onClick={() => onSelectCollection?.(col.id)}
+                    style={{
+                      minHeight: '38px',
+                      padding: '0 14px',
+                      borderRadius: '999px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      background: isCur ? '#F5A524' : 'rgba(29, 29, 37, 0.85)',
+                      color: isCur ? '#111113' : '#D4D4D8',
+                      border: isCur ? '1px solid #F5A524' : '1px solid #2A2A33',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <img
+                      src={col.avatar_image}
+                      alt=""
+                      style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                    <span>{col.name}</span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '999px',
+                        background: isCur ? 'rgba(0,0,0,0.2)' : isColSoldOut ? 'rgba(245,165,36,0.18)' : 'rgba(34,197,94,0.18)',
+                        color: isCur ? '#111113' : isColSoldOut ? '#F5A524' : '#86EFAC',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {isColSoldOut ? 'Concluded' : `Live (${col.minted}/${col.supply})`}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'flex-end' }}>
           <img
@@ -144,11 +200,13 @@ export const MintPage: React.FC<MintPageProps> = ({
           </div>
           <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(21,21,27,0.85)', border: '1px solid #2A2A33' }}>
             <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Vault Backing</span>
-            <strong style={{ fontSize: '18px', color: '#F5A524' }}>1.00 NEAR</strong>
+            <strong style={{ fontSize: '18px', color: '#86EFAC' }}>0.50 NEAR</strong>
           </div>
           <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(21,21,27,0.85)', border: '1px solid #2A2A33' }}>
             <span style={{ fontSize: '12px', color: '#A1A1AA' }}>DAO Treasury</span>
-            <strong style={{ fontSize: '18px' }}>20.00 NEAR</strong>
+            <strong style={{ fontSize: '18px', color: '#F5A524' }}>
+              {daoBalances ? `${daoBalances.treasuryBalance.toFixed(2)} NEAR` : '10.05 NEAR'}
+            </strong>
           </div>
         </div>
       </section>
@@ -172,12 +230,13 @@ export const MintPage: React.FC<MintPageProps> = ({
           >
             <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>From the collection</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-              {[
-                '/images/molten-0.jpg',
-                '/images/molten-1.jpg',
-                '/images/tidewater-0.jpg',
-                '/images/tidewater-1.jpg',
-              ].map((img, idx) => (
+              {(
+                collection.id === 'feather-protocol'
+                  ? ['/images/feather-avatar.jpg', '/images/feather-banner.jpg', '/images/feather-avatar.jpg', '/images/feather-banner.jpg']
+                  : collection.id === 'molten-hours'
+                  ? ['/images/molten-0.jpg', '/images/molten-1.jpg', '/images/molten-0.jpg', '/images/molten-1.jpg']
+                  : ['/images/tidewater-0.jpg', '/images/tidewater-1.jpg', '/images/tidewater-0.jpg', '/images/tidewater-1.jpg']
+              ).map((img, idx) => (
                 <div
                   key={idx}
                   style={{
@@ -232,10 +291,26 @@ export const MintPage: React.FC<MintPageProps> = ({
               <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>On-Chain Verification</h2>
               <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {[
-                  { num: 1, title: 'Mint concluded (20/20)', desc: 'Full supply minted and locked on NEAR testnet.' },
-                  { num: 2, title: '6 Tokens in Portfolio', desc: 'Connected testnet account holds 3 Molten Hours + 3 Tidewater pieces.' },
-                  { num: 3, title: '34 Tokens in Marketplace', desc: 'Remaining 17 pieces per collection available at 1.00 NEAR.' },
-                  { num: 4, title: 'Real Testnet Transactions', desc: 'All trades and offers execute via Meteor & HOT Connector.' },
+                  {
+                    num: 1,
+                    title: isSoldOut ? `Mint Concluded (${collection.supply}/${collection.supply})` : `Live Mint Stage (${collection.minted}/${collection.supply})`,
+                    desc: isSoldOut ? 'Full supply minted and locked on NEAR testnet.' : `${collection.supply - collection.minted} tokens open for instant on-chain minting.`,
+                  },
+                  {
+                    num: 2,
+                    title: 'Keyless Smart Contract Vault',
+                    desc: 'Every token provisions a dedicated v<id> vault holding 0.50 NEAR backing reserve.',
+                  },
+                  {
+                    num: 3,
+                    title: '50% Treasury Funding',
+                    desc: '0.50 NEAR per mint deposited into tre.qrm1.testnet community DAO.',
+                  },
+                  {
+                    num: 4,
+                    title: 'Real Testnet Settlement',
+                    desc: 'Contract calls signed securely via Meteor & HOT Connector.',
+                  },
                 ].map((step) => (
                   <li key={step.num} style={{ display: 'flex', gap: '14px' }}>
                     <span
@@ -342,7 +417,7 @@ export const MintPage: React.FC<MintPageProps> = ({
                   transition: 'all 0.15s ease',
                 }}
               >
-                Public (Sold Out)
+                Public (Live)
               </button>
             </div>
           )}
