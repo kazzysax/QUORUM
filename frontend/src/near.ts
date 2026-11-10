@@ -107,7 +107,7 @@ export async function fetchLiveDaoBalances(collectionId?: string): Promise<DaoBa
     fetchNearAccountBalance(daoAccount),
   ]);
 
-  const treasuryBalance = tre ?? 1.50;
+  const treasuryBalance = tre ?? 10.00;
   const daoBalance = dao ?? 0.50;
   const totalBalance = parseFloat((treasuryBalance + daoBalance).toFixed(4));
 
@@ -124,12 +124,30 @@ export async function fetchLiveDaoBalances(collectionId?: string): Promise<DaoBa
  * Directly queries on-chain NFT contracts for tokens owned by accountId.
  * Guarantees zero mocks and pulls directly from live NEAR testnet RPC.
  */
-export async function fetchTokensForOwner(accountId: string): Promise<TokenItem[]> {
-  const collections = [
+export async function fetchTokensForOwner(
+  accountId: string,
+  extraCollections?: { name: string; contract: string; symbol: string; image?: string }[]
+): Promise<TokenItem[]> {
+  const baseCollections = [
     { name: 'Molten Hours', contract: 'molten.qrm1.testnet', symbol: 'MOLT', image: '/images/molten-0.jpg' },
     { name: 'Tidewater', contract: 'tide.qrm1.testnet', symbol: 'TIDE', image: '/images/tidewater-0.jpg' },
     { name: 'Feather Protocol', contract: 'feather.qrm1.testnet', symbol: 'FEATH', image: '/images/feather-avatar.jpg' },
   ];
+  const seenContracts = new Set(baseCollections.map((c) => c.contract));
+  const collections = [...baseCollections];
+  if (extraCollections) {
+    for (const ec of extraCollections) {
+      if (ec.contract && !seenContracts.has(ec.contract)) {
+        seenContracts.add(ec.contract);
+        collections.push({
+          name: ec.name,
+          contract: ec.contract,
+          symbol: ec.symbol || 'NFT',
+          image: ec.image || '/images/feather-avatar.jpg',
+        });
+      }
+    }
+  }
   const allTokens: TokenItem[] = [];
 
   for (const col of collections) {

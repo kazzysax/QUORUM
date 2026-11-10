@@ -125,7 +125,13 @@ export function App() {
 
   const syncOnchainTokens = async (accId: string) => {
     try {
-      const onchain = await fetchTokensForOwner(accId);
+      const customCols = collections.map((c) => ({
+        name: c.name,
+        contract: c.stats?.contractId || getCollectionDaoAccounts(c.id).nftContract,
+        symbol: c.symbol,
+        image: c.avatar_image,
+      }));
+      const onchain = await fetchTokensForOwner(accId, customCols);
       if (onchain && onchain.length > 0) {
         setUserNfts(onchain);
         persistState(STORAGE_KEYS.USER_NFTS, onchain);
@@ -269,19 +275,8 @@ export function App() {
     }
 
     const priceNum = parseFloat(token.price || '1.00');
-    const isTide = Boolean(
-      (token.collection && token.collection.toLowerCase().includes('tide')) ||
-      (token.id && token.id.toLowerCase().includes('tide')) ||
-      (token.title && token.title.toLowerCase().includes('tide'))
-    );
-    const isFeather = Boolean(
-      (token.collection && token.collection.toLowerCase().includes('feather')) ||
-      (token.id && token.id.toLowerCase().includes('feather')) ||
-      (token.title && token.title.toLowerCase().includes('feather'))
-    );
-    const nftContract = token.nft_contract || (
-      isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
-    );
+    const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
+    const nftContract = token.nft_contract || daoAccounts.nftContract;
 
     let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
     if (!cleanTokenId) {
@@ -575,19 +570,8 @@ export function App() {
       cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
     }
 
-    const isTide = Boolean(
-      (token.collection && token.collection.toLowerCase().includes('tide')) ||
-      (token.id && token.id.toLowerCase().includes('tide')) ||
-      (token.title && token.title.toLowerCase().includes('tide'))
-    );
-    const isFeather = Boolean(
-      (token.collection && token.collection.toLowerCase().includes('feather')) ||
-      (token.id && token.id.toLowerCase().includes('feather')) ||
-      (token.title && token.title.toLowerCase().includes('feather'))
-    );
-    const burnContract = token.nft_contract || (
-      isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
-    );
+    const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
+    const burnContract = token.nft_contract || daoAccounts.nftContract;
 
     try {
       addToast('info', 'Initiating Vault Dissolution & Burn...', `Burning #${cleanTokenId} on ${burnContract}. Please sign the burn authorization in your wallet.`);
@@ -647,12 +631,8 @@ export function App() {
     const addedNum = parseFloat(amount) || 0;
     if (addedNum <= 0) return;
 
-    const isTide = Boolean(
-      (token.collection && token.collection.toLowerCase().includes('tide')) ||
-      (token.id && token.id.toLowerCase().includes('tide')) ||
-      (token.title && token.title.toLowerCase().includes('tide'))
-    );
-    const colPrefix = isTide ? 'tide' : 'molten';
+    const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
+    const contractId = token.nft_contract || daoAccounts.nftContract;
 
     let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
     if (!cleanTokenId) {
@@ -660,9 +640,9 @@ export function App() {
       cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
     }
 
-    const safeVaultAccount = (token.vault_account && token.vault_account.includes('.qrm1.testnet'))
+    const safeVaultAccount = (token.vault_account && token.vault_account.includes('.testnet'))
       ? token.vault_account
-      : `v${cleanTokenId}.${colPrefix}.qrm1.testnet`;
+      : `v${cleanTokenId}.${contractId}`;
 
     try {
       addToast('info', `Depositing ${addedNum} NEAR to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
