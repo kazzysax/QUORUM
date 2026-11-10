@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { CollectionItem, TokenItem, Page, OfferItem, ProposalItem } from '../types';
-import { fetchLiveDaoBalances, type DaoBalances } from '../near';
+import { fetchLiveDaoBalances, getCollectionDaoAccounts, type DaoBalances } from '../near';
 import {
   ArrowRight,
   ArrowLeft,
@@ -1342,7 +1342,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             TAB 7: DAO (ROUND BALL ASSET ORB, TREASURY HOLDINGS & VOTES)
            =================================================================== */}
         {collectionTab === 'dao' && (() => {
-          const treasuryNear = daoBalances?.treasuryBalance ?? 10.05;
+          const colDaoAccounts = getCollectionDaoAccounts(activeCollection.id);
+          const activeTreasuryAccount = daoBalances?.treasuryAccount || colDaoAccounts.treasuryAccount;
+          const activeDaoAccount = daoBalances?.daoAccount || colDaoAccounts.daoAccount;
+          const treasuryNear = daoBalances?.treasuryBalance ?? 1.50;
           const treasuryCapacity = 20.00;
           const fillPercent = Math.min(92, Math.max(18, Math.round((treasuryNear / treasuryCapacity) * 100)));
 
@@ -1516,7 +1519,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         letterSpacing: '0.07em',
                       }}
                     >
-                      {daoBalances?.treasuryAccount || 'tre.qrm1.testnet'} • Real-Time RPC
+                      {activeTreasuryAccount} • Real-Time RPC
                     </span>
                   </div>
                 </div>
@@ -1535,14 +1538,14 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span className="gold-badge">100% On-Chain Verified</span>
                       <span className="success-badge">50/50 Protocol Split Enforced</span>
-                      <span className="neutral-badge">{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'} (Treasury)</span>
-                      <span className="neutral-badge">{daoBalances?.daoAccount || 'dao.qrm1.testnet'} (Gov)</span>
+                      <span className="neutral-badge">{activeTreasuryAccount} (Treasury)</span>
+                      <span className="neutral-badge">{activeDaoAccount} (Gov)</span>
                     </div>
                     <h2 style={{ margin: '8px 0 4px', fontSize: '26px', fontWeight: 700 }}>
                       {activeCollection.name} DAO Treasury
                     </h2>
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-                      Quorum enforces an exact <strong>50/50 capital split</strong> at mint: <strong>50% (0.50 NEAR per NFT)</strong> funds this collection's dedicated on-chain Treasury (<code style={{ color: '#F5A524' }}>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</code>), and <strong>50% (0.50 NEAR per NFT)</strong> locks into the holder's keyless vault. Both balances are live from NEAR testnet RPC.
+                      Quorum enforces an exact <strong>50/50 capital split</strong> at mint: <strong>50% (0.50 NEAR per NFT)</strong> funds this collection's dedicated on-chain Treasury (<code style={{ color: '#F5A524' }}>{activeTreasuryAccount}</code>), and <strong>50% (0.50 NEAR per NFT)</strong> locks into the holder's keyless vault. Both balances are live from NEAR testnet RPC.
                     </p>
                   </div>
 
@@ -1574,7 +1577,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
                         {(daoBalances?.daoBalance ?? 0.50).toFixed(2)} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{activeDaoAccount}</span>
                     </div>
                   </div>
 
@@ -1595,7 +1598,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#86EFAC', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>T</div>
-                              <strong>{daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}</strong>
+                              <strong>{activeTreasuryAccount}</strong>
                             </div>
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
@@ -1609,7 +1612,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <a
-                              href={`https://testnet.nearblocks.io/address/${daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}`}
+                              href={`https://testnet.nearblocks.io/address/${activeTreasuryAccount}`}
                               target="_blank"
                               rel="noreferrer"
                               style={{ color: '#F5A524', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
@@ -1622,7 +1625,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#000', color: '#D8B4FE', display: 'grid', placeItems: 'center', fontSize: '10px', fontWeight: 800 }}>D</div>
-                              <strong>{daoBalances?.daoAccount || 'dao.qrm1.testnet'}</strong>
+                              <strong>{activeDaoAccount}</strong>
                             </div>
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
@@ -1636,7 +1639,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <a
-                              href={`https://testnet.nearblocks.io/address/${daoBalances?.daoAccount || 'dao.qrm1.testnet'}`}
+                              href={`https://testnet.nearblocks.io/address/${activeDaoAccount}`}
                               target="_blank"
                               rel="noreferrer"
                               style={{ color: '#86EFAC', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 600 }}
@@ -1669,22 +1672,22 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      onClick={() => handleCopyContract(daoBalances?.treasuryAccount || 'tre.qrm1.testnet')}
+                      onClick={() => handleCopyContract(activeTreasuryAccount)}
                       className="btn-secondary"
                       style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <Copy size={14} /> Copy Treasury ({daoBalances?.treasuryAccount?.split('.')[0] || 'tre'})
+                      <Copy size={14} /> Copy Treasury ({activeTreasuryAccount.split('.')[0]})
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleCopyContract(daoBalances?.daoAccount || 'dao.qrm1.testnet')}
+                      onClick={() => handleCopyContract(activeDaoAccount)}
                       className="btn-secondary"
                       style={{ minHeight: '38px', padding: '0 14px', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      <Copy size={14} /> Copy DAO ({daoBalances?.daoAccount?.split('.')[0] || 'dao'})
+                      <Copy size={14} /> Copy DAO ({activeDaoAccount.split('.')[0]})
                     </button>
                     <a
-                      href={`https://testnet.nearblocks.io/address/${daoBalances?.treasuryAccount || 'tre.qrm1.testnet'}`}
+                      href={`https://testnet.nearblocks.io/address/${activeTreasuryAccount}`}
                       target="_blank"
                       rel="noreferrer"
                       className="btn-secondary"

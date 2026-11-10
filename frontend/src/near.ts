@@ -43,23 +43,35 @@ export interface DaoBalances {
   totalBalance: number;
 }
 
-export async function fetchLiveDaoBalances(collectionId?: string): Promise<DaoBalances> {
-  let treAccount = 'tre.qrm1.testnet';
-  let daoAccount = 'dao.qrm1.testnet';
-
-  if (collectionId) {
-    const id = collectionId.toLowerCase();
-    if (id.includes('molt')) {
-      treAccount = 'tre-molt.qrm1.testnet';
-      daoAccount = 'dao-molt.qrm1.testnet';
-    } else if (id.includes('tide')) {
-      treAccount = 'tre-tide.qrm1.testnet';
-      daoAccount = 'dao-tide.qrm1.testnet';
-    } else if (id.includes('feath')) {
-      treAccount = 'tre-feath.qrm1.testnet';
-      daoAccount = 'dao-feath.qrm1.testnet';
-    }
+export function getCollectionDaoAccounts(collectionIdOrName?: string): {
+  treasuryAccount: string;
+  daoAccount: string;
+  nftContract: string;
+} {
+  const id = (collectionIdOrName || '').toLowerCase();
+  if (id.includes('tide')) {
+    return {
+      treasuryAccount: 'tre-tide.qrm1.testnet',
+      daoAccount: 'dao-tide.qrm1.testnet',
+      nftContract: 'tide.qrm1.testnet',
+    };
   }
+  if (id.includes('feath')) {
+    return {
+      treasuryAccount: 'tre-feath.qrm1.testnet',
+      daoAccount: 'dao-feath.qrm1.testnet',
+      nftContract: 'feather.qrm1.testnet',
+    };
+  }
+  return {
+    treasuryAccount: 'tre-molt.qrm1.testnet',
+    daoAccount: 'dao-molt.qrm1.testnet',
+    nftContract: 'molten.qrm1.testnet',
+  };
+}
+
+export async function fetchLiveDaoBalances(collectionId?: string): Promise<DaoBalances> {
+  const { treasuryAccount: treAccount, daoAccount } = getCollectionDaoAccounts(collectionId);
 
   const [tre, dao] = await Promise.all([
     fetchNearAccountBalance(treAccount),

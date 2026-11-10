@@ -737,7 +737,7 @@ export function App() {
     }
   };
 
-  // DAO Voting with real testnet signing
+  // DAO Voting with real testnet signing strictly per sovereign collection
   const handleCastVote = async (proposalId: number, choice: 'yes' | 'no' | 'abstain') => {
     if (!wallet.connected || !wallet.accountId) {
       addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
@@ -745,17 +745,39 @@ export function App() {
       return;
     }
 
-    const votingPower = displayedUserNfts.length;
+    const targetProp = proposals.find((p) => p.id === proposalId);
+    const propCollection = targetProp?.collection || 'Molten Hours';
+
+    // Strictly enforce holder-only voting within the proposal's sovereign collection
+    const colTokens = userNfts.filter((t) => t.collection === propCollection);
+    const votingPower = colTokens.length;
+
     if (votingPower === 0) {
-      addToast('error', 'Zero Voting Power', 'You must hold at least 1 Quorum NFT to vote.');
+      addToast(
+        'error',
+        'Zero Voting Power',
+        `You hold 0 ${propCollection} NFTs. Cross-collection voting is prohibited; only ${propCollection} holders govern this DAO.`
+      );
       return;
     }
 
+    const isTide = propCollection.toLowerCase().includes('tide');
+    const isFeath = propCollection.toLowerCase().includes('feath');
+    const daoReceiver = isFeath
+      ? 'dao-feath.qrm1.testnet'
+      : isTide
+        ? 'dao-tide.qrm1.testnet'
+        : 'dao-molt.qrm1.testnet';
+
     try {
-      addToast('info', 'Submitting Vote On-Chain...', 'Please sign the vote transaction with your connected wallet.');
+      addToast(
+        'info',
+        `Submitting Vote to ${propCollection} DAO...`,
+        `Please sign on-chain vote at ${daoReceiver} with ${votingPower} NFT vote${votingPower === 1 ? '' : 's'}.`
+      );
 
       const tx = await sendNearTransaction({
-        receiverId: 'dao.qrm1.testnet',
+        receiverId: daoReceiver,
         actions: [createTransferAction('0.0001')],
         signerId: wallet.accountId,
       });
@@ -777,7 +799,7 @@ export function App() {
       addToast(
         'success',
         `Vote Recorded: ${choice.toUpperCase()}!`,
-        `Tx ${tx.hash.slice(0, 10)}... confirmed on NEAR testnet with ${votingPower} NFT votes.`
+        `Tx ${tx.hash.slice(0, 10)}... confirmed on ${daoReceiver} with ${votingPower} ${propCollection} vote${votingPower === 1 ? '' : 's'}.`
       );
     } catch (err: any) {
       console.error('Vote error:', err);
@@ -853,9 +875,14 @@ export function App() {
     const isFeather = targetCol.id.includes('feather');
     const isTide = targetCol.id.includes('tide');
     const contractId = isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
+    const treasuryAccount = isFeather
+      ? 'tre-feath.qrm1.testnet'
+      : isTide
+        ? 'tre-tide.qrm1.testnet'
+        : 'tre-molt.qrm1.testnet';
 
     try {
-      addToast('info', 'Broadcasting Mint to NEAR Testnet...', 'Please approve the 1.03 NEAR transaction in your wallet.');
+      addToast('info', 'Broadcasting Mint to NEAR Testnet...', `Please approve the 1.03 NEAR transaction on ${contractId} (50% to ${targetCol.name} Treasury, 50% to Vault).`);
 
       const tx = await sendNearTransaction({
         receiverId: contractId,
@@ -904,7 +931,7 @@ export function App() {
       addToast(
         'success',
         `Mint Successful: ${newMintedToken.title}!`,
-        `Tx ${tx.hash.slice(0, 10)}... Keyless vault v${nextNum}.${contractId} deployed and backed with 0.50 NEAR.`
+        `Tx ${tx.hash.slice(0, 10)}... 50% (0.50 NEAR) deposited to ${targetCol.name} DAO Treasury (${treasuryAccount}), 50% (0.50 NEAR) locked into keyless vault v${nextNum}.${contractId}.`
       );
 
       // Re-sync live on-chain tokens & listings

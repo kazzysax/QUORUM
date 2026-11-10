@@ -396,7 +396,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
                 <strong style={{ color: '#86EFAC' }}>{burnStats.youGet}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                <span style={{ color: '#C4C4CC' }}>Treasury retained (10%)</span>
+                <span style={{ color: '#C4C4CC' }}>{selectedToken.collection} Treasury retained (10%)</span>
                 <span>{burnStats.daoGets}</span>
               </div>
             </div>

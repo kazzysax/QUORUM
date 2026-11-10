@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, CollectionItem } from '../types';
 import { ArrowLeft, ShieldCheck, Sparkles, ShoppingBag, CheckCircle2 } from 'lucide-react';
-import { fetchLiveDaoBalances, type DaoBalances } from '../near';
+import { fetchLiveDaoBalances, getCollectionDaoAccounts, type DaoBalances } from '../near';
 
 interface MintPageProps {
   collection: CollectionItem;
@@ -23,15 +23,17 @@ export const MintPage: React.FC<MintPageProps> = ({
   const [minting, setMinting] = useState(false);
   const [daoBalances, setDaoBalances] = useState<DaoBalances | null>(null);
 
+  const daoAccounts = getCollectionDaoAccounts(collection.id);
+
   useEffect(() => {
     let mounted = true;
-    fetchLiveDaoBalances().then((res) => {
+    fetchLiveDaoBalances(collection.id).then((res) => {
       if (mounted) setDaoBalances(res);
     });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [collection.id]);
 
   const isPre = stage === 'pre';
   const price = 1.00;
@@ -304,7 +306,7 @@ export const MintPage: React.FC<MintPageProps> = ({
                   {
                     num: 3,
                     title: '50% Treasury Funding',
-                    desc: '0.50 NEAR per mint deposited into tre.qrm1.testnet community DAO.',
+                    desc: `0.50 NEAR per mint deposited directly into ${daoAccounts.treasuryAccount} (${collection.name} DAO).`,
                   },
                   {
                     num: 4,

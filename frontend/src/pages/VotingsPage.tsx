@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ProposalItem, TokenItem, CollectionItem } from '../types';
 import { Check, X, Minus, CheckCircle2, Vote, Clock } from 'lucide-react';
+import { getCollectionDaoAccounts, fetchLiveDaoBalances, type DaoBalances } from '../near';
 
 interface VotingsPageProps {
   proposals: ProposalItem[];
@@ -18,6 +19,26 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [votingOnId, setVotingOnId] = useState<number | null>(null);
+  const [colBalances, setColBalances] = useState<Record<string, DaoBalances>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      fetchLiveDaoBalances('molten-hours'),
+      fetchLiveDaoBalances('tidewater'),
+      fetchLiveDaoBalances('feather-protocol'),
+    ]).then(([molt, tide, feath]) => {
+      if (!mounted) return;
+      setColBalances({
+        'Molten Hours': molt,
+        'Tidewater': tide,
+        'Feather Protocol': feath,
+      });
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Group user's NFTs by collection to calculate voting power per collection
   const userNftsByCollection = userNfts.reduce((acc, nft) => {
@@ -32,8 +53,6 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
       ...proposals.map((p) => p.collection || 'Molten Hours'),
     ])
   );
-
-  const totalUserVotes = userNfts.length;
 
   const handleQuickVote = async (proposalId: number, choice: 'yes' | 'no' | 'abstain') => {
     setVotingOnId(proposalId);
@@ -56,11 +75,11 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
             </h1>
           </div>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-            Ongoing DAO proposals organized by each collection you hold.
+            Each collection is an independent sovereign DAO. Only holders of that collection govern its treasury.
           </span>
         </div>
 
-        {/* Global Voting Power Badge */}
+        {/* Sovereign DAO Badge */}
         <div
           style={{
             display: 'inline-flex',
@@ -76,7 +95,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
           }}
         >
           <CheckCircle2 size={16} color="#F5A524" />
-          <span>Your Total Voting Power: {totalUserVotes} Votes</span>
+          <span>Sovereign Collection DAOs · Holder-Only Governance · 0 Cross-Bridge</span>
         </div>
       </div>
 
@@ -109,7 +128,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
             flexShrink: 0,
           }}
         >
-          All Collections ({proposals.length})
+          All Sovereign DAOs ({proposals.length})
         </button>
 
         {activeCollectionNames.map((colName) => {
@@ -149,7 +168,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                   color: isSelected ? '#111113' : '#A1A1AA',
                 }}
               >
-                {power > 0 ? `${power} votes · ${count} props` : `${count} props`}
+                {power > 0 ? `${power} votes held · ${count} props` : `${count} props`}
               </span>
             </button>
           );
@@ -168,6 +187,9 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
 
             const colMeta = collections.find((c) => c.name === colName);
             const userVotesInCol = userNftsByCollection[colName] || 0;
+            const accounts = getCollectionDaoAccounts(colName);
+            const liveBal = colBalances[colName];
+            const treasuryDisplay = liveBal ? `${liveBal.treasuryBalance.toFixed(2)} NEAR Treasury` : '1.50 NEAR Treasury';
 
             return (
               <section
@@ -204,17 +226,23 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                         style={{ width: '48px', height: '48px', borderRadius: '14px', objectFit: 'cover' }}
                       />
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#F4F4F5' }}>
                           {colName} DAO
                         </h2>
                         <span className="gold-badge" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                          20.00 NEAR Treasury
+                          {treasuryDisplay}
+                        </span>
+                        <span className="neutral-badge" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                          {accounts.treasuryAccount}
+                        </span>
+                        <span className="neutral-badge" style={{ fontSize: '11px', padding: '2px 8px' }}>
+                          {accounts.daoAccount} (Gov)
                         </span>
                       </div>
                       <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                        {colMeta?.description || 'Community DAO backed by 20 keyless NFT vaults.'}
+                        {colMeta?.description || `Independent community DAO backed by keyless NFT vaults on ${accounts.nftContract}.`}
                       </span>
                     </div>
                   </div>
@@ -229,7 +257,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                     }}
                   >
                     <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#71717A' }}>
-                      Your Voting Power
+                      Your {colName} Voting Power
                     </span>
                     <strong style={{ fontSize: '18px', color: userVotesInCol > 0 ? '#F5A524' : '#71717A' }}>
                       {userVotesInCol} {userVotesInCol === 1 ? 'Vote' : 'Votes'} ({userVotesInCol} {colName} NFTs held)
@@ -354,7 +382,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                             >
                               <CheckCircle2 size={16} color="#4ADE80" />
                               <span>
-                                You voted {prop.voted_choice?.toUpperCase()} with {userVotesInCol} votes on testnet
+                                You voted {prop.voted_choice?.toUpperCase()} with {userVotesInCol} votes on {accounts.daoAccount}
                               </span>
                             </div>
                           ) : (
@@ -373,11 +401,12 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   gap: '6px',
-                                  opacity: userVotesInCol === 0 ? 0.5 : 1,
+                                  opacity: userVotesInCol === 0 ? 0.4 : 1,
+                                  cursor: userVotesInCol === 0 ? 'not-allowed' : 'pointer',
                                 }}
                               >
                                 <Check size={16} strokeWidth={2.5} />
-                                {isVoting ? 'Signing...' : `Vote YES (+${userVotesInCol})`}
+                                {isVoting ? 'Signing on ' + accounts.daoAccount + '...' : `Vote YES (+${userVotesInCol})`}
                               </button>
 
                               <button
@@ -394,7 +423,8 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   gap: '6px',
-                                  opacity: userVotesInCol === 0 ? 0.5 : 1,
+                                  opacity: userVotesInCol === 0 ? 0.4 : 1,
+                                  cursor: userVotesInCol === 0 ? 'not-allowed' : 'pointer',
                                 }}
                               >
                                 <X size={16} strokeWidth={2.5} />
@@ -414,7 +444,8 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   gap: '4px',
-                                  opacity: userVotesInCol === 0 ? 0.5 : 1,
+                                  opacity: userVotesInCol === 0 ? 0.4 : 1,
+                                  cursor: userVotesInCol === 0 ? 'not-allowed' : 'pointer',
                                 }}
                               >
                                 <Minus size={15} /> Abstain
@@ -422,9 +453,13 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                             </div>
                           )}
 
-                          {userVotesInCol === 0 && (
-                            <span style={{ fontSize: '12px', color: '#A1A1AA' }}>
-                              Hold at least 1 {colName} NFT to cast votes in this DAO.
+                          {userVotesInCol === 0 ? (
+                            <span style={{ fontSize: '12px', color: '#F87171' }}>
+                              Hold at least 1 {colName} NFT to cast votes in this DAO. Cross-collection voting is prohibited.
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: '#86EFAC' }}>
+                              Holder Verified: You hold {userVotesInCol} {colName} NFT{userVotesInCol === 1 ? '' : 's'} on NEAR testnet (Voting Power: {userVotesInCol} vote{userVotesInCol === 1 ? '' : 's'}).
                             </span>
                           )}
                         </div>

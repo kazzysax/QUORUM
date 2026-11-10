@@ -197,7 +197,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
               {/* Fee Breakdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px', borderRadius: '14px', background: '#1D1D25', border: '1px solid #2A2A33', fontSize: '13px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#A1A1AA' }}>
-                  <span>To DAO Treasury (5%)</span>
+                  <span>To {selectedNft?.collection || 'Collection'} DAO Treasury (5%)</span>
                   <span>{toDao} NEAR</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#A1A1AA' }}>
