@@ -56,15 +56,10 @@ Needs about 40 NEAR (4 accounts x 8 NEAR plus the one-time global-contract publi
 2. Add NEAR to a vault from the owner (works) and from another account (refunded).
 3. Transfer an NFT; confirm the old owner can no longer deposit and the new one can.
 4. **Burn before settlement** (a third mint): holder gets 90% of its escrow in NEAR, treasury 10%.
-5. Wait for the mint to close (last stage end, or sell out). Propose and pass a SETTLE for the `wrap.near` group (no route), execute it, then `credit_batch`.
-   Confirm the vault now shows wNEAR.
-6. Propose a SETTLE for the swapped group with a real Rhea route and a sensible `min_out` (compare Rhea's quote; use a small slippage margin).
-   Execute with 300 Tgas. Watch `swap_done` or `swap_failed` in the indexer. If it fails, `unwrap_wnear` returns any leftover wNEAR; the escrow records are untouched
-   and the group returns to Pending. **This step is where the Rhea assumptions get tested; expect to adjust.**
-7. `credit_batch` the swapped group. Confirm vault balances match `out_total` split by escrow share.
-8. Burn a credited NFT: holder gets 90% of the asset, treasury 10%.
-9. Let a second throwaway group sit past `settle_grace_ms` (use a tiny grace on the throwaway) and try `enable_fallback` then `credit_batch` to confirm plain NEAR is credited.
-10. Sign in with the NEP-413 flow; confirm gated pages open for holders and close on the next request after a sale or burn.
+5. **Settlement & DEX Routing:** Since there is no active DEX liquidity on testnet, testnet settlement operates with native NEAR/wNEAR backing. On mainnet, propose and pass a SETTLE proposal with a real Rhea route and a sensible `min_out` for automated multi-token settlement, then `credit_batch`. Confirm the vault now shows the credited assets.
+6. `credit_batch` the token group. Confirm vault balances match `out_total` split by escrow share.
+7. Burn a credited NFT: holder gets 90% of the asset, treasury 10%.
+8. Sign in with the NEP-413 flow; confirm gated pages open for holders and close on the next request after a sale or burn.
 
 If **any** step is wrong: `set_paused true`, stop, fix. Non-vault contracts can be redeployed while you hold keys.
 If the **vault** is wrong, nothing minted can be repaired: burn what you can, publish a corrected vault, and use a fresh collection.

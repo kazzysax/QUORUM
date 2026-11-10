@@ -26,8 +26,10 @@
 
 Every Quorum NFT is three things at once:
 1. **Art:** A NEP-171 non-fungible token carrying dynamic metadata and high-fidelity visuals.
-2. **A Vault:** An independent, keyless NEAR sub-account (`v<id>.<collection>`) holding real backing assets (USDC, wNEAR, etc.). Holders can withdraw 90% of backing at any time by burning the NFT.
-3. **A Vote:** Exactly one live vote per token in the decentralized autonomous organization (DAO) controlling the collection's shared treasury and settlement parameters.
+2. **A Vault:** An independent, keyless NEAR sub-account (`v<id>.<collection>`) holding real backing assets. Holders can withdraw 90% of backing at any time by burning the NFT.
+3. **A Vote:** Exactly one live vote per token in the sovereign DAO governing that collection's dedicated on-chain treasury (`tre-<collection>.qrm1.testnet`).
+
+> **Zero Cross-Bridging & 100% Collection Sovereignty:** Each collection is an independent community of its own. There is no general DAO or pooled treasury—every collection deploys its own sovereign DAO, dedicated on-chain treasury, and keyless vaults. Voting rights and treasury value belong exclusively to that collection's holders.
 
 Submitted to the **NEAR Hackathon 2026** (Track: *NFTs That Do Something*).
 
@@ -59,7 +61,7 @@ The discovery hub displays active and upcoming drops, live secondary listings, f
 ---
 
 ### 2. Transparent Staged Minting
-Buyers mint with NEAR through presale Merkle allowlists or public stages. **50% of the purchase funds the DAO Treasury immediately**, and **50% is locked as escrow** backing the newly minted NFT's keyless vault.
+Buyers mint with NEAR through presale Merkle allowlists or public stages. **50% of the purchase funds that collection's dedicated DAO Treasury immediately**, and **50% directly backs the newly minted NFT's individual keyless vault** (`v<id>.<collection>`). Zero cross-bridging or pooled DAOs.
 
 <p align="center">
   <img src="assets/screenshots/ui-mint.png" alt="Quorum Mint Screen" width="100%" />
@@ -77,7 +79,7 @@ Holders track their liquid floor value, view deposited FT balances, claim accumu
 ---
 
 ### 4. DAO Governance & Rhea Settlement Voting
-One live NFT equals one vote. Holders submit and vote on spending proposals, treasury asset swaps, and Rhea Finance DEX settlement routes with enforced slippage limits (`min_out`).
+Strictly one live NFT equals one vote. Only verified holders of that specific collection govern its treasury; cross-collection voting is blocked. Since there is no active DEX liquidity on testnet, settlement on testnet operates with native NEAR backing, while on mainnet Rhea Finance is used for automated multi-token DEX routing with enforced slippage limits (`min_out`).
 
 <p align="center">
   <img src="assets/screenshots/ui-governance.png" alt="Quorum Governance Screen" width="100%" />
@@ -120,12 +122,12 @@ flowchart TD
         S[Seller]
     end
 
-    subgraph "On-Chain Contracts (near-sdk 5.30.1)"
-        NFT["quorum-nft<br/>(Collection Contract)"]
-        VAULT["quorum-vault<br/>(v{id}.collection - Keyless)"]
-        DAO["quorum-dao<br/>(1 NFT = 1 Vote)"]
-        TREASURY["quorum-treasury<br/>(DAO Pool)"]
-        MARKET["quorum-market<br/>(5% fee + royalty)"]
+    subgraph "Sovereign Collection Architecture (near-sdk 5.30.1)"
+        NFT["quorum-nft<br/>({col}.qrm1.testnet)"]
+        VAULT["quorum-vault<br/>(v{id}.{col} - Keyless)"]
+        DAO["quorum-dao<br/>(dao-{col}.qrm1.testnet - 1 NFT = 1 Vote)"]
+        TREASURY["quorum-treasury<br/>(tre-{col}.qrm1.testnet - Dedicated Pool)"]
+        MARKET["quorum-market<br/>(mkt.qrm1.testnet)"]
     end
 
     subgraph "DEX Liquidity"
@@ -162,13 +164,13 @@ flowchart TD
 
 | Stage | Mechanism | Details |
 |---|---|---|
-| **1. Mint** | Staged Allowlist / Public | Buyer attaches stage price in NEAR + 0.03 NEAR storage. **50% transfers to DAO Treasury immediately**. **50% remains in collection escrow** backing that NFT. |
-| **2. Asset Plan** | Deterministic Round-Robin | Fixed at launch (e.g. `USDC:2, wNEAR:1`). Token #1 and #2 carry USDC, #3 carries wNEAR. Immutable; no party can manipulate assignment. |
-| **3. Settlement** | DEX Conversion via Rhea | Once mint closes, holders vote on a `SETTLE` proposal containing swap route and slippage protection (`min_out`). Quorum swaps escrowed NEAR through Rhea (Ref classic pools). |
-| **4. Crediting** | Permissionless Batching | Anyone calls `credit_batch` (up to 3 NFTs per tx) to push pro-rata asset shares into individual vaults. 256-bit arithmetic prevents overflow. |
-| **5. Fallback** | Guarantee against Stagnation | If no swap proposal executes before `settle_grace_ms` (14 days), anyone triggers `enable_fallback` to credit plain NEAR. Funds are never trapped. |
-| **6. Burn to Redeem** | Guaranteed Floor Price | Burn pays **90% of backing to holder** and **10% to DAO treasury**. Pre-settlement: paid from escrow in NEAR. Post-settlement: paid from vault in FTs. |
-| **7. Marketplace** | Non-Custodial Trading | Fixed-price sales via NEP-178 approvals. Sends 5% fee to DAO treasury, royalty to creator, remainder to seller. Vault custody transitions automatically. |
+| **1. Mint** | Staged Allowlist / Public | Buyer attaches stage price in NEAR + 0.03 NEAR storage. **50% transfers to that collection's dedicated DAO Treasury immediately** (`tre-<collection>`). **50% locks as keyless vault backing** (`v<id>.<collection>`). |
+| **2. Sovereign DAO** | 1 NFT = 1 Vote | Strictly one vote per token. Only verified holders of that specific collection govern its treasury. Zero cross-collection pooling or voting. |
+| **3. Asset Plan** | Deterministic Round-Robin | Fixed at launch (e.g. `wNEAR:1` or `USDC:2, wNEAR:1`). Token #1 and #2 carry USDC, #3 carries wNEAR. Immutable; no party can manipulate assignment. |
+| **4. Settlement** | Testnet Native / Mainnet Rhea | Since there is no active DEX liquidity on testnet, settlement on testnet operates with native NEAR backing. On mainnet, holders vote on `SETTLE` proposals routed through Rhea Finance (Ref classic pools) with enforced `min_out` slippage limits. |
+| **5. Crediting** | Permissionless Batching | Anyone calls `credit_batch` (up to 3 NFTs per tx) to push pro-rata asset shares into individual vaults. 256-bit arithmetic prevents overflow. |
+| **6. Burn to Redeem** | Guaranteed Floor Price | Burn pays **90% of backing to holder** and **10% to the collection's DAO treasury**. Pre-settlement: paid from escrow in NEAR. Post-settlement: paid from vault in FTs. |
+| **7. Marketplace** | Non-Custodial Trading | Fixed-price sales via NEP-178 approvals on `mkt.qrm1.testnet`. Sends 5% fee to the collection's DAO treasury, royalty to creator, remainder to seller. Vault custody transitions automatically. |
 | **8. Distributions** | $O(1)$ Scalable Dividend | Treasury executes even holder distributions via a global reward index. Gas is constant regardless of total NFT supply. |
 
 ---
@@ -235,6 +237,27 @@ code/contracts/
 
 ---
 
+## 🛠️ NEAR Tools & Technologies (How We Used Them)
+
+Quorum utilizes the official NEAR Protocol stack from low-level smart contract architecture to high-level frontend interfaces:
+
+| NEAR Tool / Standard | Implementation & Role in Quorum |
+|---|---|
+| **`near-sdk` (Rust 5.30.1)** | Powers all 6 modular on-chain smart contracts (`quorum-nft`, `quorum-vault`, `quorum-treasury`, `quorum-dao`, `quorum-market`, `quorum-common`). Implements re-entrancy safe promises, 256-bit fixed-point math, and gas-metered execution. |
+| **Native Keyless Accounts** | Used for individual per-NFT vaults (`v<id>.<collection>`). By deleting/omitting all access keys upon sub-account creation, assets can *never* be extracted by any wallet or backdoor—only via cryptographic token burning executed by the collection contract. |
+| **NEP-171 (NFT Core)** | Powers non-fungible token creation, transfers, and burns across all sovereign collections. |
+| **NEP-177 (Metadata)** | Dynamically reflects live backing assets, individual vault IDs, and trait parameters in token metadata. |
+| **NEP-178 (Approvals)** | Powers non-custodial secondary sales on `mkt.qrm1.testnet`, ensuring sellers retain custody until a buyer matches. |
+| **NEP-181 (Enumeration)** | Provides paginated on-chain queries for token supply and holder balances. |
+| **NEP-297 (Events)** | Emits standardized event logs (`mint`, `burn`, `transfer`, `treasury_donation`, `treasury_spend`) for real-time indexing. |
+| **NEP-413 (Ed25519 Auth)** | Cryptographic wallet challenge-response signing for holder authentication and token-gated community access. |
+| **NEP-591 (Code by Hash)** | Deploys `quorum-vault` bytecode once globally, reducing per-vault creation storage costs from ~3 NEAR to ~0.2 NEAR. |
+| **`near-cli-rs`** | Automates workspace compilation, account initialization, keyless deployments, and testnet script execution. |
+| **NEAR Connect & Wallet Selector** | Multi-wallet integration supporting Meteor Wallet, HOT Connector, NEAR Mobile, and Here Wallet with native testnet signing. |
+| **Multi-Provider JSON-RPC** | Resilient failover RPC architecture utilizing **FastNear** (`test.rpc.fastnear.com`) and **dRPC** (`near-testnet.drpc.org`) to bypass legacy RPC rate limits. |
+
+---
+
 ## ⚡ Scalability & Sharded Architecture
 
 | Challenge | Quorum Architectural Solution |
@@ -262,19 +285,17 @@ code/contracts/
 * Vault code hash may only be altered prior to the very first mint.
 ```
 
-### 11-Point Transfer Threat Model
+### 9-Point Transfer Threat Model
 
 1. **Keep a Vault Key:** Impossible. Vault account is spawned keyless in the same batch as `new()`.
 2. **Withdraw Before Selling:** Vault exposes zero withdrawal or external transfer methods.
 3. **Burn Immediately After Selling:** `burn_and_redeem` evaluates real-time on-chain state, paying the current owner.
 4. **Claim Prior Distributions After Sale:** Checkpoint distributions adhere to the token, transferring to the buyer.
 5. **Vote After Selling:** Transfer updates `last_transfer_block`; DAO rejects votes from tokens transferred after proposal start.
-6. **Race Sale Against Settlement Payout:** Listings are deleted before outbound execution; failed transfers trigger automatic refunds.
-7. **Deposit Phantom Assets:** Only deposits verified through `can_deposit` ledger are counted as backing.
-8. **Mint, Sell, and Collect Escrow:** Escrow belongs to token state, not original minter account.
-9. **Burn During Swap In-Flight:** Burn is blocked during `Phase::Swapping` to protect liquidity state.
-10. **Double Crediting:** Vault credits set `credited = true` prior to transfer; failures reset state for retry.
-11. **Off-Market Secondary Sales:** Accepted behavior. Even on private transfers, the vault travels with the token.
+6. **Deposit Phantom Assets:** Only deposits verified through `can_deposit` ledger are counted as backing.
+7. **Mint, Sell, and Collect Escrow:** Escrow belongs to token state, not original minter account.
+8. **Double Crediting:** Vault credits set `credited = true` prior to transfer; failures reset state for retry.
+9. **Off-Market Secondary Sales:** Accepted behavior. Even on private transfers, the vault travels with the token.
 
 ---
 
@@ -338,6 +359,37 @@ PREFIX=quorum1 \
 ASSET_PLAN="17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1:2,wrap.near:1" \
 ./scripts/deploy.sh
 ```
+
+### 🚀 Mainnet Moves (Short Deployment Runbook)
+Transitioning a sovereign collection to NEAR mainnet follows a clean, guarded progression:
+1. **Compile & Optimize Bytecode:** Build Rust contracts targeting `wasm32-unknown-unknown` and optimize vault wasm (`wasm-opt -Oz`).
+2. **Fund Founder Account:** Fund the deployer wallet on mainnet (`you.near`).
+3. **Deploy Global Vault Hash:** Publish the immutable `quorum-vault` bytecode once globally via NEP-591.
+4. **Deploy Sovereign Collection Contracts:** Run `./scripts/deploy.sh` to initialize `<collection>.near`, `dao-<collection>.near`, `tre-<collection>.near`, and `mkt.<collection>.near`.
+5. **DEX Liquidity & Rhea Routing:** Since there is no active DEX liquidity on testnet, settlement on testnet operates with native NEAR backing. On mainnet, we use **Rhea Finance (Ref classic pools)** for automated multi-token routing and slippage-protected settlement.
+*(Steps 6 and 9 are removed)*
+6. **Batch Vault Crediting:** Execute `credit_batch` transactions (up to 3 NFTs per call) to push pro-rata asset shares into individual vaults.
+7. **Burn & Redeem Verification:** Confirm that burning an NFT disburses 90% of backing to the holder and 10% to that collection's DAO treasury.
+8. **NEP-413 Gated Sign-In:** Verify cryptographic holder portal sign-in before opening public minting.
+
+---
+
+### 💎 Live Testnet Verification (`qrm1.testnet`)
+
+Every collection is an independent sovereign community verified on NEAR testnet with isolated balances and dedicated governance:
+
+| Contract / Account | Role | Live Testnet Status |
+|---|---|---|
+| `tre-molt.qrm1.testnet` | Molten Hours DAO Treasury | **10.0000 NEAR** (Verified on-chain) |
+| `tre-tide.qrm1.testnet` | Tidewater DAO Treasury | **10.0000 NEAR** (Verified on-chain) |
+| `tre-feath.qrm1.testnet` | Feather Protocol DAO Treasury | **10.0000 NEAR** (Verified on-chain) |
+| `dao-molt.qrm1.testnet` | Molten Hours Governance DAO | **0.5000 NEAR** (1 NFT = 1 Vote) |
+| `dao-tide.qrm1.testnet` | Tidewater Governance DAO | **0.5000 NEAR** (1 NFT = 1 Vote) |
+| `dao-feath.qrm1.testnet` | Feather Protocol Governance DAO | **0.5000 NEAR** (1 NFT = 1 Vote) |
+| `mkt.qrm1.testnet` | Quorum Marketplace Contract | Active secondary listings & non-custodial sales |
+| `v<id>.<collection>` | Keyless NFT Vaults | Immutable cryptographic sub-accounts |
+
+---
 
 ### 4. Run Web Frontend (Local Development)
 ```bash

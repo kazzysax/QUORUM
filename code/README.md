@@ -10,9 +10,10 @@ Built for the NEAR Hackathon 2026, NFT track ("NFTs That Do Something").
 
 ## How the money works
 
-* **Mint:** pay the stage price in NEAR (+0.03 NEAR storage). **Half goes to the DAO treasury immediately.** The other half stays in the collection contract as that NFT's escrow.
+* **Mint:** pay the stage price in NEAR (+0.03 NEAR storage). **Half goes to that collection's dedicated DAO treasury immediately.** The other half directly backs the newly minted NFT's keyless vault.
+* **Each collection is an independent community of its own:** its own sovereign DAO, dedicated on-chain treasury, and keyless vaults. Zero shared or general DAOs.
 * **Each NFT carries an asset** (USDC, wNEAR, ...) assigned at launch, round-robin by token number from a public, immutable plan.
-* **When the mint closes,** holders vote (a SETTLE proposal) to swap each asset group's whole escrow through **Rhea** into that group's asset. Anyone then credits each NFT's vault its pro-rata share.
+* **Settlement:** Since there is no active DEX liquidity on NEAR testnet, testnet settlement operates with native NEAR backing. On mainnet, holders vote on a SETTLE proposal to swap through **Rhea** into that group's asset. Anyone then credits each NFT's vault its pro-rata share.
 * **The DAO can also vote to swap its own treasury** into other assets (a SWAP proposal).
 * **Burn before settlement** refunds 90% of the escrow in NEAR; **after** it, the vault pays 90% of each asset. 10% goes to the treasury either way.
 * **If no swap happens** within the grace period, anyone can switch a group to plain NEAR and credit that instead.
@@ -59,12 +60,10 @@ Tests: `transfer_moves_ownership_and_resets_vote_eligibility`, `can_deposit_rule
 3. **Burn right after selling.** The old owner cannot: `burn_and_redeem` pays only the current owner, read from contract state at call time. The buyer can burn instantly, which is intended (it is the price floor).
 4. **Sell and claim a distribution afterwards.** Unclaimed distributions are attached to the token (checkpoint model) and travel with it. The old owner has nothing left to claim.
 5. **Sell, then vote with the same token.** Every transfer resets `last_transfer_block`; the DAO rejects votes from tokens that changed hands after a proposal opened. A token that already voted cannot vote twice.
-6. **Race a sale against a payout.** The market removes the listing and the token transfers first; the 5% fee, royalty and seller proceeds are paid only after the transfer succeeds. A failed transfer refunds the buyer. Redeem payouts that fail are recorded per asset and always retry to the holder recorded at burn.
-7. **Deposit assets, then claim they were never there.** Only recorded deposits count. Stray NEAR sent straight to the vault is not backing and is swept to the pool after a burn.
-8. **Mint, then sell, then still collect the escrow.** The escrow share is a record on the token, not on the minter. Burning before settlement refunds the *current* owner; after settlement the share was credited to the vault, which follows the owner. Tests: `burning_before_settlement_refunds_escrow_in_near`, `a_successful_swap_records_exactly_what_arrived`.
-9. **Burn while a swap is converting the escrow.** Refused until it resolves, so a burner can never take NEAR that is mid-swap. After a swap the NFT must be credited before it can burn. Tests: `burn_waits_while_a_swap_is_in_flight`, `after_settlement_burn_needs_the_vault_credited_first`.
-10. **Get credited twice.** `credited` is set before the transfer; a refused transfer clears it so it can be retried, and a landed one cannot repeat. Test: `crediting_rules`.
-11. **Sell off-market to skip the 5% fee.** Not preventable on-chain: a sale cannot be told apart from a transfer. Accepted and documented. The vault still moves with the NFT.
+6. **Deposit assets, then claim they were never there.** Only recorded deposits count. Stray NEAR sent straight to the vault is not backing and is swept to the pool after a burn.
+7. **Mint, then sell, then still collect the escrow.** The escrow share is a record on the token, not on the minter. Burning before settlement refunds the *current* owner; after settlement the share was credited to the vault, which follows the owner. Tests: `burning_before_settlement_refunds_escrow_in_near`, `a_successful_swap_records_exactly_what_arrived`.
+8. **Get credited twice.** `credited` is set before the transfer; a refused transfer clears it so it can be retried, and a landed one cannot repeat. Test: `crediting_rules`.
+9. **Sell off-market to skip the 5% fee.** Not preventable on-chain: a sale cannot be told apart from a transfer. Accepted and documented. The vault still moves with the NFT.
 
 ## Layout
 
