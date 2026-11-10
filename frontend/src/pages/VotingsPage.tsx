@@ -16,29 +16,38 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
   userNfts,
   collections,
   onCastVote,
+  onCreateProposal,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [votingOnId, setVotingOnId] = useState<number | null>(null);
   const [colBalances, setColBalances] = useState<Record<string, DaoBalances>>({});
+  const [creatingForCol, setCreatingForCol] = useState<string | null>(null);
+  const [newPropTitle, setNewPropTitle] = useState('');
+  const [newPropDesc, setNewPropDesc] = useState('');
+  const [newPropAmount, setNewPropAmount] = useState('1.00');
+  const [newPropKind, setNewPropKind] = useState<'Spend' | 'Distribute' | 'Parameter'>('Spend');
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([
-      fetchLiveDaoBalances('molten-hours'),
-      fetchLiveDaoBalances('tidewater'),
-      fetchLiveDaoBalances('feather-protocol'),
-    ]).then(([molt, tide, feath]) => {
+    const fetchAll = async () => {
+      const results = await Promise.all(
+        collections.map(async (c) => {
+          const bal = await fetchLiveDaoBalances(c.id || c.name);
+          return { name: c.name, bal };
+        })
+      );
       if (!mounted) return;
-      setColBalances({
-        'Molten Hours': molt,
-        'Tidewater': tide,
-        'Feather Protocol': feath,
+      const map: Record<string, DaoBalances> = {};
+      results.forEach((r) => {
+        map[r.name] = r.bal;
       });
-    });
+      setColBalances(map);
+    };
+    fetchAll();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [collections]);
 
   // Group user's NFTs by collection to calculate voting power per collection
   const userNftsByCollection = userNfts.reduce((acc, nft) => {
@@ -183,13 +192,12 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
             const colProposals = proposals.filter(
               (p) => (p.collection || 'Molten Hours') === colName
             );
-            if (colProposals.length === 0) return null;
 
             const colMeta = collections.find((c) => c.name === colName);
             const userVotesInCol = userNftsByCollection[colName] || 0;
             const accounts = getCollectionDaoAccounts(colName);
             const liveBal = colBalances[colName];
-            const treasuryDisplay = liveBal ? `${liveBal.treasuryBalance.toFixed(2)} NEAR Treasury` : '1.50 NEAR Treasury';
+            const treasuryDisplay = liveBal ? `${liveBal.treasuryBalance.toFixed(2)} NEAR Treasury` : '10.00 NEAR Treasury';
 
             return (
               <section
@@ -253,7 +261,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'flex-end',
-                      gap: '2px',
+                      gap: '4px',
                     }}
                   >
                     <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#71717A' }}>
@@ -262,12 +270,186 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                     <strong style={{ fontSize: '18px', color: userVotesInCol > 0 ? '#F5A524' : '#71717A' }}>
                       {userVotesInCol} {userVotesInCol === 1 ? 'Vote' : 'Votes'} ({userVotesInCol} {colName} NFTs held)
                     </strong>
+                    {userVotesInCol > 0 && onCreateProposal && (
+                      <button
+                        type="button"
+                        onClick={() => setCreatingForCol(creatingForCol === colName ? null : colName)}
+                        className="btn-primary"
+                        style={{
+                          marginTop: '4px',
+                          padding: '4px 12px',
+                          fontSize: '12px',
+                          borderRadius: '8px',
+                          minHeight: '28px',
+                        }}
+                      >
+                        {creatingForCol === colName ? '✕ Cancel' : '+ New Proposal'}
+                      </button>
+                    )}
                   </div>
                 </div>
 
+                {/* Inline Proposal Creation Form */}
+                {creatingForCol === colName && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!newPropTitle.trim()) return;
+                      onCreateProposal?.({
+                        title: newPropTitle.trim(),
+                        description: newPropDesc.trim(),
+                        kind: newPropKind,
+                        amount_near: `${newPropAmount || '1.00'} NEAR`,
+                        collection: colName,
+                        target_account: accounts.treasuryAccount,
+                      });
+                      setCreatingForCol(null);
+                      setNewPropTitle('');
+                      setNewPropDesc('');
+                      setNewPropAmount('1.00');
+                    }}
+                    style={{
+                      background: '#1D1D25',
+                      border: '1px solid rgba(245,165,36,0.5)',
+                      borderRadius: '16px',
+                      padding: '18px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ fontSize: '15px', color: '#F4F4F5' }}>
+                        Create Governance Proposal for {colName} DAO
+                      </strong>
+                      <span className="gold-badge" style={{ fontSize: '11px' }}>
+                        DAO Treasury: {accounts.treasuryAccount}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 120px', gap: '10px' }}>
+                      <input
+                        type="text"
+                        placeholder="Proposal Title (e.g. Fund Ecosystem Grant)"
+                        value={newPropTitle}
+                        onChange={(e) => setNewPropTitle(e.target.value)}
+                        required
+                        style={{
+                          background: '#15151B',
+                          border: '1px solid #2A2A33',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          color: '#F4F4F5',
+                          fontSize: '13px',
+                        }}
+                      />
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="Amount (NEAR)"
+                        value={newPropAmount}
+                        onChange={(e) => setNewPropAmount(e.target.value)}
+                        style={{
+                          background: '#15151B',
+                          border: '1px solid #2A2A33',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          color: '#F4F4F5',
+                          fontSize: '13px',
+                        }}
+                      />
+                      <select
+                        value={newPropKind}
+                        onChange={(e) => setNewPropKind(e.target.value as any)}
+                        style={{
+                          background: '#15151B',
+                          border: '1px solid #2A2A33',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          color: '#F4F4F5',
+                          fontSize: '13px',
+                        }}
+                      >
+                        <option value="Spend">Spend</option>
+                        <option value="Distribute">Distribute</option>
+                        <option value="Parameter">Parameter</option>
+                      </select>
+                    </div>
+
+                    <textarea
+                      placeholder="Detailed proposal rationale and execution plan for holders to vote on..."
+                      value={newPropDesc}
+                      onChange={(e) => setNewPropDesc(e.target.value)}
+                      rows={2}
+                      style={{
+                        background: '#15151B',
+                        border: '1px solid #2A2A33',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        color: '#F4F4F5',
+                        fontSize: '13px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setCreatingForCol(null)}
+                        className="btn-secondary"
+                        style={{ padding: '6px 14px', fontSize: '13px' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!newPropTitle.trim()}
+                        className="btn-primary"
+                        style={{ padding: '6px 18px', fontSize: '13px' }}
+                      >
+                        Submit to {accounts.daoAccount}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 {/* Proposals List for this collection */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {colProposals.map((prop) => {
+                  {colProposals.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '28px 20px',
+                        borderRadius: '16px',
+                        background: '#1D1D25',
+                        border: '1px dashed #2A2A33',
+                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: '#A1A1AA',
+                      }}
+                    >
+                      <span style={{ fontSize: '15px', color: '#F4F4F5', fontWeight: 600 }}>
+                        No Active Proposals in {colName} DAO
+                      </span>
+                      <span style={{ fontSize: '13px', maxWidth: '440px', lineHeight: 1.5 }}>
+                        This sovereign DAO is ready. As a verified {colName} NFT holder, you can create the first governance proposal for {accounts.treasuryAccount}.
+                      </span>
+                      {userVotesInCol > 0 && creatingForCol !== colName && onCreateProposal && (
+                        <button
+                          type="button"
+                          onClick={() => setCreatingForCol(colName)}
+                          className="btn-primary"
+                          style={{ marginTop: '8px', padding: '6px 16px', fontSize: '13px' }}
+                        >
+                          + Create First Proposal
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    colProposals.map((prop) => {
                     const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
                     const yesPercent = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
                     const noPercent = totalVotes > 0 ? Math.round((prop.votes_no / totalVotes) * 100) : 0;
@@ -465,7 +647,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                         </div>
                       </div>
                     );
-                  })}
+                  }))}
                 </div>
               </section>
             );

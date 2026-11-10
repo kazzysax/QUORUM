@@ -103,6 +103,10 @@ export interface ProposalItem {
   quorum_reached: boolean;
   quorum_percent: number;
   voted_choice?: 'yes' | 'no' | 'abstain' | null;
+  target_account?: string;
+  amount_near?: string;
+  end_date?: string;
+  proposer?: string;
 }
 
 export interface ActiveListing {

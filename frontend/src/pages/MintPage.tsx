@@ -36,9 +36,11 @@ export const MintPage: React.FC<MintPageProps> = ({
   }, [collection.id]);
 
   const isPre = stage === 'pre';
-  const price = 1.00;
+  const price = parseFloat(collection.price_near || '1.00') || 1.00;
+  const vaultBacking = +(price * 0.5).toFixed(2);
+  const treasuryDeposit = +(price * 0.5).toFixed(2);
   const storage = 0.03;
-  const total = price + storage;
+  const total = +(price + storage).toFixed(2);
   const isSoldOut = collection.minted >= collection.supply;
   const stageStatus = isSoldOut
     ? 'Mint Concluded · 100% Minted'
@@ -202,7 +204,7 @@ export const MintPage: React.FC<MintPageProps> = ({
           </div>
           <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(21,21,27,0.85)', border: '1px solid #2A2A33' }}>
             <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Vault Backing</span>
-            <strong style={{ fontSize: '18px', color: '#86EFAC' }}>0.50 NEAR</strong>
+            <strong style={{ fontSize: '18px', color: '#86EFAC' }}>{vaultBacking.toFixed(2)} NEAR</strong>
           </div>
           <div style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px 16px', borderRadius: '16px', background: 'rgba(21,21,27,0.85)', border: '1px solid #2A2A33' }}>
             <span style={{ fontSize: '12px', color: '#A1A1AA' }}>DAO Treasury</span>
@@ -301,12 +303,12 @@ export const MintPage: React.FC<MintPageProps> = ({
                   {
                     num: 2,
                     title: 'Keyless Smart Contract Vault',
-                    desc: 'Every token provisions a dedicated v<id> vault holding 0.50 NEAR backing reserve.',
+                    desc: `Every token provisions a dedicated v<id> vault holding ${vaultBacking.toFixed(2)} NEAR backing reserve.`,
                   },
                   {
                     num: 3,
                     title: '50% Treasury Funding',
-                    desc: `0.50 NEAR per mint deposited directly into ${daoAccounts.treasuryAccount} (${collection.name} DAO).`,
+                    desc: `${treasuryDeposit.toFixed(2)} NEAR per mint deposited directly into ${daoAccounts.treasuryAccount} (${collection.name} DAO).`,
                   },
                   {
                     num: 4,
@@ -352,7 +354,7 @@ export const MintPage: React.FC<MintPageProps> = ({
               color: '#C4C4CC',
             }}
           >
-            All 20 pieces are verifiable on NEAR testnet. Each piece contains 1.00 NEAR stored inside its individual keyless vault.
+            All {collection.supply} pieces are verifiable on NEAR testnet. Each piece contains {vaultBacking.toFixed(2)} NEAR stored inside its individual keyless vault.
           </p>
         </div>
 
@@ -426,7 +428,7 @@ export const MintPage: React.FC<MintPageProps> = ({
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             <span className="gold-badge">{stageStatus}</span>
-            <span className="neutral-badge">Cap: 20 per collection</span>
+            <span className="neutral-badge">Cap: {collection.supply} per collection</span>
           </div>
 
           {/* Price Breakdown */}
@@ -451,12 +453,12 @@ export const MintPage: React.FC<MintPageProps> = ({
             <div style={{ padding: '14px', borderRadius: '14px', border: '1px solid #2A2A33', background: '#1D1D25' }}>
               <span style={{ fontSize: '12px', color: '#A1A1AA' }}>In DAO Treasury</span>
               <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#F5A524' }}>
-                {daoBalances ? `${daoBalances.treasuryBalance.toFixed(2)} NEAR` : '10.00 NEAR'}
+                {daoBalances ? `${daoBalances.treasuryBalance.toFixed(2)} NEAR` : `${(collection.supply * treasuryDeposit).toFixed(2)} NEAR`}
               </strong>
             </div>
             <div style={{ padding: '14px', borderRadius: '14px', border: '1px solid #2A2A33', background: '#1D1D25' }}>
               <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Per-NFT Vault</span>
-              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#86EFAC' }}>0.50 NEAR</strong>
+              <strong style={{ display: 'block', marginTop: '4px', fontSize: '16px', color: '#86EFAC' }}>{vaultBacking.toFixed(2)} NEAR</strong>
             </div>
           </div>
 
@@ -464,7 +466,7 @@ export const MintPage: React.FC<MintPageProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#A1A1AA' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle2 size={14} color="#F5A524" /> Mint Progress (100% Complete)
+                <CheckCircle2 size={14} color="#F5A524" /> Mint Progress ({mintedPercent}% Complete)
               </span>
               <strong style={{ color: '#F5A524' }}>{collection.minted} / {collection.supply} Minted</strong>
             </div>

@@ -13,7 +13,7 @@ import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
-import { fetchNearAccountBalance, fetchTokensForOwner, fetchOnChainMarketplaceListings } from './near';
+import { fetchNearAccountBalance, fetchTokensForOwner, fetchOnChainMarketplaceListings, getCollectionDaoAccounts } from './near';
 import {
   getNearConnector,
   subscribeToNearConnect,
@@ -47,7 +47,7 @@ const STORAGE_KEYS = {
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v11')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v13')) {
       localStorage.removeItem(k);
     }
   }
@@ -387,23 +387,8 @@ export function App() {
     try {
       addToast('info', 'Registering Listing On-Chain...', 'Please approve the listing authorization in your wallet.');
 
-      const isTide = Boolean(
-        (token.collection && token.collection.toLowerCase().includes('tide')) ||
-        (token.id && token.id.toLowerCase().includes('tide')) ||
-        (token.title && token.title.toLowerCase().includes('tide'))
-      );
-      const isFeather = Boolean(
-        (token.collection && token.collection.toLowerCase().includes('feather')) ||
-        (token.id && token.id.toLowerCase().includes('feather')) ||
-        (token.title && token.title.toLowerCase().includes('feather'))
-      );
-      const nftContract = token.nft_contract || (
-        isFeather
-          ? 'feather.qrm1.testnet'
-          : isTide
-            ? 'tide.qrm1.testnet'
-            : 'molten.qrm1.testnet'
-      );
+      const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
+      const nftContract = token.nft_contract || daoAccounts.nftContract;
 
       let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
       if (!cleanTokenId) {
@@ -443,7 +428,7 @@ export function App() {
         nft_id: token.id,
         nft_title: token.title,
         image: token.image,
-        collection: token.collection || (isTide ? 'Tidewater' : isFeather ? 'Feather Protocol' : 'Molten Hours'),
+        collection: token.collection || 'Molten Hours',
         from: 'qrm1.testnet',
         to: wallet.accountId,
         amount_near: offerAmount,
@@ -479,19 +464,8 @@ export function App() {
   const handleCancelListing = async (token: TokenItem) => {
     if (wallet.connected && wallet.accountId && (token.is_on_chain || token.approval_id)) {
       try {
-        const isTide = Boolean(
-          (token.collection && token.collection.toLowerCase().includes('tide')) ||
-          (token.id && token.id.toLowerCase().includes('tide')) ||
-          (token.title && token.title.toLowerCase().includes('tide'))
-        );
-        const isFeather = Boolean(
-          (token.collection && token.collection.toLowerCase().includes('feather')) ||
-          (token.id && token.id.toLowerCase().includes('feather')) ||
-          (token.title && token.title.toLowerCase().includes('feather'))
-        );
-        const nftContract = token.nft_contract || (
-          isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
-        );
+        const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
+        const nftContract = token.nft_contract || daoAccounts.nftContract;
         let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
         if (!cleanTokenId) {
           const match = (token.title || token.id || '').match(/#?(\d+)/);
@@ -761,13 +735,8 @@ export function App() {
       return;
     }
 
-    const isTide = propCollection.toLowerCase().includes('tide');
-    const isFeath = propCollection.toLowerCase().includes('feath');
-    const daoReceiver = isFeath
-      ? 'dao-feath.qrm1.testnet'
-      : isTide
-        ? 'dao-tide.qrm1.testnet'
-        : 'dao-molt.qrm1.testnet';
+    const daoAccounts = getCollectionDaoAccounts(propCollection);
+    const daoReceiver = daoAccounts.daoAccount;
 
     try {
       addToast(
@@ -809,32 +778,48 @@ export function App() {
 
   // Create Proposal
   const handleCreateProposal = (propData: Partial<ProposalItem>) => {
+    const colName = propData.collection || 'Molten Hours';
+    const colVotingPower = userNfts.filter((t) => t.collection === colName).length;
+    const daoAccounts = getCollectionDaoAccounts(colName);
+    const newPropId = proposals.length > 0 ? Math.max(...proposals.map((p) => p.id)) + 1 : 1;
+
     const newProp: ProposalItem = {
-      id: proposals.length + 1,
+      id: newPropId,
       kind: propData.kind || 'Spend',
       title: propData.title || 'Untitled Proposal',
       description: propData.description || '',
       status: 'Voting open',
       time_remaining: '3d 0h',
-      votes_yes: userNfts.length,
+      votes_yes: Math.max(1, colVotingPower),
       votes_no: 0,
       votes_abstain: 0,
       quorum_reached: false,
       quorum_percent: 25,
+      target_account: propData.target_account || daoAccounts.treasuryAccount,
+      amount_near: propData.amount_near || '1.00 NEAR',
+      collection: colName,
+      proposer: wallet.accountId || 'qrm1.testnet',
       ...propData,
     };
     const updatedProposals = [newProp, ...proposals];
     setProposals(updatedProposals);
     persistState(STORAGE_KEYS.PROPOSALS, updatedProposals);
 
-    addToast('success', `Proposal #${newProp.id} Created!`, 'Opened for community voting.');
+    addToast('success', `Proposal #${newProp.id} Created!`, `Opened for ${colName} community voting.`);
   };
 
   // Collection Created (Launch Studio)
   const handleCollectionCreated = async (col: CollectionItem) => {
+    const daoAccounts = getCollectionDaoAccounts(col.stats?.contractId || col.symbol || col.id || col.name);
+    const contractId = col.stats?.contractId || daoAccounts.nftContract;
+    const treAccount = daoAccounts.treasuryAccount;
+    const daoAccount = daoAccounts.daoAccount;
+    const priceNum = parseFloat(col.price_near || '1.00') || 1.0;
+    const vaultBackingNear = +(priceNum * 0.5).toFixed(2);
+
     if (wallet.connected && wallet.accountId) {
       try {
-        addToast('info', 'Registering Collection On-Chain...', 'Please sign the collection registration in your wallet.');
+        addToast('info', `Deploying ${col.name} Sovereign DAO & Treasury...`, 'Please sign the deployment transaction in your wallet.');
         const tx = await sendNearTransaction({
           receiverId: 'qrm1.testnet',
           actions: [createTransferAction('0.001')],
@@ -843,7 +828,7 @@ export function App() {
         addToast(
           'success',
           `Collection "${col.name}" Deployed On-Chain!`,
-          `Tx ${tx.hash.slice(0, 10)}... Registered on NEAR testnet.`
+          `Tx ${tx.hash.slice(0, 10)}... DAO (${daoAccount}) & Treasury (${treAccount}) active on NEAR testnet.`
         );
       } catch (err: any) {
         console.warn('Launch transaction cancelled or skipped:', err);
@@ -856,7 +841,58 @@ export function App() {
     persistState(STORAGE_KEYS.COLLECTIONS, updatedCollections);
     setSelectedCollectionId(col.id);
 
-    addToast('success', `Collection "${col.name}" Launched!`, 'Contracts active on testnet. Open for community minting!');
+    // 1. Automatically generate the Sovereign DAO Proposal #1 for this new collection
+    const initialPropId = proposals.length > 0 ? Math.max(...proposals.map((p) => p.id)) + 1 : 1;
+    const initialProposal: ProposalItem = {
+      id: initialPropId,
+      kind: 'Spend',
+      title: `${col.name} Sovereign Treasury Activation`,
+      description: `Authorizes ${daoAccount} to manage incoming mint proceeds (50% per mint deposited directly to ${treAccount}). Voting restricted strictly to ${col.name} NFT holders with 0 cross-bridging.`,
+      target_account: treAccount,
+      amount_near: `${(col.supply * vaultBackingNear).toFixed(2)} NEAR`,
+      status: 'Voting open',
+      time_remaining: '7 days left',
+      quorum_reached: false,
+      end_date: '7 days left',
+      votes_yes: wallet.connected ? 1 : 0,
+      votes_no: 0,
+      votes_abstain: 0,
+      quorum_percent: 25,
+      collection: col.name,
+      proposer: wallet.accountId || col.creator || 'qrm1.testnet',
+    };
+    const updatedProposals = [initialProposal, ...proposals];
+    setProposals(updatedProposals);
+    persistState(STORAGE_KEYS.PROPOSALS, updatedProposals);
+
+    // 2. Provision Token #1 to the creator's wallet if connected
+    if (wallet.connected && wallet.accountId) {
+      const creatorToken: TokenItem = {
+        id: `${(col.symbol || col.id).toLowerCase()}-1`,
+        token_id: '1',
+        owner_id: wallet.accountId,
+        collection: col.name,
+        title: `${col.name} #1`,
+        asset: 'NEAR',
+        backing: `${vaultBackingNear.toFixed(2)} NEAR`,
+        backing_status: 'credited',
+        image: col.avatar_image || '/images/feather-avatar.jpg',
+        votes_cast: 1,
+        unclaimed_distribution: '0.00 NEAR',
+        vault_account: `v1.${contractId}`,
+        nft_contract: contractId,
+        is_on_chain: true,
+      };
+      const updatedNfts = [creatorToken, ...userNfts.filter((t) => t.id !== creatorToken.id)];
+      setUserNfts(updatedNfts);
+      persistState(STORAGE_KEYS.USER_NFTS, updatedNfts);
+    }
+
+    addToast(
+      'success',
+      `Sovereign DAO Active!`,
+      `Dedicated Treasury (${treAccount}) & Proposal #${initialPropId} initialized for ${col.name}.`
+    );
   };
 
   // Real Mint Handler executing on NEAR testnet
@@ -872,17 +908,16 @@ export function App() {
       collections.find((c) => c.id === 'feather-protocol') ||
       collections[0];
 
-    const isFeather = targetCol.id.includes('feather');
-    const isTide = targetCol.id.includes('tide');
-    const contractId = isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet';
-    const treasuryAccount = isFeather
-      ? 'tre-feath.qrm1.testnet'
-      : isTide
-        ? 'tre-tide.qrm1.testnet'
-        : 'tre-molt.qrm1.testnet';
+    const daoAccounts = getCollectionDaoAccounts(targetCol.stats?.contractId || targetCol.symbol || targetCol.id || targetCol.name);
+    const contractId = targetCol.stats?.contractId || daoAccounts.nftContract;
+    const treasuryAccount = daoAccounts.treasuryAccount;
+
+    const priceNum = parseFloat(targetCol.price_near || '1.00') || 1.0;
+    const totalMintNear = (priceNum + 0.03).toFixed(2);
+    const vaultBackingNear = +(priceNum * 0.5).toFixed(2);
 
     try {
-      addToast('info', 'Broadcasting Mint to NEAR Testnet...', `Please approve the 1.03 NEAR transaction on ${contractId} (50% to ${targetCol.name} Treasury, 50% to Vault).`);
+      addToast('info', 'Broadcasting Mint to NEAR Testnet...', `Please approve the ${totalMintNear} NEAR transaction on ${contractId} (50% to ${targetCol.name} Treasury, 50% to Vault).`);
 
       const tx = await sendNearTransaction({
         receiverId: contractId,
@@ -890,7 +925,7 @@ export function App() {
           createFunctionCallAction(
             'mint',
             { stage: 0 },
-            '1.03',
+            totalMintNear,
             '100000000000000'
           ),
         ],
@@ -911,12 +946,14 @@ export function App() {
         collection: targetCol.name,
         title: `${targetCol.name} #${nextNum}`,
         asset: 'NEAR',
-        backing: '0.50 NEAR',
+        backing: `${vaultBackingNear.toFixed(2)} NEAR`,
         backing_status: 'credited',
         image: targetCol.avatar_image || '/images/feather-avatar.jpg',
         votes_cast: 0,
         unclaimed_distribution: '0.00 NEAR',
         vault_account: `v${nextNum}.${contractId}`,
+        nft_contract: contractId,
+        is_on_chain: true,
       };
 
       const updatedUserNfts = [newMintedToken, ...userNfts];
@@ -931,7 +968,7 @@ export function App() {
       addToast(
         'success',
         `Mint Successful: ${newMintedToken.title}!`,
-        `Tx ${tx.hash.slice(0, 10)}... 50% (0.50 NEAR) deposited to ${targetCol.name} DAO Treasury (${treasuryAccount}), 50% (0.50 NEAR) locked into keyless vault v${nextNum}.${contractId}.`
+        `Tx ${tx.hash.slice(0, 10)}... 50% (${vaultBackingNear.toFixed(2)} NEAR) deposited to ${targetCol.name} DAO Treasury (${treasuryAccount}), 50% (${vaultBackingNear.toFixed(2)} NEAR) locked into keyless vault v${nextNum}.${contractId}.`
       );
 
       // Re-sync live on-chain tokens & listings
@@ -967,19 +1004,8 @@ export function App() {
         cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
       }
 
-      const isFeather = Boolean(
-        (targetToken.collection && targetToken.collection.toLowerCase().includes('feather')) ||
-        (targetToken.id && targetToken.id.toLowerCase().includes('feather')) ||
-        (targetToken.title && targetToken.title.toLowerCase().includes('feather'))
-      );
-      const isTide = Boolean(
-        (targetToken.collection && targetToken.collection.toLowerCase().includes('tide')) ||
-        (targetToken.id && targetToken.id.toLowerCase().includes('tide')) ||
-        (targetToken.title && targetToken.title.toLowerCase().includes('tide'))
-      );
-      const nftContract = targetToken.nft_contract || (
-        isFeather ? 'feather.qrm1.testnet' : isTide ? 'tide.qrm1.testnet' : 'molten.qrm1.testnet'
-      );
+      const daoAccounts = getCollectionDaoAccounts(targetToken.nft_contract || targetToken.collection || targetToken.id);
+      const nftContract = targetToken.nft_contract || daoAccounts.nftContract;
       const buyerAccount = (offer.from && offer.from.endsWith('.testnet')) ? offer.from : 'qrm1.testnet';
 
       // Real on-chain NEP-171 nft_transfer to the buyer

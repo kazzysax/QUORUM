@@ -68,7 +68,7 @@ export function getCollectionDaoAccounts(collectionIdOrName?: string): {
   daoAccount: string;
   nftContract: string;
 } {
-  const id = (collectionIdOrName || '').toLowerCase();
+  const id = (collectionIdOrName || '').toLowerCase().trim();
   if (id.includes('tide')) {
     return {
       treasuryAccount: 'tre-tide.qrm1.testnet',
@@ -83,10 +83,19 @@ export function getCollectionDaoAccounts(collectionIdOrName?: string): {
       nftContract: 'feather.qrm1.testnet',
     };
   }
+  if (id.includes('molt')) {
+    return {
+      treasuryAccount: 'tre-molt.qrm1.testnet',
+      daoAccount: 'dao-molt.qrm1.testnet',
+      nftContract: 'molten.qrm1.testnet',
+    };
+  }
+  // Any dynamically created or newly launched collection automatically gets its own isolated sovereign DAO & Treasury accounts!
+  const clean = id.replace(/[^a-z0-9]/g, '').slice(0, 8) || 'col';
   return {
-    treasuryAccount: 'tre-molt.qrm1.testnet',
-    daoAccount: 'dao-molt.qrm1.testnet',
-    nftContract: 'molten.qrm1.testnet',
+    treasuryAccount: `tre-${clean}.qrm1.testnet`,
+    daoAccount: `dao-${clean}.qrm1.testnet`,
+    nftContract: `${clean}.qrm1.testnet`,
   };
 }
 

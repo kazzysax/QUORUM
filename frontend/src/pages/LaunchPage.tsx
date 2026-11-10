@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { Page, CollectionItem } from '../types';
+import { getCollectionDaoAccounts } from '../near';
 import {
   Upload,
   CheckCircle2,
@@ -107,7 +108,18 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
     setRoyalty(clamped);
   };
 
-  const daoAccountName = `dao.${(name || 'collection').toLowerCase().replace(/[^a-z0-9]/g, '')}.testnet`;
+  // Derive isolated sovereign accounts for this collection
+  const cleanPrefix = (symbol || name || 'col').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'col';
+  const daoAccounts = getCollectionDaoAccounts(cleanPrefix);
+  const daoAccountName = daoAccounts.daoAccount;
+  const treAccountName = daoAccounts.treasuryAccount;
+  const contractId = daoAccounts.nftContract;
+
+  const pubPriceNum = parseFloat(pubPrice || '1.00') || 1.0;
+  const vaultBackingNear = +(pubPriceNum * 0.5).toFixed(2);
+  const treasuryDepositNear = +(pubPriceNum * 0.5).toFixed(2);
+  const totalSupplyNum = Number(supply) || 20;
+  const totalTreasuryTarget = +(totalSupplyNum * treasuryDepositNear).toFixed(2);
 
   const handleLaunch = async () => {
     const collectionId = (name || 'collection').toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -116,16 +128,16 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
       name: name.trim() || 'Untitled Collection',
       symbol: (symbol.trim() || 'NFT').toUpperCase(),
       creator: creatorAccount || 'qrm1.testnet',
-      description: desc.trim() || 'Collection launched on Quorum with keyless DAO and per-NFT vault backing.',
+      description: desc.trim() || `Sovereign collection governed exclusively by ${name.trim() || 'community'} NFT holders. Backed by dedicated DAO Treasury (${treAccountName}) and individual keyless vaults.`,
       cover_image: bannerPreview || '/images/feather-banner.jpg',
       avatar_image: avatarPreview || artPreview || '/images/feather-avatar.jpg',
-      supply: Number(supply) || 20,
-      minted: 1, // Contract is deployed on testnet with Token #1 minted to creator!
+      supply: totalSupplyNum,
+      minted: 1, // Contract deployed on testnet with Token #1 minted to creator!
       price_near: pubPrice || '1.00',
       floor_price_near: pubPrice || '1.00',
-      backing_summary: `${(parseFloat(pubPrice || '1.00') * 0.5).toFixed(2)} NEAR in vault`,
+      backing_summary: `${vaultBackingNear.toFixed(2)} NEAR in vault`,
       royalty_percent: Number(royalty),
-      change_24h: '0%',
+      change_24h: '+0%',
       change_positive: true,
       status: 'live',
       asset_weights: [
@@ -134,14 +146,14 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
       stats: {
         floorPrice: `${pubPrice || '1.00'} NEAR`,
         floorChange1D: '0%',
-        topOffer: '0.90 NEAR',
-        volume24H: '1.03 NEAR',
-        totalVolume: '1.03 NEAR',
+        topOffer: `${(pubPriceNum * 0.9).toFixed(2)} NEAR`,
+        volume24H: `${(pubPriceNum + 0.03).toFixed(2)} NEAR`,
+        totalVolume: `${(pubPriceNum + 0.03).toFixed(2)} NEAR`,
         listedCount: 0,
         listedPercent: 0,
         uniqueOwnersCount: 1,
         uniqueOwnersPercent: 100,
-        contractId: 'feather.qrm1.testnet',
+        contractId: contractId,
         createdDate: 'NOV 2026',
         royaltyPercent: Number(royalty) || 5,
       },
@@ -749,8 +761,9 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                 <div style={{ padding: '14px', borderRadius: '14px', background: '#111115', border: '1px solid #2A2A33', fontSize: '13px', color: '#A1A1AA', lineHeight: 1.6 }}>
                   With a mint price of <strong style={{ color: '#F4F4F5' }}>{pubPrice || '1.00'} NEAR</strong>:
                   <ul style={{ margin: '6px 0 0 0', paddingLeft: '18px' }}>
-                    <li><strong style={{ color: '#F5A524' }}>{(parseFloat(pubPrice || '1.00') * 0.5).toFixed(2)} NEAR</strong> goes directly into the buyer's keyless vault.</li>
-                    <li><strong style={{ color: '#86EFAC' }}>{(parseFloat(pubPrice || '1.00') * 0.5).toFixed(2)} NEAR</strong> goes to the collection DAO Treasury ({daoAccountName}).</li>
+                    <li><strong style={{ color: '#F5A524' }}>{vaultBackingNear.toFixed(2)} NEAR (50%)</strong> goes directly into the buyer's keyless vault (v&lt;id&gt;.{contractId}).</li>
+                    <li><strong style={{ color: '#86EFAC' }}>{treasuryDepositNear.toFixed(2)} NEAR (50%)</strong> goes directly to this collection's dedicated DAO Treasury ({treAccountName}).</li>
+                    <li><strong style={{ color: '#FFD572' }}>{totalTreasuryTarget.toFixed(2)} NEAR</strong> total Treasury target upon {totalSupplyNum} sellout ({totalSupplyNum} × {treasuryDepositNear.toFixed(2)} NEAR).</li>
                   </ul>
                 </div>
               </div>
@@ -781,25 +794,22 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Vote size={18} color="#F5A524" />
-                  <strong style={{ fontSize: '15px' }}>Dedicated Keyless DAO Account</strong>
+                  <strong style={{ fontSize: '15px' }}>Dedicated Sovereign DAO &amp; Treasury</strong>
                 </div>
 
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#15151B',
-                    fontFamily: 'monospace',
-                    fontSize: '13px',
-                    color: '#86EFAC',
-                    border: '1px solid #2A2A33',
-                  }}
-                >
-                  {daoAccountName}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: '#15151B', border: '1px solid #2A2A33' }}>
+                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>DAO Governance Account</span>
+                    <div style={{ fontFamily: 'monospace', fontSize: '13px', color: '#86EFAC', marginTop: '2px' }}>{daoAccountName}</div>
+                  </div>
+                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: '#15151B', border: '1px solid #2A2A33' }}>
+                    <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>DAO Treasury Account</span>
+                    <div style={{ fontFamily: 'monospace', fontSize: '13px', color: '#F5A524', marginTop: '2px' }}>{treAccountName}</div>
+                  </div>
                 </div>
 
                 <span style={{ fontSize: '13px', color: '#C4C4CC', lineHeight: 1.5 }}>
-                  This on-chain DAO controls the 20 NEAR treasury pool, manages secondary market fee dividends, and authorizes community vault rebalancing proposals.
+                  This sovereign DAO controls the {totalTreasuryTarget.toFixed(2)} NEAR treasury pool, manages secondary market fee dividends (5%), and authorizes community proposals. Strictly 1 token = 1 vote for {name.trim() || 'this collection'} holders. Zero cross-collection pooling.
                 </span>
               </div>
 
@@ -878,6 +888,18 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                   <strong>{name || 'Untitled'} ({symbol || 'NFT'})</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>NFT Smart Contract:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#86EFAC' }}>{contractId}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Dedicated DAO Treasury:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#F5A524' }}>{treAccountName}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Dedicated Governance DAO:</span>
+                  <span style={{ fontFamily: 'monospace', color: '#D8B4FE' }}>{daoAccountName}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
                   <span style={{ color: '#A1A1AA' }}>Total Supply:</span>
                   <strong>{supply} Pieces</strong>
                 </div>
@@ -890,12 +912,16 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
                   <strong>{pubPrice} NEAR</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                  <span style={{ color: '#A1A1AA' }}>Vault Backing Asset:</span>
-                  <span style={{ color: '#86EFAC', fontWeight: 600 }}>100% Native testnet NEAR</span>
+                  <span style={{ color: '#A1A1AA' }}>50/50 Capital Allocation:</span>
+                  <strong style={{ color: '#86EFAC' }}>{vaultBackingNear.toFixed(2)} NEAR Vault / {treasuryDepositNear.toFixed(2)} NEAR Treasury</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                  <span style={{ color: '#A1A1AA' }}>DAO Treasury Account:</span>
-                  <span style={{ fontFamily: 'monospace', color: '#86EFAC' }}>{daoAccountName}</span>
+                  <span style={{ color: '#A1A1AA' }}>Sellout Treasury Target:</span>
+                  <strong style={{ color: '#F5A524' }}>{totalTreasuryTarget.toFixed(2)} NEAR ({totalSupplyNum} supply)</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#A1A1AA' }}>Community Sovereignty:</span>
+                  <span style={{ color: '#86EFAC', fontWeight: 600 }}>0 Cross-Bridge • 100% Isolated DAO</span>
                 </div>
               </div>
 
@@ -1052,10 +1078,11 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#C4C4CC', lineHeight: 1.55 }}>
-            <strong style={{ fontSize: '14px', color: '#F4F4F5' }}>Economic Model Breakdown:</strong>
-            <span>• 50% of every mint price automatically backs each buyer's individual keyless vault.</span>
-            <span>• 50% funds the collection's DAO Treasury pool ({daoAccountName}).</span>
-            <span>• You earn ongoing revenue via your <strong>{royalty.toFixed(1)}%</strong> creator royalty on secondary market trades.</span>
+            <strong style={{ fontSize: '14px', color: '#F4F4F5' }}>Economic & Governance Model Breakdown:</strong>
+            <span>• <strong>50% ({vaultBackingNear.toFixed(2)} NEAR)</strong> backs each buyer's individual keyless vault (<code style={{ color: '#86EFAC' }}>v&lt;id&gt;.{contractId}</code>).</span>
+            <span>• <strong>50% ({treasuryDepositNear.toFixed(2)} NEAR)</strong> funds the dedicated collection DAO Treasury (<code style={{ color: '#F5A524' }}>{treAccountName}</code>).</span>
+            <span>• <strong>Sovereign Governance:</strong> Governed on-chain exclusively by {name.trim() || 'collection'} NFT holders via <code style={{ color: '#D8B4FE' }}>{daoAccountName}</code> (1 NFT = 1 Vote, 0 cross-bridging).</span>
+            <span>• <strong>Creator Royalty:</strong> You earn <strong style={{ color: '#F5A524' }}>{royalty.toFixed(1)}%</strong> on every secondary marketplace trade.</span>
           </div>
         </section>
       </div>
