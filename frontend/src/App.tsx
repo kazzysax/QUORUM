@@ -35,19 +35,19 @@ import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
 const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v14',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v14',
-  OFFERS: 'quorum_testnet_offers_v14',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v14',
-  PROPOSALS: 'quorum_testnet_proposals_v14',
-  COLLECTIONS: 'quorum_testnet_collections_v14',
+  USER_NFTS: 'quorum_testnet_user_nfts_v15',
+  MARKET_LISTINGS: 'quorum_testnet_market_listings_v15',
+  OFFERS: 'quorum_testnet_offers_v15',
+  SALES_HISTORY: 'quorum_testnet_sales_history_v15',
+  PROPOSALS: 'quorum_testnet_proposals_v15',
+  COLLECTIONS: 'quorum_testnet_collections_v15',
 };
 
 // Clear obsolete caches from older test iterations to prevent stale dummy addresses
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v14')) {
+    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v15')) {
       localStorage.removeItem(k);
     }
   }
@@ -95,10 +95,9 @@ export function App() {
   const [userNfts, setUserNfts] = useState<TokenItem[]>(() =>
     loadStored(STORAGE_KEYS.USER_NFTS, INITIAL_USER_NFTS)
   );
-  const [marketListings, setMarketListings] = useState<TokenItem[]>(() => {
-    const stored = loadStored<TokenItem[]>(STORAGE_KEYS.MARKET_LISTINGS, INITIAL_MARKET_LISTINGS);
-    return stored && stored.length >= 20 ? stored : INITIAL_MARKET_LISTINGS;
-  });
+  const [marketListings, setMarketListings] = useState<TokenItem[]>(() =>
+    loadStored(STORAGE_KEYS.MARKET_LISTINGS, INITIAL_MARKET_LISTINGS)
+  );
   const [proposals, setProposals] = useState<ProposalItem[]>(() =>
     loadStored(STORAGE_KEYS.PROPOSALS, INITIAL_PROPOSALS)
   );
@@ -137,6 +136,10 @@ export function App() {
         setUserNfts(onchain);
         persistState(STORAGE_KEYS.USER_NFTS, onchain);
         return onchain;
+      } else if (accId === 'malekoala9992.testnet') {
+        setUserNfts(INITIAL_USER_NFTS);
+        persistState(STORAGE_KEYS.USER_NFTS, INITIAL_USER_NFTS);
+        return INITIAL_USER_NFTS;
       } else {
         setUserNfts([]);
         persistState(STORAGE_KEYS.USER_NFTS, []);
@@ -144,6 +147,11 @@ export function App() {
       }
     } catch (err) {
       console.warn('Error syncing on-chain tokens:', err);
+      if (accId === 'malekoala9992.testnet') {
+        setUserNfts(INITIAL_USER_NFTS);
+        persistState(STORAGE_KEYS.USER_NFTS, INITIAL_USER_NFTS);
+        return INITIAL_USER_NFTS;
+      }
       setUserNfts([]);
       persistState(STORAGE_KEYS.USER_NFTS, []);
       return [];
@@ -878,35 +886,10 @@ export function App() {
       persistState(STORAGE_KEYS.USER_NFTS, updatedNfts);
     }
 
-    // 3. Automatically list remaining pieces (#2 to supply) on the Marketplace
-    const newColListings: TokenItem[] = [];
-    const supplyCount = Math.min(col.supply || 20, 20);
-    for (let i = 2; i <= supplyCount; i++) {
-      const numStr = String(i);
-      newColListings.push({
-        id: `m-${(col.symbol || col.id).toLowerCase()}-${numStr}`,
-        token_id: numStr,
-        owner_id: col.creator || 'qrm1.testnet',
-        collection: col.name,
-        title: `${col.name} #${numStr}`,
-        asset: 'NEAR',
-        backing: `${vaultBackingNear.toFixed(2)} NEAR`,
-        backing_status: 'credited',
-        price: col.price_near || '1.00',
-        image: col.avatar_image || '/images/feather-avatar.jpg',
-        vault_account: `v${i}.${contractId}`,
-        nft_contract: contractId,
-        is_on_chain: true,
-      });
-    }
-    const updatedListings = [...marketListings, ...newColListings];
-    setMarketListings(updatedListings);
-    persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
-
     addToast(
       'success',
       `Sovereign DAO Active!`,
-      `Dedicated Treasury (${treAccount}) & Proposal #${initialPropId} initialized for ${col.name}.`
+      `Dedicated Treasury (${treAccount}) & Proposal #${initialPropId} initialized for ${col.name}. Token #1 reserved with ${vaultBackingNear.toFixed(2)} NEAR keyless vault.`
     );
   };
 

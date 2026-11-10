@@ -2327,7 +2327,13 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         <span style={{ fontSize: '12px', color: '#A1A1AA', display: 'block' }}>by {col.creator}</span>
                       </div>
                     </div>
-                    <span className="gold-badge">{countForSale} for sale</span>
+                    <span className="gold-badge">
+                      {countForSale > 0
+                        ? `${countForSale} for sale`
+                        : (col.minted < col.supply)
+                          ? `${col.supply - col.minted} to mint`
+                          : 'Minted out'}
+                    </span>
                   </div>
                   <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#C4C4CC' }}>
                     {col.description}
