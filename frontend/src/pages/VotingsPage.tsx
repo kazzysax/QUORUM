@@ -31,6 +31,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
   const [newPropRecipient, setNewPropRecipient] = useState('');
   const [newPropGroup, setNewPropGroup] = useState('0');
   const [balError, setBalError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -466,14 +467,14 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                       )}
                     </div>
                   ) : (
-                    colProposals.map((prop) => {
+                    (showAll[colName] ? colProposals : colProposals.slice(0, 4)).map((prop) => {
                     const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
                     const yesPercent = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
                     const noPercent = totalVotes > 0 ? Math.round((prop.votes_no / totalVotes) * 100) : 0;
                     const votable = prop.votable_tokens ?? [];
                     const hasVoted = prop.status !== 'Voting open' || votable.length === 0;
                     const voteNote = prop.status !== 'Voting open'
-                      ? `Voting closed · ${prop.time_remaining}`
+                      ? (prop.status === 'Passed' ? (prop.time_remaining === 'executed' ? 'Passed and carried out' : prop.time_remaining.startsWith('ready') ? 'Passed: ready to carry out' : 'Passed: waiting out its safety delay') : 'Voting closed')
                       : (prop.my_voted ?? 0) > 0
                         ? `Your vote is recorded on-chain (${prop.my_voted} of ${prop.my_tokens} tokens voted)`
                         : 'None of your tokens can vote here: a token must be held before the proposal opens.';
@@ -508,7 +509,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                           </div>
 
                           <span style={{ fontSize: '12px', color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={13} /> Closes in {prop.time_remaining}
+                            <Clock size={13} /> {prop.status === 'Voting open' ? `Closes in ${prop.time_remaining}` : prop.time_remaining === 'executed' ? 'Carried out' : prop.time_remaining}
                           </span>
                         </div>
 
@@ -676,6 +677,11 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                       </div>
                     );
                   }))}
+                  {colProposals.length > 4 && (
+                    <button type="button" className="btn-secondary" style={{ alignSelf: 'center', padding: '8px 18px', fontSize: '13px' }} onClick={() => setShowAll((s) => ({ ...s, [colName]: !s[colName] }))}>
+                      {showAll[colName] ? 'Show fewer' : `Show ${colProposals.length - 4} older proposals`}
+                    </button>
+                  )}
                 </div>
               </section>
             );

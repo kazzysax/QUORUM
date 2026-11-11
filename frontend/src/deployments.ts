@@ -4,9 +4,10 @@
 
 export const NETWORK = 'testnet' as const;
 export const EXPLORER = 'https://testnet.nearblocks.io';
+// dRPC first: FastNear's free tier rate-limits (and its 429s carry no CORS headers, which browsers report as CORS errors).
 export const RPC_ENDPOINTS = [
-  'https://test.rpc.fastnear.com',
   'https://near-testnet.drpc.org',
+  'https://test.rpc.fastnear.com',
   'https://rpc.testnet.near.org',
 ];
 

@@ -2,13 +2,13 @@
 
 Two layers. The second one exists because the first one is not enough.
 
-## 1. Unit tests (132)
+## 1. Unit tests (142)
 
 ```bash
 cd code && cargo test --workspace
 ```
 
-Rust tests with a mocked chain, per crate: common 14, dao 22, market 17, nft 41, treasury 21, vault 17.
+Rust tests with a mocked chain, per crate: common 14, dao 22, market 27, nft 41, treasury 21, vault 17.
 
 ## 2. Live testnet end-to-end (`code/scripts/e2e/`)
 
@@ -23,6 +23,8 @@ resulting chain state (balances to the yocto where the contract is exact). Keys 
 | `tide.mjs` | Per-collection isolation: each collection's DAO and treasury reject calls from every other NFT contract. Burn **before** settlement with a vault deposit pays both the escrow and the deposit (the case that used to lock funds). A proposal runs start to finish on Tidewater's own DAO and treasury. |
 | `feather.mjs` | Permissionless fallback: after the grace period anyone can switch the group to plain NEAR, credit the vaults, and holders can burn for 90%. Needs ~72 minutes. |
 | `dao-standards.mjs` | `list_proposals`, the 30-day voting cap, and the treasury's 25% single-spend cap (the vote passes, execution is refused, funds untouched, the proposal stays retryable). |
+| `offers.mjs` | On-chain offers: escrow held by the market, replace and withdraw refund the buyer, only the buyer can withdraw, the owner accepts with ONE transaction (`nft_approve` with `accept_offer`) and the sale pays 5% pool / 5% royalty / 90% seller. |
+| `upgrade-market.mjs` | Upgrades the live market in place and runs its migration; listings, stats and sale history survive. |
 | `gift-and-list.mjs` | Gives a tester wallet 3 NFTs of each collection and lists the rest on the market. |
 | `rotate-keys.mjs`, `mkusers.mjs`, `fund.mjs`, `deploy-code.mjs` | Test-account housekeeping and code redeploys with the rotated keys. |
 

@@ -12,7 +12,7 @@
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-2021-orange?style=for-the-badge&logo=rust" alt="Rust" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22-green?style=for-the-badge&logo=node.js" alt="Node.js" /></a>
   <a href="https://fastify.dev/"><img src="https://img.shields.io/badge/Fastify-5.2-000000?style=for-the-badge&logo=fastify" alt="Fastify" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-132%20unit%20%2B%20live%20testnet%20e2e-brightgreen?style=for-the-badge" alt="Tests" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-142%20unit%20%2B%20live%20testnet%20e2e-brightgreen?style=for-the-badge" alt="Tests" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" /></a>
 </p>
 
@@ -175,7 +175,7 @@ Quorum utilizes the official NEAR Protocol stack from low-level smart contract a
 
 Two layers, because unit tests alone missed real bugs:
 
-1. **132 Rust unit tests** across the six contract crates (`cargo test --workspace`).
+1. **142 Rust unit tests** across the six contract crates (`cargo test --workspace`).
 2. **Live NEAR testnet end-to-end tests** (`code/scripts/e2e/`) that send real transactions to the deployed contracts and check the resulting chain state: mint split, vault keylessness, transfers, listings and sales, proposals, votes, execution, settlement, crediting, distributions, claims and burns, plus a negative test for every access rule. See [docs/TESTING.md](docs/TESTING.md) for what each script covers and the bugs this layer found (a market payout that paid nobody, multi-token votes, a distribution overflow, a wNEAR settlement shortfall, and others).
 
 ```bash

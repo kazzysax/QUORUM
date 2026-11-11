@@ -1,0 +1,50 @@
+// Live test of on-chain offers: escrow, replace, cancel, owner accepts in one transaction, payouts.
+import { call, check, mustFail, mustSucceed, summary, view, balance, F, MARKET, near, fmt, sleep, waitFor } from './lib.mjs';
+const NFT = 'qrmx-tide.testnet', TRE = `tide-tre.${F}`;
+const bob = `bob.${F}`, carol = `carol.${F}`;
+const DAY = 7 * 86400000;
+const owner = async (id) => (await view(NFT, 'nft_token', { token_id: String(id) }))?.owner_id;
+const offers = (id) => view(MARKET, 'offers_for_token', { nft: NFT, token_id: String(id) });
+
+console.log('== placing and managing offers (escrow is held by the market contract)');
+mustFail('an offer needs money attached', await call(bob, MARKET, 'make_offer', { nft: NFT, token_id: '6', expires_in_ms: DAY }), 'Attach the amount');
+mustFail('an offer must last 1 hour to 30 days', await call(bob, MARKET, 'make_offer', { nft: NFT, token_id: '6', expires_in_ms: 1000 }, { deposit: near(0.6) }), 'between 1 hour and 30 days');
+mustFail('offers on unregistered collections are refused', await call(bob, MARKET, 'make_offer', { nft: 'evil.testnet', token_id: '6', expires_in_ms: DAY }, { deposit: near(0.6) }), 'not registered');
+const m0 = await balance(MARKET);
+mustSucceed('bob offers 0.6 NEAR on #6', await call(bob, MARKET, 'make_offer', { nft: NFT, token_id: '6', expires_in_ms: DAY }, { deposit: near(0.6) }));
+await waitFor('offer', async () => (await offers(6)).length === 1);
+check('the offer is on-chain with buyer, amount and expiry', (await offers(6))[0].buyer === bob && BigInt((await offers(6))[0].amount) === near(0.6));
+check('the market contract holds the escrow', (await balance(MARKET)) - m0 === near(0.6), fmt((await balance(MARKET)) - m0));
+mustSucceed('bob raises it to 0.7 NEAR (replaces, refunds the old escrow)', await call(bob, MARKET, 'make_offer', { nft: NFT, token_id: '6', expires_in_ms: DAY }, { deposit: near(0.7) }));
+await sleep(5000);
+const o = await offers(6);
+check('still exactly one offer, now 0.7', o.length === 1 && BigInt(o[0].amount) === near(0.7));
+check('escrow is 0.7, not 1.3', (await balance(MARKET)) - m0 === near(0.7), fmt((await balance(MARKET)) - m0));
+check('the buyer can see it under "offers made"', (await view(MARKET, 'offers_by', { buyer: bob })).some((x) => x.token_id === '6'));
+
+mustSucceed('bob offers 0.5 on #5, then cancels it', await call(bob, MARKET, 'make_offer', { nft: NFT, token_id: '5', expires_in_ms: DAY }, { deposit: near(0.5) }));
+await waitFor('offer 5', async () => (await offers(5)).length === 1);
+mustFail('only the buyer can cancel their offer', await call(carol, MARKET, 'cancel_offer', { nft: NFT, token_id: '5' }), 'no offer');
+const bB = await balance(bob);
+mustSucceed('bob cancels his offer on #5', await call(bob, MARKET, 'cancel_offer', { nft: NFT, token_id: '5' }));
+await sleep(5000);
+check('the escrow came back to bob', (await balance(bob)) - bB > near(0.48), fmt((await balance(bob)) - bB));
+check('the offer is gone', (await offers(5)).length === 0);
+
+console.log('\n== the owner accepts: the sale settles like any other (pool 5%, royalty 5%, seller 90%)');
+check('#6 is owned by carol before', (await owner(6)) === carol);
+mustFail('someone who is not the owner cannot accept', await call(bob, NFT, 'nft_approve', { token_id: '6', account_id: MARKET, msg: JSON.stringify({ accept_offer: bob }) }, { deposit: near(0.01) }));
+const [treB, carolB, founderB] = [BigInt(await view(TRE, 'native_balance')), await balance(carol), await balance(F)];
+mustSucceed('carol accepts bob\'s offer with one transaction', await call(carol, NFT, 'nft_approve', { token_id: '6', account_id: MARKET, msg: JSON.stringify({ accept_offer: bob }) }, { deposit: near(0.01) }));
+await waitFor('transfer', async () => (await owner(6)) === bob);
+await sleep(6000);
+check('the NFT moved to the buyer', (await owner(6)) === bob);
+check('treasury received the 5% pool fee (0.035)', BigInt(await view(TRE, 'native_balance')) - treB === near(0.035), fmt(BigInt(await view(TRE, 'native_balance')) - treB));
+check('creator received the 5% royalty (0.035)', (await balance(F)) - founderB === near(0.035));
+const gain = (await balance(carol)) - carolB;
+check('seller received 90% (0.63) minus the approval deposit and gas', gain > near(0.6) && gain <= near(0.63), fmt(gain));
+check('the accepted offer is removed', (await offers(6)).length === 0);
+check('the listing for #6 is gone', (await view(MARKET, 'get_listing', { nft: NFT, token_id: '6' })) === null);
+const stats = await view(MARKET, 'get_stats', { nft: NFT });
+check('market volume counts the accepted sale', stats.sales >= 1 && BigInt(stats.volume) >= near(0.7), JSON.stringify(stats));
+process.exit(summary() ? 0 : 1);

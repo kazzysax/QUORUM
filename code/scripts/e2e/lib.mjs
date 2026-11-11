@@ -30,17 +30,19 @@ export const near = (s) => BigInt(Math.round(Number(s) * 1e6)) * 10n ** 18n; // 
 export const fmt = (y) => (Number(BigInt(y) / 10n ** 18n) / 1e6).toFixed(4);
 
 const FALLBACK_RPCS = [RPC, 'https://near-testnet.drpc.org', 'https://rpc.testnet.near.org'];
+// Transient: network failures, rate limits (HTTP/JSON-RPC 429) and unknown-account races right after creation.
+const transient = (msg) => /429|Rate limit|UNKNOWN|DOES_NOT_EXIST|fetch failed|ENOTFOUND|ECONN|ETIMEDOUT|timeout|502|503|504/i.test(msg);
 async function rpc(method, params) {
   let last;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 12; i++) {
     const url = FALLBACK_RPCS[i % FALLBACK_RPCS.length];
     try {
       const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) });
       const j = await res.json();
       if (!j.error) return j.result;
       last = new Error(JSON.stringify(j.error).slice(0, 300));
-      if (!/UNKNOWN|DOES_NOT_EXIST/.test(JSON.stringify(j.error))) throw last;
-    } catch (e) { last = e; if (e === last && /^{|RPC|HANDLER/.test(String(e.message)) && !/UNKNOWN/.test(String(e.message))) throw e; }
+    } catch (e) { last = e; }
+    if (!transient(String(last.message))) throw last;
     await sleep(1500 * (1 + (i >> 1)));
   }
   throw last;

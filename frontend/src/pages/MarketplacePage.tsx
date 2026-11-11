@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { LiveCollection } from '../chain';
 import { fmtNear } from '../chain';
-import type { TokenItem, Page, ProposalItem, CollectionHolder, SaleRecord, CollectionActivity } from '../types';
+import type { TokenItem, Page, ProposalItem, CollectionHolder, SaleRecord, CollectionActivity, OfferItem } from '../types';
 import { fetchLiveDaoBalances, getCollectionDaoAccounts, type DaoBalances } from '../near';
 import {
   ArrowRight,
@@ -17,9 +17,9 @@ import {
   Layers,
   Users,
   Activity,
-  BarChart3,
   Sparkles,
   Landmark,
+  Tag,
   CheckSquare,
   Clock,
   Star,
@@ -37,6 +37,14 @@ interface MarketplacePageProps {
   onSelectCollection: (collectionId: string | null) => void;
   onBuyListing: (token: TokenItem) => void;
   holders?: Record<string, CollectionHolder[]>;
+  pieces?: TokenItem[];
+  onPlaceOffer?: (targetNft: TokenItem, amountNear: string) => void;
+  onAcceptOffer?: (offer: OfferItem) => void;
+  onCancelOffer?: (offer: OfferItem) => void;
+  onMint?: (collectionId: string) => void;
+  onCredit?: (collectionId: string, group: number) => void;
+  onEnableFallback?: (collectionId: string, group: number) => void;
+  onAbortSwap?: (collectionId: string, group: number) => void;
   sales?: SaleRecord[];
   onCastVote?: (proposalId: number, choice: 'yes' | 'no' | 'abstain') => void;
 }
@@ -48,18 +56,25 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   walletAccountId,
   proposals,
   userNfts,
-  onNavigate,
   onSelectCollection,
   onBuyListing,
   onCastVote,
   holders: holdersByCollection,
   sales,
+  pieces,
+  onPlaceOffer,
+  onAcceptOffer,
+  onCancelOffer,
+  onMint,
+  onCredit,
+  onEnableFallback,
+  onAbortSwap,
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
   const [collectionFilter, setCollectionFilter] = useState<string>('all');
 
   // Dedicated Collection View State (Items, Offers, Holders, Traits, Activity, Analytics, DAO)
-  const [collectionTab, setCollectionTab] = useState<'items' | 'holders' | 'traits' | 'activity' | 'analytics' | 'dao'>('items');
+  const [collectionTab, setCollectionTab] = useState<'items' | 'offers' | 'holders' | 'activity' | 'dao'>('items');
   const [copiedContract, setCopiedContract] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -67,6 +82,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   const [activityFilter, setActivityFilter] = useState<'all' | 'Sale' | 'Mint' | 'Burn & Redeem' | 'List'>('all');
   const [daoVoteFilter, setDaoVoteFilter] = useState<'active' | 'past'>('active');
   const [daoBalances, setDaoBalances] = useState<DaoBalances | null>(null);
+
+  // Quick Offer Modal State
+  const [offerModalToken, setOfferModalToken] = useState<TokenItem | null>(null);
+  const [offerInputAmount, setOfferInputAmount] = useState('1.00');
 
 
   // Active collection if one is selected
@@ -111,6 +130,22 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       return l.collection === collectionFilter;
     });
 
+  // Every NFT of the selected collection (listed or not), filtered and sorted for the Items tab
+  const itemCards = (pieces ?? [])
+    .filter((token) => {
+      if (!itemSearch.trim()) return true;
+      const q = itemSearch.toLowerCase();
+      return token.title.toLowerCase().includes(q) || token.token_id.includes(q) || token.owner_id.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      const idA = parseInt(a.token_id || '0', 10), idB = parseInt(b.token_id || '0', 10);
+      const priceA = parseFloat(a.price || '1e9'), priceB = parseFloat(b.price || '1e9');
+      if (itemSort === 'id-asc') return idA - idB;
+      if (itemSort === 'id-desc') return idB - idA;
+      if (itemSort === 'price-asc') return priceA - priceB;
+      return priceB - priceA;
+    });
+
   // Filtered and sorted listings for items tab
   const collectionListings = rawCollectionListings
     .filter((token) => {
@@ -135,6 +170,116 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       return 0;
     });
 
+  // Submit Offer
+  const handleQuickOfferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offerModalToken || !onPlaceOffer) return;
+    const amountNum = parseFloat(offerInputAmount);
+    if (isNaN(amountNum) || amountNum <= 0) return;
+    onPlaceOffer(offerModalToken, amountNum.toFixed(2));
+    setOfferModalToken(null);
+  };
+
+  const offerModal = (
+    <>
+        {/* Quick Offer Modal */}
+        {offerModalToken && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '16px',
+            }}
+          >
+            <div
+              style={{
+                background: '#15151B',
+                border: '1px solid #2A2A33',
+                borderRadius: '24px',
+                padding: '28px',
+                maxWidth: '440px',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Make Escrow Offer</h3>
+                <button
+                  type="button"
+                  onClick={() => setOfferModalToken(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#A1A1AA', cursor: 'pointer', fontSize: '18px' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#1D1D25', padding: '12px', borderRadius: '14px', border: '1px solid #2A2A33' }}>
+                <img src={offerModalToken.image} alt={offerModalToken.title} style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover' }} />
+                <div>
+                  <strong style={{ fontSize: '15px' }}>{offerModalToken.title}</strong>
+                  <span style={{ fontSize: '12px', color: '#A1A1AA', display: 'block' }}>{offerModalToken.price ? `Listed at ${offerModalToken.price} NEAR` : 'Not listed: your offer is held until the owner accepts'}</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleQuickOfferSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
+                  Your Offer Amount (NEAR test tokens)
+                  <input
+                    type="number"
+                    step="0.05"
+                    min="0.1"
+                    value={offerInputAmount}
+                    onChange={(e) => setOfferInputAmount(e.target.value)}
+                    style={{
+                      minHeight: '44px',
+                      borderRadius: '12px',
+                      border: '1px solid #2A2A33',
+                      background: '#1D1D25',
+                      color: '#F4F4F5',
+                      padding: '0 12px',
+                      fontSize: '15px',
+                      fontFamily: 'Space Grotesk',
+                    }}
+                  />
+                </label>
+
+                <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#71717A' }}>
+                  Your offer will be locked into Quorum testnet escrow. If accepted, the piece transfers to your wallet. You can cancel and refund anytime.
+                </p>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setOfferModalToken(null)}
+                    className="btn-secondary"
+                    style={{ flex: 1, minHeight: '44px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ flex: 1, minHeight: '44px' }}
+                  >
+                    Lock Offer &amp; Escrow
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+    </>
+  );
+
   // Copy Contract Address
   const handleCopyContract = (contractId: string) => {
     navigator.clipboard.writeText(contractId);
@@ -150,7 +295,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     // and its recorded sales. Nothing is estimated or defaulted.
     const stats = activeCollection.stats!;
     const holders = holdersByCollection?.[activeCollection.id] ?? [];
-    const traits: { name: string; category: string; rarityPercent: number; count: number }[] = [];
     const activities: CollectionActivity[] = (sales || [])
       .filter((x) => x.collection === activeCollection.name)
       .map((x, i) => ({
@@ -402,10 +546,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
             {/* Contract, Explorer & Share Buttons */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {activeCollection.minted < activeCollection.supply && (
+              {activeCollection.status === 'live' && onMint && (
                 <button
                   type="button"
-                  onClick={() => onNavigate('mint')}
+                  onClick={() => onMint(activeCollection.id)}
                   className="btn-primary"
                   style={{
                     minHeight: '38px',
@@ -419,7 +563,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     gap: '6px',
                   }}
                 >
-                  <Sparkles size={15} /> Mint Live (1.03 NEAR)
+                  <Sparkles size={15} /> Mint · {activeCollection.mintCostYocto ? fmtNear(activeCollection.mintCostYocto) : activeCollection.price_near} NEAR
                 </button>
               )}
               <button
@@ -494,21 +638,9 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </strong>
           </div>
           <div>
-            <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>1D FLOOR %</span>
-            <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', fontFamily: 'Space Grotesk', marginTop: '2px' }}>
-              {stats.floorChange1D}
-            </strong>
-          </div>
-          <div>
             <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>TOP OFFER</span>
             <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', fontFamily: 'Space Grotesk', marginTop: '2px' }}>
               {stats.topOffer}
-            </strong>
-          </div>
-          <div>
-            <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>24H VOLUME</span>
-            <strong style={{ display: 'block', fontSize: '18px', fontFamily: 'Space Grotesk', marginTop: '2px', color: '#F4F4F5' }}>
-              {stats.volume24H}
             </strong>
           </div>
           <div>
@@ -544,11 +676,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           }}
         >
           {[
-            { id: 'items', label: `Items (${rawCollectionListings.length})`, icon: Layers },
+            { id: 'items', label: `Items (${(pieces ?? []).length})`, icon: Layers },
+            { id: 'offers', label: `Offers (${activeCollection.offerItems.length})`, icon: Tag },
             { id: 'holders', label: `Holders (${holders.length})`, icon: Users },
-            { id: 'traits', label: `Traits (${traits.length})`, icon: Sparkles },
             { id: 'activity', label: 'Activity', icon: Activity },
-            { id: 'analytics', label: 'Analytics', icon: BarChart3 },
             { id: 'dao', label: 'DAO', icon: Landmark },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -650,31 +781,13 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </div>
 
             {/* Grid */}
-            {collectionListings.length === 0 ? (
-              <div style={{ padding: '48px 24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '18px', border: '1px solid #2A2A33', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                {activeCollection.minted < activeCollection.supply ? (
-                  <>
-                    <Sparkles size={36} color="#F5A524" />
-                    <h3 style={{ margin: 0, fontSize: '20px', color: '#F4F4F5' }}>Public Mint is Currently Live!</h3>
-                    <p style={{ margin: 0, maxWidth: '520px', lineHeight: 1.6, fontSize: '14px' }}>
-                      <strong>{activeCollection.name}</strong> is open for genesis minting on NEAR testnet ({activeCollection.minted} / {activeCollection.supply} minted • {activeCollection.supply - activeCollection.minted} remaining). There are no secondary market pieces listed yet because collectors are currently minting genesis pieces from the contract.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('mint')}
-                      className="btn-primary"
-                      style={{ minHeight: '46px', padding: '0 28px', fontSize: '15px', fontWeight: 700, background: 'linear-gradient(135deg, #A855F7 0%, #F5A524 100%)', color: '#000' }}
-                    >
-                      <Sparkles size={16} /> Mint {activeCollection.name} (1.03 NEAR)
-                    </button>
-                  </>
-                ) : (
-                  <span>No pieces match your search criteria.</span>
-                )}
+            {itemCards.length === 0 ? (
+              <div style={{ padding: '48px 24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '18px', border: '1px solid #2A2A33' }}>
+                {(pieces ?? []).length === 0 ? 'Loading pieces…' : 'No pieces match your search.'}
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-                {collectionListings.map((token) => (
+                {itemCards.map((token) => (
                   <div
                     key={token.id}
                     style={{
@@ -697,23 +810,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                         alt={token.title}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '10px',
-                          left: '10px',
-                          background: 'rgba(10,10,13,0.85)',
-                          backdropFilter: 'blur(4px)',
-                          color: '#F4F4F5',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '3px 8px',
-                          borderRadius: '8px',
-                          border: '1px solid #2A2A33',
-                        }}
-                      >
-                        {token.collection}
-                      </span>
+                      
                       <span
                         style={{
                           position: 'absolute',
@@ -730,59 +827,41 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       >
                         {token.backing}
                       </span>
-                      {token.is_on_chain && (
-                        <span
-                          style={{
-                            position: 'absolute',
-                            bottom: '10px',
-                            left: '10px',
-                            background: 'rgba(245,165,36,0.22)',
-                            border: '1px solid rgba(245,165,36,0.5)',
-                            color: '#FCD34D',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '8px',
-                            backdropFilter: 'blur(4px)',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <ShieldCheck size={11} /> On-chain (market)
-                        </span>
-                      )}
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 4px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <strong style={{ fontSize: '16px', fontWeight: 600 }}>{token.title}</strong>
-                        <span style={{ fontSize: '18px', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
-                          {token.price} NEAR
+                        <span style={{ fontSize: token.price ? '18px' : '13px', fontWeight: 700, color: token.price ? '#F5A524' : '#71717A', fontFamily: 'Space Grotesk' }}>
+                          {token.price ? `${token.price} NEAR` : 'Not for sale'}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
-                        <span>Seller: {token.owner_id}</span>
-                        <a
-                          href={`https://testnet.nearblocks.io/address/${token.vault_account}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ color: '#F5A524', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                        >
-                          {token.vault_account} <ExternalLink size={10} />
-                        </a>
+                      <div style={{ fontSize: '12px', color: '#A1A1AA' }}>
+                        {token.owner_id === walletAccountId ? 'Owned by you' : `Owner: ${token.owner_id}`}
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <button
-                        type="button"
-                        onClick={() => onBuyListing(token)}
-                        className="btn-primary"
-                        style={{ flex: 1, minHeight: '40px', fontSize: '13px' }}
-                      >
-                        Buy for {token.price} NEAR
-                      </button>
+                      {token.owner_id !== walletAccountId && token.price && (
+                        <button
+                          type="button"
+                          onClick={() => onBuyListing(token)}
+                          className="btn-primary"
+                          style={{ flex: 1, minHeight: '40px', fontSize: '13px' }}
+                        >
+                          Buy for {token.price} NEAR
+                        </button>
+                      )}
+                      {token.owner_id !== walletAccountId && onPlaceOffer && (
+                        <button
+                          type="button"
+                          onClick={() => { setOfferInputAmount(token.price || '1.00'); setOfferModalToken(token); }}
+                          className="btn-secondary"
+                          style={{ flex: token.price ? '0 0 auto' : 1, minHeight: '40px', padding: '0 16px', fontSize: '13px' }}
+                        >
+                          Offer
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -796,6 +875,61 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         {/* ===================================================================
             TAB 2: OFFERS (COLLECTION-WIDE ESCROW OFFERS)
            =================================================================== */}
+        {collectionTab === 'offers' && (
+          <section style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '24px', padding: '24px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Offers on {activeCollection.name}</h2>
+              <span style={{ fontSize: '13px', color: '#A1A1AA' }}>The offered NEAR is locked until the owner accepts or the buyer takes it back.</span>
+            </div>
+            {activeCollection.offerItems.length === 0 ? (
+              <div style={{ padding: '40px 24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '16px', border: '1px solid #2A2A33' }}>
+                <Tag size={30} color="#71717A" style={{ marginBottom: '8px' }} />
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#F4F4F5' }}>No offers yet</h3>
+                <p style={{ margin: 0, fontSize: '13px' }}>Open an item and press Make offer to place the first one.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '520px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
+                      <th style={{ padding: '10px 12px' }}>Item</th>
+                      <th style={{ padding: '10px 12px' }}>Offer</th>
+                      <th style={{ padding: '10px 12px' }}>From</th>
+                      <th style={{ padding: '10px 12px' }}>Expires in</th>
+                      <th style={{ padding: '10px 12px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeCollection.offerItems.map((o) => {
+                      const mine = (userNfts ?? []).some((n) => n.nft_contract === o.nft_contract && n.token_id === o.token_id);
+                      const mineOffer = o.from === walletAccountId;
+                      return (
+                        <tr key={o.id}>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <img src={o.image} alt={o.nft_title} style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }} />
+                              <strong>{o.nft_title}</strong>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>{o.amount_near} NEAR</td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>{o.from}</td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>{o.expires_in}</td>
+                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', textAlign: 'right' }}>
+                            {mine && onAcceptOffer ? (
+                              <button type="button" onClick={() => onAcceptOffer(o)} className="btn-primary" style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px' }}>Accept</button>
+                            ) : mineOffer && onCancelOffer ? (
+                              <button type="button" onClick={() => onCancelOffer(o)} className="btn-secondary" style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px' }}>Withdraw</button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
         {collectionTab === 'holders' && (
           <section
             style={{
@@ -874,60 +1008,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
         {/* ===================================================================
             TAB 4: TRAITS (OPENSEA-STYLE TRAIT BREAKDOWN)
-           =================================================================== */}
-        {collectionTab === 'traits' && (
-          <section
-            style={{
-              background: '#15151B',
-              border: '1px solid #2A2A33',
-              borderRadius: '24px',
-              padding: '24px',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Collection Traits &amp; Architecture</h2>
-                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                  Smart contract traits, vault attributes, and rarity distribution.
-                </span>
-              </div>
-              <span className="gold-badge">{traits.length} Traits Defined</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
-              {traits.map((t, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: '#1D1D25',
-                    border: '1px solid #2A2A33',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
-                >
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#A1A1AA', letterSpacing: '0.05em' }}>
-                    {t.category}
-                  </span>
-                  <strong style={{ fontSize: '15px', color: '#F4F4F5' }}>{t.name}</strong>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '12px' }}>
-                    <span style={{ color: '#F5A524' }}>{t.rarityPercent}% have this trait</span>
-                    <span style={{ color: '#71717A' }}>{t.count} / {activeCollection.supply}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ===================================================================
-            TAB 5: ACTIVITY (ON-CHAIN TRANSACTION LEDGER)
            =================================================================== */}
         {collectionTab === 'activity' && (
           <section
@@ -1038,74 +1118,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
         {/* ===================================================================
             TAB 6: ANALYTICS (CHARTS, VOLUME & VAULT SOLVENCY)
-           =================================================================== */}
-        {collectionTab === 'analytics' && (
-          <section
-            style={{
-              background: '#15151B',
-              border: '1px solid #2A2A33',
-              borderRadius: '24px',
-              padding: '24px',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '24px',
-            }}
-          >
-            <div>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Market Analytics &amp; Capital Depth</h2>
-              <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                Secondary market metrics, floor evolution, and vault liquidity reserves.
-              </span>
-            </div>
-
-            {/* Solvency & Depth Metrics Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-              <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
-                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Individual Vault Reserves</span>
-                <strong style={{ display: 'block', fontSize: '20px', color: '#86EFAC', marginTop: '4px' }}>
-                  {fmtNear(activeCollection.escrowYocto)} NEAR
-                </strong>
-                <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
-                  100% held in verifiable keyless sub-accounts
-                </span>
-              </div>
-
-              <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
-                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>DAO Treasury Reserve</span>
-                <strong style={{ display: 'block', fontSize: '20px', color: '#F4F4F5', marginTop: '4px' }}>
-                  {activeCollection.treasuryNear} NEAR
-                </strong>
-                <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
-                  Controlled by {activeCollection.name} DAO
-                </span>
-              </div>
-
-              <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
-                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Combined Community Capital</span>
-                <strong style={{ display: 'block', fontSize: '20px', color: '#F5A524', marginTop: '4px' }}>
-                  {fmtNear(activeCollection.escrowYocto + activeCollection.treasuryYocto)} NEAR
-                </strong>
-                <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
-                  Vault backing + Treasury collateral
-                </span>
-              </div>
-
-              <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
-                <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Floor Defense Ratio</span>
-                <strong style={{ display: 'block', fontSize: '20px', color: '#86EFAC', marginTop: '4px' }}>
-                  100% Solvency
-                </strong>
-                <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
-                  Zero fraction, immediate on-chain burn &amp; redeem
-                </span>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ===================================================================
-            TAB 7: DAO (ROUND BALL ASSET ORB, TREASURY HOLDINGS & VOTES)
            =================================================================== */}
         {collectionTab === 'dao' && (() => {
           const colDaoAccounts = getCollectionDaoAccounts(activeCollection.id);
@@ -1323,14 +1335,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>
                         {activeCollection.treasuryNear} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{(() => {
-                          // Where the treasury's balance came from, derived from chain figures only:
-                          // 50% of every mint, 5% of market volume, and whatever else was sent in or paid out.
-                          const mintShare = activeCollection.minted * Number(activeCollection.price_near) / 2;
-                          const feeShare = parseFloat(stats.totalVolume) * 0.05;
-                          const other = Number(activeCollection.treasuryNear) - mintShare - feeShare;
-                          return `mints ${mintShare.toFixed(2)} · sale fees ${feeShare.toFixed(2)} · other ${other.toFixed(2)} (seed, donations, net of payouts)`;
-                        })()}</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Spendable by holder vote</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>50% VAULT ESCROW</span>
@@ -1725,10 +1730,29 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   </div>
                 )}
               </section>
+
+              {activeCollection.closed && activeCollection.groups.map((g) => (
+                <section key={g.index} style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '24px', padding: '20px 24px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ maxWidth: '640px' }}>
+                    <strong style={{ fontSize: '16px' }}>Settlement</strong>
+                    <p style={{ margin: '6px 0 0', fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
+                      {g.phase === 'Pending' && 'The mint is over and the money raised is waiting in escrow. Holders can vote to convert it, or once the waiting period ends anyone can switch the payout to plain NEAR.'}
+                      {g.phase === 'Swapping' && 'A conversion is running. If it never finishes, anyone can cancel it after an hour.'}
+                      {(g.phase === 'Swapped' || g.phase === 'Fallback') && 'The escrow has been settled. Press the button to move each piece\'s share into its own vault (anyone can do this).'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {g.phase === 'Pending' && onEnableFallback && <button type="button" className="btn-secondary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onEnableFallback(activeCollection.id, g.index)}>Switch to NEAR payout</button>}
+                    {g.phase === 'Swapping' && onAbortSwap && <button type="button" className="btn-secondary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onAbortSwap(activeCollection.id, g.index)}>Cancel conversion</button>}
+                    {(g.phase === 'Swapped' || g.phase === 'Fallback') && onCredit && <button type="button" className="btn-primary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onCredit(activeCollection.id, g.index)}>Fill vaults</button>}
+                  </div>
+                </section>
+              ))}
             </div>
           );
         })()}
 
+        {offerModal}
       </div>
     );
   }
@@ -2225,7 +2249,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 </div>
               </div>
 
-              <button
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
                 type="button"
                 onClick={() => onBuyListing(token)}
                 className="btn-primary"
@@ -2233,10 +2258,15 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               >
                 Buy for {token.price} NEAR
               </button>
+                {onPlaceOffer && token.owner_id !== walletAccountId && (
+                  <button type="button" onClick={() => { setOfferInputAmount(token.price || '1.00'); setOfferModalToken(token); }} className="btn-secondary" style={{ minHeight: '40px', padding: '0 16px', fontSize: '13px' }}>Offer</button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </section>
+      {offerModal}
     </div>
   );
 };

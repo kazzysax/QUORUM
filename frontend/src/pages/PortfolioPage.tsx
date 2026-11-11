@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, TokenItem } from '../types';
-import type { LiveCollection } from '../chain';
-import { fmtNear } from '../chain';
 import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 
 interface PortfolioPageProps {
@@ -14,10 +12,6 @@ interface PortfolioPageProps {
   onClaimSingle: (token: TokenItem) => void;
   onBurnToken: (token: TokenItem) => void;
   onAddToVault: (token: TokenItem, amount: string) => void;
-  collections?: LiveCollection[];
-  onCredit?: (collectionId: string, group: number) => void;
-  onEnableFallback?: (collectionId: string, group: number) => void;
-  onAbortSwap?: (collectionId: string, group: number) => void;
 }
 
 export const PortfolioPage: React.FC<PortfolioPageProps> = ({
@@ -30,10 +24,6 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   onClaimSingle,
   onBurnToken,
   onAddToVault,
-  collections = [],
-  onCredit,
-  onEnableFallback,
-  onAbortSwap,
 }) => {
   const [selectedTokenId, setSelectedTokenId] = useState<string>(nfts[0]?.id || '');
   const [showBurnModal, setShowBurnModal] = useState(false);
@@ -154,32 +144,6 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           Claim all ({unclaimedTotal.toFixed(2)} NEAR)
         </button>
       </div>
-
-      {/* Settlement: permissionless steps, driven by on-chain group state */}
-      {collections.some((c) => c.groups.length > 0) && (
-        <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <strong style={{ fontSize: '15px' }}>Settlement (on-chain)</strong>
-          {collections.map((c) => c.groups.map((g) => (
-            <div key={c.id + g.index} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', color: '#A1A1AA' }}>
-              <span>
-                <strong style={{ color: '#F4F4F5' }}>{c.name}</strong> · group {g.index} ({g.asset}) · phase <strong style={{ color: '#F5A524' }}>{g.phase}</strong> · escrow {fmtNear(g.total_share, 3)} NEAR
-                {c.closed ? '' : ' · mint still open'}
-              </span>
-              <span style={{ display: 'flex', gap: '8px' }}>
-                {c.closed && g.phase === 'Pending' && onEnableFallback && (
-                  <button className="btn-secondary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={() => onEnableFallback(c.id, g.index)}>Enable NEAR fallback</button>
-                )}
-                {(g.phase === 'Swapped' || g.phase === 'Fallback') && onCredit && (
-                  <button className="btn-primary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={() => onCredit(c.id, g.index)}>Credit vaults</button>
-                )}
-                {g.phase === 'Swapping' && onAbortSwap && (
-                  <button className="btn-secondary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={() => onAbortSwap(c.id, g.index)}>Abort stuck swap</button>
-                )}
-              </span>
-            </div>
-          )))}
-        </div>
-      )}
 
       {/* 4 Stat Metric Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>

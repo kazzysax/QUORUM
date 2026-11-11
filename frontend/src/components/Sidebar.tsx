@@ -4,9 +4,9 @@ import {
   PieChart,
   Rocket,
   CheckSquare,
+  Tag,
   ArrowUpRight,
   LayoutGrid,
-  Sparkles,
   Wallet,
   ChevronLeft,
   ChevronRight,
@@ -33,10 +33,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { page: 'marketplace' as Page, label: 'Market', icon: LayoutGrid },
-    { page: 'mint' as Page, label: 'Mint', icon: Sparkles },
     { page: 'portfolio' as Page, label: 'Portfolio', icon: PieChart },
     { page: 'launch' as Page, label: 'Launch', icon: Rocket },
     { page: 'governance' as Page, label: 'Votings', icon: CheckSquare },
+    { page: 'offers' as Page, label: 'Offers', icon: Tag },
     { page: 'sells' as Page, label: 'Sells', icon: ArrowUpRight },
   ];
 

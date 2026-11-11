@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Page, TokenItem, ProposalItem, UserWallet, SaleRecord, CollectionHolder } from './types';
+import type { Page, TokenItem, ProposalItem, UserWallet, SaleRecord, CollectionHolder, OfferItem } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
@@ -14,7 +14,9 @@ import {
   loadCollection,
   loadHolders,
   loadMarketListings,
+  loadOffers,
   loadOwnedTokens,
+  loadPieces,
   loadProposals,
   loadSales,
   nearToYocto,
@@ -32,14 +34,14 @@ import {
 } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
-import { MintPage } from './pages/MintPage';
+import { OffersPage } from './pages/OffersPage';
 import { PortfolioPage } from './pages/PortfolioPage';
 import { VotingsPage } from './pages/VotingsPage';
 import { LaunchPage } from './pages/LaunchPage';
 import { SellsPage } from './pages/SellsPage';
 import { LandingPage } from './pages/LandingPage';
 
-const REFRESH_MS = 15000;
+const REFRESH_MS = 30000;
 const NO_WALLET: UserWallet = { connected: false, accountId: '', balanceNear: 0, network: 'testnet', connector: undefined };
 
 /**
@@ -60,9 +62,12 @@ export function App() {
   const [userNfts, setUserNfts] = useState<TokenItem[]>([]);
   const [proposals, setProposals] = useState<LiveProposal[]>([]);
   const [holders, setHolders] = useState<Record<string, CollectionHolder[]>>({});
+  const [offers, setOffers] = useState<OfferItem[]>([]);
+  const [pieces, setPieces] = useState<TokenItem[]>([]);
   const [sync, setSync] = useState<{ loading: boolean; error: string | null; at: number | null }>({ loading: true, error: null, at: null });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const busy = useRef(false);
+  const rerun = useRef(false);
 
   const addToast = (type: 'success' | 'error' | 'info', title: string, description?: string) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -74,9 +79,12 @@ export function App() {
   // ---------------------------------------------------------------- chain sync
   const accountRef = useRef('');
   accountRef.current = wallet.accountId;
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selectedCollectionId;
 
   const refresh = useCallback(async () => {
-    if (busy.current) return;
+    // A request for fresh data that arrives mid-refresh (e.g. picking a collection) is run right after, not dropped.
+    if (busy.current) { rerun.current = true; return; }
     busy.current = true;
     try {
       const cols = await Promise.all(DEPLOYMENTS.map(loadCollection));
@@ -89,6 +97,13 @@ export function App() {
       ]);
       const props = (await Promise.all(cols.map((c) =>
         loadProposals(c.dep, c.name, owned.filter((t) => t.nft_contract === c.dep.nft).map((t) => t.token_id))))).flat();
+      const selected = cols.find((c) => c.id === selectedRef.current);
+      const [offerList, pieceList] = await Promise.all([
+        loadOffers(cols, account),
+        selected ? loadPieces(selected) : Promise.resolve([] as TokenItem[]),
+      ]);
+      setOffers(offerList);
+      setPieces(pieceList);
       setCollections(cols);
       setMarketListings(listings);
       setSalesHistory(sales);
@@ -104,6 +119,7 @@ export function App() {
       setSync((s) => ({ ...s, loading: false, error: e?.message || String(e) }));
     } finally {
       busy.current = false;
+      if (rerun.current) { rerun.current = false; refresh(); }
     }
   }, []);
 
@@ -112,7 +128,7 @@ export function App() {
     const t = setInterval(refresh, REFRESH_MS);
     return () => clearInterval(t);
   }, [refresh]);
-  useEffect(() => { refresh(); }, [wallet.accountId, refresh]);
+  useEffect(() => { refresh(); }, [wallet.accountId, selectedCollectionId, refresh]);
 
   // ----------------------------------------------------------------- wallet
   useEffect(() => {
@@ -207,11 +223,30 @@ export function App() {
   };
 
   // -------------------------------------------------------------------- mint
-  const handleMint = async (_stage: 'pre' | 'pub', _total: number) => {
-    const col = collections.find((c) => c.id === selectedCollectionId) || collections.find((c) => c.status === 'live');
+  const handleMint = async (collectionId: string) => {
+    const col = collections.find((c) => c.id === collectionId);
     if (!col) { addToast('error', 'Nothing to mint', 'No collection is open for minting.'); return; }
     if (col.activeStage === null || !col.mintCostYocto) { addToast('error', 'Mint closed', `${col.name} has no active mint stage.`); return; }
     await run(`Mint ${col.name}`, col.dep.nft, [fn('mint', { stage: col.activeStage, proof: null }, col.mintCostYocto, GAS.mint)]);
+  };
+
+  // ------------------------------------------------------------------ offers
+  const handlePlaceOffer = async (token: TokenItem, amountNear: string) => {
+    const dep = depFor(token);
+    await run(`Offer ${amountNear} NEAR on ${token.title}`, MARKET, [
+      fn('make_offer', { nft: dep.nft, token_id: token.token_id, expires_in_ms: 7 * 86400000 }, nearToYocto(amountNear), GAS.call),
+    ]);
+  };
+
+  const handleCancelOffer = async (offer: OfferItem) => {
+    await run('Withdraw offer', MARKET, [fn('cancel_offer', { nft: offer.nft_contract, token_id: offer.token_id }, '0', GAS.call)]);
+  };
+
+  /** The owner accepts by approving the market with an accept_offer message: one transaction sells the NFT. */
+  const handleAcceptOffer = async (offer: OfferItem) => {
+    await run(`Accept ${offer.amount_near} NEAR for ${offer.nft_title}`, offer.nft_contract!, [
+      fn('nft_approve', { token_id: offer.token_id, account_id: MARKET, msg: JSON.stringify({ accept_offer: offer.from }) }, '10000000000000000000000', GAS.buy),
+    ]);
   };
 
   // --------------------------------------------------------------- portfolio
@@ -323,29 +358,13 @@ export function App() {
     [wallet.connected, wallet.accountId, userNfts]
   );
 
-  const handleNavigate = (page: Page) => {
-    if (page === 'mint') {
-      const current = collections.find((c) => c.id === selectedCollectionId);
-      if (!current || current.status !== 'live') {
-        const live = collections.find((c) => c.status === 'live');
-        if (live) setSelectedCollectionId(live.id);
-      }
-    }
-    setCurrentPage(page);
-  };
-
-  const mintCollection = collections.find((c) => c.id === selectedCollectionId) || collections.find((c) => c.status === 'live') || collections[0];
+  const handleNavigate = (page: Page) => setCurrentPage(page);
 
   const syncBanner = sync.error ? (
     <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5', padding: '10px 14px', borderRadius: 12, fontSize: 13 }}>
-      Live chain data failed to load: {sync.error}. Nothing is being shown from cache.
+      Could not reach the NEAR testnet right now. Retrying automatically…
     </div>
-  ) : (
-    <div style={{ color: '#71717A', fontSize: 12, padding: '0 4px' }}>
-      {sync.loading ? 'Loading from NEAR testnet…' : `Live from NEAR testnet · refreshed ${sync.at ? new Date(sync.at).toLocaleTimeString() : ''}`}
-      {' · '}market <a href={`${EXPLORER}/address/${MARKET}`} target="_blank" rel="noreferrer" style={{ color: '#A1A1AA' }}>{MARKET}</a>
-    </div>
-  );
+  ) : null;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0A0A0D', color: '#F4F4F5', boxSizing: 'border-box', padding: '16px', paddingLeft: '0' }}>
@@ -378,6 +397,14 @@ export function App() {
             userNfts={displayedUserNfts}
             holders={holders}
             sales={salesHistory}
+            pieces={pieces}
+            onPlaceOffer={handlePlaceOffer}
+            onAcceptOffer={handleAcceptOffer}
+            onCancelOffer={handleCancelOffer}
+            onMint={handleMint}
+            onCredit={handleCredit}
+            onEnableFallback={handleEnableFallback}
+            onAbortSwap={handleAbortSwap}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => setSelectedCollectionId(colId)}
             onBuyListing={handleBuyListing}
@@ -392,21 +419,9 @@ export function App() {
           />
         )}
 
-        {currentPage === 'mint' && mintCollection && (
-          <MintPage
-            collections={collections}
-            selectedCollectionId={selectedCollectionId}
-            onSelectCollection={(colId) => setSelectedCollectionId(colId)}
-            collection={mintCollection}
-            onNavigate={setCurrentPage}
-            onMint={handleMint}
-          />
-        )}
-
         {currentPage === 'portfolio' && (
           <PortfolioPage
             nfts={displayedUserNfts}
-            collections={collections}
             walletConnected={wallet.connected}
             walletAccountId={wallet.accountId}
             onOpenConnect={handleOpenOfficialConnect}
@@ -415,9 +430,6 @@ export function App() {
             onClaimSingle={handleClaimSingle}
             onBurnToken={handleBurnToken}
             onAddToVault={handleAddToVault}
-            onCredit={handleCredit}
-            onEnableFallback={handleEnableFallback}
-            onAbortSwap={handleAbortSwap}
           />
         )}
 
@@ -432,7 +444,23 @@ export function App() {
           />
         )}
 
-        {currentPage === 'launch' && <LaunchPage onNavigate={setCurrentPage} collections={collections} />}
+        {currentPage === 'launch' && <LaunchPage onNavigate={setCurrentPage} collections={collections} onOpenCollection={setSelectedCollectionId} />}
+
+        {currentPage === 'offers' && (
+          <OffersPage
+            offers={offers}
+            userNfts={displayedUserNfts}
+            marketListings={marketListings}
+            userBalance={wallet.balanceNear}
+            walletConnected={wallet.connected}
+            walletAccountId={wallet.accountId}
+            onOpenConnect={handleOpenOfficialConnect}
+            onNavigate={setCurrentPage}
+            onAcceptOffer={handleAcceptOffer}
+            onCancelOffer={handleCancelOffer}
+            onPlaceOffer={handlePlaceOffer}
+          />
+        )}
 
         {currentPage === 'sells' && (
           <SellsPage

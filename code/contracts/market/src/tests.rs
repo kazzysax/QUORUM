@@ -182,3 +182,97 @@ fn recent_sales_keep_the_split_and_are_newest_first() {
     assert_eq!((r[1].pool_fee.0, r[1].royalty.0, r[1].seller_net.0), (500, 750, 8_750));
     assert!(m.recent_sales(Some(acc("other.near")), 10).is_empty());
 }
+
+// ------------------------------------------------------------------ offers
+
+fn with_offer() -> Market {
+    let mut m = market();
+    testing_env!(ctx("buyer.near", 5_000).block_timestamp(1_000_000_000_000).build());
+    m.make_offer(acc("nft.near"), "1".into(), 86_400_000);
+    m
+}
+
+#[test]
+fn an_offer_is_escrowed_and_visible() {
+    let m = with_offer();
+    let o = m.offers_for_token(acc("nft.near"), "1".into());
+    assert_eq!(o.len(), 1);
+    assert_eq!((o[0].buyer.clone(), o[0].amount.0), (acc("buyer.near"), 5_000));
+    assert_eq!(m.offers_by(acc("buyer.near")).len(), 1);
+    assert_eq!(m.offers_for_collection(acc("nft.near"), 0, 10).len(), 1);
+}
+
+#[test]
+#[should_panic(expected = "between 1 hour and 30 days")]
+fn an_offer_must_have_a_sensible_duration() {
+    let mut m = market();
+    testing_env!(ctx("buyer.near", 5_000).build());
+    m.make_offer(acc("nft.near"), "1".into(), 1_000);
+}
+
+#[test]
+#[should_panic(expected = "not registered")]
+fn offers_on_unregistered_collections_are_refused() {
+    let mut m = market();
+    testing_env!(ctx("buyer.near", 5_000).build());
+    m.make_offer(acc("fake.near"), "1".into(), 86_400_000);
+}
+
+#[test]
+fn a_new_offer_replaces_the_old_one() {
+    let mut m = with_offer();
+    testing_env!(ctx("buyer.near", 9_000).block_timestamp(1_000_000_000_000).build());
+    m.make_offer(acc("nft.near"), "1".into(), 86_400_000);
+    let o = m.offers_for_token(acc("nft.near"), "1".into());
+    assert_eq!((o.len(), o[0].amount.0), (1, 9_000));
+}
+
+#[test]
+fn the_buyer_can_cancel_but_nobody_else() {
+    let mut m = with_offer();
+    testing_env!(ctx("mallory.near", 0).build());
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| m.cancel_offer(acc("nft.near"), "1".into()))).is_err());
+    testing_env!(ctx("buyer.near", 0).build());
+    m.cancel_offer(acc("nft.near"), "1".into());
+    assert!(m.offers_for_token(acc("nft.near"), "1".into()).is_empty());
+}
+
+#[test]
+#[should_panic(expected = "not expired yet")]
+fn an_unexpired_offer_cannot_be_force_refunded() {
+    let mut m = with_offer();
+    testing_env!(ctx("anyone.near", 0).block_timestamp(1_000_000_000_000).build());
+    m.refund_expired(acc("nft.near"), "1".into(), acc("buyer.near"));
+}
+
+#[test]
+fn an_expired_offer_can_be_refunded_by_anyone() {
+    let mut m = with_offer();
+    testing_env!(ctx("anyone.near", 0).block_timestamp(1_000_000_000_000 + 90_000 * 1_000_000_000).build());
+    m.refund_expired(acc("nft.near"), "1".into(), acc("buyer.near"));
+    assert!(m.offers_for_token(acc("nft.near"), "1".into()).is_empty());
+}
+
+#[test]
+fn the_owner_accepts_an_offer_through_the_approval_callback() {
+    let mut m = with_offer();
+    testing_env!(ctx("nft.near", 0).block_timestamp(1_000_000_000_000).build());
+    let _ = m.nft_on_approve("1".into(), acc("seller.near"), 3, r#"{"accept_offer":"buyer.near"}"#.into());
+    assert!(m.offers_for_token(acc("nft.near"), "1".into()).is_empty());
+}
+
+#[test]
+#[should_panic(expected = "No such offer")]
+fn accepting_a_missing_offer_fails() {
+    let mut m = market();
+    testing_env!(ctx("nft.near", 0).build());
+    let _ = m.nft_on_approve("1".into(), acc("seller.near"), 3, r#"{"accept_offer":"buyer.near"}"#.into());
+}
+
+#[test]
+#[should_panic(expected = "expired")]
+fn an_expired_offer_cannot_be_accepted() {
+    let mut m = with_offer();
+    testing_env!(ctx("nft.near", 0).block_timestamp(1_000_000_000_000 + 90_000 * 1_000_000_000).build());
+    let _ = m.nft_on_approve("1".into(), acc("seller.near"), 3, r#"{"accept_offer":"buyer.near"}"#.into());
+}

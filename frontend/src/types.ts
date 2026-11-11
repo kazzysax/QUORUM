@@ -1,4 +1,4 @@
-export type Page = 'marketplace' | 'landing' | 'mint' | 'portfolio' | 'governance' | 'launch' | 'sells';
+export type Page = 'marketplace' | 'landing' | 'portfolio' | 'governance' | 'launch' | 'offers' | 'sells';
 
 export interface TokenItem {
   id: string;
@@ -152,6 +152,11 @@ export interface OfferItem {
   amount_near: string;
   expires_in: string;
   type: 'received' | 'made';
+  // Filled from the market contract:
+  nft_contract?: string;
+  token_id?: string;
+  expired?: boolean;
+  amount_yocto?: string;
 }
 
 export interface UserWallet {

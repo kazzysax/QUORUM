@@ -4,7 +4,7 @@
 
 import { DEPLOYMENTS, MARKET, RPC_ENDPOINTS } from './deployments';
 import type { Deployment } from './deployments';
-import type { CollectionHolder, CollectionItem, ProposalItem, SaleRecord, TokenItem } from './types';
+import type { CollectionHolder, CollectionItem, OfferItem, ProposalItem, SaleRecord, TokenItem } from './types';
 
 export class ChainError extends Error {}
 
@@ -12,31 +12,63 @@ const YOCTO = 10n ** 24n;
 
 // ------------------------------------------------------------------ rpc
 
-async function rpc(method: string, params: unknown): Promise<any> {
-  let lastErr: unknown = null;
-  for (const url of RPC_ENDPOINTS) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 'q', method, params }),
-      });
-      if (!res.ok) { lastErr = new ChainError(`${url}: HTTP ${res.status}`); continue; }
-      const data = await res.json();
-      if (data.error) {
-        // A definite answer from the node (unknown account, bad args): do not retry elsewhere.
-        throw new ChainError(`${data.error.name || 'RPC error'}: ${data.error.cause?.name || data.error.data || data.error.message}`);
-      }
-      return data.result;
-    } catch (e) {
-      if (e instanceof ChainError) throw e;
-      lastErr = e;
-    }
-  }
-  throw new ChainError(`All NEAR testnet RPC endpoints failed (${String(lastErr)})`);
+// At most a few requests in flight, so a page refresh does not trip the public RPC rate limits.
+const MAX_IN_FLIGHT = 5;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+async function slot<T>(fn: () => Promise<T>): Promise<T> {
+  if (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((r) => waiting.push(r));
+  inFlight++;
+  try { return await fn(); } finally { inFlight--; waiting.shift()?.(); }
 }
 
-export async function view<T>(account: string, method: string, args: Record<string, unknown> = {}): Promise<T> {
+async function rpc(method: string, params: unknown): Promise<any> {
+  return slot(async () => {
+    let lastErr: unknown = null;
+    for (let round = 0; round < 2; round++) {
+      for (const url of RPC_ENDPOINTS) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 'q', method, params }),
+          });
+          if (!res.ok) { lastErr = new ChainError(`${url}: HTTP ${res.status}`); continue; }
+          const data = await res.json();
+          if (data.error) {
+            // Rate limited (JSON-RPC -429): try the next endpoint instead of failing.
+            if (data.error.code === -429 || /rate limit/i.test(String(data.error.message))) { lastErr = new ChainError('rate limited'); continue; }
+            // Any other error is a definite answer from the node (unknown account, bad args).
+            throw new ChainError(`${data.error.name || 'RPC error'}: ${data.error.cause?.name || data.error.data || data.error.message}`);
+          }
+          return data.result;
+        } catch (e) {
+          if (e instanceof ChainError && !/rate limited/.test(e.message)) throw e;
+          lastErr = e;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    throw new ChainError(`All NEAR testnet RPC endpoints failed (${String(lastErr)})`);
+  });
+}
+
+// Identical reads within a few seconds share one request (the same listing check is needed by
+// several screens). Failures are never cached.
+const CACHE_MS = 12000;
+const cache = new Map<string, { at: number; p: Promise<unknown> }>();
+
+export function view<T>(account: string, method: string, args: Record<string, unknown> = {}): Promise<T> {
+  const key = account + '|' + method + '|' + JSON.stringify(args);
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.p as Promise<T>;
+  const p = viewUncached<T>(account, method, args);
+  cache.set(key, { at: Date.now(), p });
+  p.catch(() => cache.delete(key));
+  return p;
+}
+
+async function viewUncached<T>(account: string, method: string, args: Record<string, unknown>): Promise<T> {
   const result = await rpc('query', {
     request_type: 'call_function',
     finality: 'final',
@@ -107,7 +139,11 @@ interface RawProposal {
 
 // ------------------------------------------------------------- collections
 
+export interface RawOffer { nft: string; token_id: string; buyer: string; amount: string; expires_ms: number }
+
 export interface LiveCollection extends CollectionItem {
+  pieces: { token_id: string; owner_id: string }[];
+  offerItems: OfferItem[];
   dep: Deployment;
   config: NftConfig;
   liveSupply: number;
@@ -145,7 +181,7 @@ async function allTokens(dep: Deployment): Promise<NftToken[]> {
 }
 
 export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
-  const [meta, config, minted, liveSupply, closed, activeStage, groups, tre, listings, stats, tokens] = await Promise.all([
+  const [meta, config, minted, liveSupply, closed, activeStage, groups, tre, listings, stats, tokens, collOffers] = await Promise.all([
     view<{ name: string; symbol: string }>(dep.nft, 'nft_metadata'),
     view<NftConfig>(dep.nft, 'get_config'),
     view<string>(dep.nft, 'minted_total'),
@@ -157,7 +193,10 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     verifiedListings(dep),
     view<{ sales: number; volume: string }>(MARKET, 'get_stats', { nft: dep.nft }),
     allTokens(dep),
+    view<RawOffer[]>(MARKET, 'offers_for_collection', { nft: dep.nft, from_index: 0, limit: 100 }),
   ]);
+  const liveOffers = collOffers.filter((o) => o.expires_ms > Date.now());
+  const topOffer = liveOffers.reduce<bigint>((m, o) => (BigInt(o.amount) > m ? BigInt(o.amount) : m), 0n);
   const stage = config.stages[activeStage ?? config.stages.length - 1];
   const mintedN = Number(minted);
   const live = Number(liveSupply);
@@ -167,6 +206,8 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
   const mintCost = activeStage === null ? null : (BigInt(stage.price_near) + BigInt(config.mint_storage_cost)).toString();
   const escrow = groups.reduce((s, g) => s + BigInt(g.total_share), 0n);
   return {
+    pieces: tokens.map((t) => ({ token_id: t.token_id, owner_id: t.owner_id })),
+    offerItems: collOffers.filter((o) => o.expires_ms > Date.now()).map((o) => toOfferItem(o, { dep, name: meta.name }, 'made')).sort((a, b) => Number(BigInt(b.amount_yocto!) - BigInt(a.amount_yocto!))),
     dep,
     config,
     id: dep.id,
@@ -193,7 +234,7 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     stats: {
       floorPrice: floor === '—' ? '—' : `${floor} NEAR`,
       floorChange1D: '—',
-      topOffer: '—',
+      topOffer: topOffer > 0n ? `${fmtNear(topOffer)} NEAR` : '—',
       volume24H: '—',
       totalVolume: `${fmtNear(stats.volume)} NEAR`,
       listedCount: listings.length,
@@ -235,15 +276,22 @@ export async function loadHolders(dep: Deployment): Promise<CollectionHolder[]> 
 
 // ------------------------------------------------------------------ tokens
 
-export async function buildToken(dep: Deployment, col: Pick<LiveCollection, 'name' | 'symbol'>, tokenId: string, listing?: Listing): Promise<TokenItem> {
+export async function buildToken(dep: Deployment, col: Pick<LiveCollection, 'name' | 'symbol'>, tokenId: string, listing?: Listing, light = false): Promise<TokenItem> {
   const [traits, vault, owed] = await Promise.all([
     view<Traits | null>(dep.nft, 'nft_traits', { token_id: tokenId }),
     view<VaultInfo>(`v${tokenId}.${dep.nft}`, 'vault_info'),
-    view<string>(dep.treasury, 'owed_to', { token_id: tokenId, asset: 'near' }),
+    light ? Promise.resolve('0') : view<string>(dep.treasury, 'owed_to', { token_id: tokenId, asset: 'near' }),
   ]);
   if (!traits) throw new ChainError(`${dep.nft} token ${tokenId} has no live state (burned?)`);
-  const parts = vault.balances.map(([asset, amt]) => `${fmtNear(amt)} ${asset === 'near' ? 'NEAR' : asset.replace('nep141:', '')}`);
-  if (!traits.credited) parts.push(`${fmtNear(traits.escrow_share)} NEAR (escrow)`);
+  // wNEAR is 1:1 with NEAR, so show one clean NEAR figure; any other asset keeps its own line.
+  let nearTotal = 0n;
+  const parts: string[] = [];
+  for (const [asset, amt] of vault.balances) {
+    if (asset === 'near' || /^nep141:wrap./.test(asset)) nearTotal += BigInt(amt);
+    else parts.push(`${fmtNear(amt)} ${asset.replace('nep141:', '')}`);
+  }
+  if (!traits.credited) nearTotal += BigInt(traits.escrow_share);
+  if (nearTotal > 0n) parts.unshift(`${fmtNear(nearTotal)} NEAR`);
   return {
     id: `${dep.slug}-${tokenId}`,
     token_id: tokenId,
@@ -438,4 +486,51 @@ export async function uncreditedTokens(dep: Deployment, group: number): Promise<
   const traits = await Promise.all(toks.map((t) => view<Traits | null>(dep.nft, 'nft_traits', { token_id: t.token_id })));
   const asset = (await view<NftConfig>(dep.nft, 'get_config')).asset_plan[group]?.token;
   return traits.filter((t): t is Traits => !!t && !t.credited && t.asset === asset).map((t) => t.token_id);
+}
+
+// ------------------------------------------------------------------ pieces and offers
+
+/** Every live NFT of a collection as a card: owner, price if listed, backing. */
+export async function loadPieces(col: LiveCollection): Promise<TokenItem[]> {
+  const listed = await verifiedListings(col.dep);
+  const byId = new Map(listed.map((l) => [l.token.token_id, l.listing]));
+  const items = await Promise.all(col.pieces.map((p) => buildToken(col.dep, col, p.token_id, byId.get(p.token_id), true)));
+  return items.sort((a, b) => Number(a.token_id) - Number(b.token_id));
+}
+
+function toOfferItem(o: RawOffer, col: Pick<LiveCollection, 'dep' | 'name'>, type: 'received' | 'made', owner?: string): OfferItem {
+  const left = o.expires_ms - Date.now();
+  return {
+    id: `${o.nft}|${o.token_id}|${o.buyer}`,
+    nft_id: `${col.dep.slug}-${o.token_id}`,
+    nft_title: `${col.name} #${o.token_id}`,
+    image: col.dep.avatar,
+    from: o.buyer,
+    to: owner,
+    collection: col.name,
+    amount_near: fmtNear(o.amount),
+    expires_in: left > 0 ? fmtDuration(left) : 'expired',
+    type,
+    nft_contract: o.nft,
+    token_id: o.token_id,
+    expired: left <= 0,
+    amount_yocto: o.amount,
+  };
+}
+
+/** Offers this account made, and offers other people made on NFTs this account owns. */
+export async function loadOffers(cols: LiveCollection[], account: string): Promise<OfferItem[]> {
+  if (!account) return [];
+  const colByNft = new Map(cols.map((c) => [c.dep.nft, c]));
+  const made = (await view<RawOffer[]>(MARKET, 'offers_by', { buyer: account }))
+    .filter((o) => colByNft.has(o.nft))
+    .map((o) => toOfferItem(o, colByNft.get(o.nft)!, 'made'));
+  const received: OfferItem[] = [];
+  for (const col of cols) {
+    const mine = new Set(col.pieces.filter((p) => p.owner_id === account).map((p) => p.token_id));
+    if (!mine.size) continue;
+    const all = await view<RawOffer[]>(MARKET, 'offers_for_collection', { nft: col.dep.nft, from_index: 0, limit: 100 });
+    for (const o of all) if (mine.has(o.token_id) && o.buyer !== account) received.push(toOfferItem(o, col, 'received', account));
+  }
+  return [...received, ...made];
 }
