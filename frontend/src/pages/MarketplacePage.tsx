@@ -81,20 +81,18 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     creator: col.creator,
     description: col.description,
     image: col.cover_image,
+    supply: col.supply,
   }));
 
   const currentHero = featured[activeSlide] || featured[0];
 
   useEffect(() => {
     let mounted = true;
-    fetchLiveDaoBalances(activeCollection?.id).then((res) => {
-      if (mounted) setDaoBalances(res);
-    });
-    const interval = setInterval(() => {
-      fetchLiveDaoBalances(activeCollection?.id).then((res) => {
-        if (mounted) setDaoBalances(res);
-      });
-    }, 15000);
+    const id = activeCollection?.id;
+    if (!id) { setDaoBalances(null); return; }   // no collection selected: nothing to read
+    const load = () => fetchLiveDaoBalances(id).then((res) => { if (mounted) setDaoBalances(res); }).catch(() => { if (mounted) setDaoBalances(null); });
+    load();
+    const interval = setInterval(load, 15000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -1738,6 +1736,17 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   // =========================================================================
   // 2. MAIN MARKETPLACE OVERVIEW (When no specific collection is selected)
   // =========================================================================
+  // Nothing is shown until the contracts have answered: no collections means the chain read is
+  // still running (or failed, in which case the banner above the page says why).
+  if (!currentHero) {
+    return (
+      <div style={{ padding: '64px 24px', textAlign: 'center', color: '#A1A1AA', border: '1px dashed #2A2A33', borderRadius: '24px' }}>
+        <strong style={{ display: 'block', color: '#F4F4F5', fontSize: '18px', marginBottom: '8px' }}>Reading collections from NEAR testnet…</strong>
+        If this stays here, the banner above shows what the RPC returned.
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
       {/* Featured Banner & Top Collections Row */}
@@ -1796,7 +1805,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span className="gold-badge">{currentHero.badge}</span>
               <span className="neutral-badge">by {currentHero.creator}</span>
-              <span className="neutral-badge">20 Total Pieces</span>
+              <span className="neutral-badge">{currentHero.supply} Total Pieces</span>
             </div>
 
             <h1
@@ -1914,7 +1923,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <strong style={{ display: 'block', fontSize: '13px', color: '#86EFAC' }}>{col.change_24h}</strong>
-                    <span style={{ fontSize: '11px', color: '#71717A' }}>20 pieces</span>
+                    <span style={{ fontSize: '11px', color: '#71717A' }}>{col.supply} pieces</span>
                   </div>
                 </li>
               ))}
