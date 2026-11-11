@@ -1,4 +1,5 @@
 import React from 'react';
+import { DEPLOYMENTS } from '../deployments';
 import type { Page } from '../types';
 import { ArrowRight, Vault, CheckSquare, Flame, RefreshCw } from 'lucide-react';
 
@@ -102,32 +103,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectCo
             >
               Enter Marketplace <ArrowRight size={16} />
             </button>
-            <button
-              onClick={() => {
-                if (onSelectCollection) onSelectCollection('molten-hours');
-                onNavigate('marketplace');
-              }}
-              className="btn-secondary"
-              style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
-            >
-              Explore Molten Hours
-            </button>
-            <button
-              onClick={() => {
-                if (onSelectCollection) onSelectCollection('tidewater');
-                onNavigate('marketplace');
-              }}
-              className="btn-secondary"
-              style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
-            >
-              Explore Tidewater
-            </button>
+            {DEPLOYMENTS.map((d) => (
+              <button
+                key={d.id}
+                onClick={() => {
+                  if (onSelectCollection) onSelectCollection(d.id);
+                  onNavigate('marketplace');
+                }}
+                className="btn-secondary"
+                style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
+              >
+                Explore {d.id.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ')}
+              </button>
+            ))}
             <button
               onClick={() => onNavigate('launch')}
               className="btn-secondary"
               style={{ minHeight: '42px', padding: '0 18px', fontSize: '14px', background: 'rgba(29,29,37,0.7)' }}
             >
-              Launch Studio
+              Deployed collections
             </button>
           </div>
         </div>

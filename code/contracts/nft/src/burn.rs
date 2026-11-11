@@ -27,15 +27,15 @@ impl Contract {
         near_sdk::assert_one_yocto();
         let burner = env::predecessor_account_id();
         // Ownership comes from contract state, never from caller input.
-        let owner = self.tokens.owner_by_id.get(&token_id).unwrap_or_else(|| env::panic_str("Unknown token"));
+        let owner = self.tokens.owner_by_id.get(&token_id).unwrap_or_else(|| quorum_common::fail("Unknown token"));
         require!(owner == burner, "Only the owner can burn");
-        let st = self.token_state.get(&token_id).cloned().unwrap_or_else(|| env::panic_str("Unknown token"));
+        let st = self.token_state.get(&token_id).cloned().unwrap_or_else(|| quorum_common::fail("Unknown token"));
         require!(!st.burned, "Already burned");
         let gi = st.group as usize;
         let phase = self.groups[gi].phase.clone();
         let from_escrow = match (&phase, st.credited) {
-            (Phase::Swapping, _) => env::panic_str("A swap is in progress: try again once it settles"),
-            (Phase::Swapped | Phase::Fallback, false) => env::panic_str("Credit this NFT's vault first: anyone can call credit_batch"),
+            (Phase::Swapping, _) => quorum_common::fail("A swap is in progress: try again once it settles"),
+            (Phase::Swapped | Phase::Fallback, false) => quorum_common::fail("Credit this NFT's vault first: anyone can call credit_batch"),
             (Phase::Pending, _) => true,
             (_, true) => false,
         };
@@ -55,6 +55,9 @@ impl Contract {
             let (to_holder, to_pool) = redeem_split(share);
             emit("escrow_refund", json!({ "token_id": token_id, "holder": burner, "to_holder": U128(to_holder), "to_pool": U128(to_pool) }));
             Promise::new(self.config.treasury.clone()).transfer(NearToken::from_yoctonear(to_pool)).detach();
+            // Anything the owner added to the vault before settlement must be paid out too,
+            // or it would be locked forever (the vault has no other way out).
+            ext_vault::ext(vault_account(&token_id)).with_static_gas(GAS_REDEEM).redeem(burner.clone()).detach();
             return Promise::new(burner).transfer(NearToken::from_yoctonear(to_holder));
         }
         ext_vault::ext(vault_account(&token_id)).with_static_gas(GAS_REDEEM).redeem(burner)

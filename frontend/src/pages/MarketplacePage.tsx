@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import type { CollectionItem, TokenItem, Page, OfferItem, ProposalItem } from '../types';
+import type { LiveCollection } from '../chain';
+import { fmtNear } from '../chain';
+import type { TokenItem, Page, ProposalItem, CollectionHolder, SaleRecord, CollectionActivity } from '../types';
 import { fetchLiveDaoBalances, getCollectionDaoAccounts, type DaoBalances } from '../near';
 import {
   ArrowRight,
@@ -13,7 +15,6 @@ import {
   Search,
   SlidersHorizontal,
   Layers,
-  Tag,
   Users,
   Activity,
   BarChart3,
@@ -24,15 +25,9 @@ import {
   Star,
   Globe,
 } from 'lucide-react';
-import {
-  COLLECTION_HOLDERS,
-  COLLECTION_TRAITS,
-  COLLECTION_ACTIVITY,
-  COLLECTION_OFFERS,
-} from '../mockData';
 
 interface MarketplacePageProps {
-  collections: CollectionItem[];
+  collections: LiveCollection[];
   listings: TokenItem[];
   selectedCollectionId?: string | null;
   walletAccountId?: string;
@@ -41,8 +36,8 @@ interface MarketplacePageProps {
   onNavigate: (page: Page) => void;
   onSelectCollection: (collectionId: string | null) => void;
   onBuyListing: (token: TokenItem) => void;
-  onPlaceOffer?: (targetNft: TokenItem, amountNear: string) => void;
-  onAcceptOffer?: (offer: OfferItem) => void;
+  holders?: Record<string, CollectionHolder[]>;
+  sales?: SaleRecord[];
   onCastVote?: (proposalId: number, choice: 'yes' | 'no' | 'abstain') => void;
 }
 
@@ -56,15 +51,15 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   onNavigate,
   onSelectCollection,
   onBuyListing,
-  onPlaceOffer,
-  onAcceptOffer,
   onCastVote,
+  holders: holdersByCollection,
+  sales,
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
-  const [collectionFilter, setCollectionFilter] = useState<'all' | 'Molten Hours' | 'Tidewater'>('all');
+  const [collectionFilter, setCollectionFilter] = useState<string>('all');
 
   // Dedicated Collection View State (Items, Offers, Holders, Traits, Activity, Analytics, DAO)
-  const [collectionTab, setCollectionTab] = useState<'items' | 'offers' | 'holders' | 'traits' | 'activity' | 'analytics' | 'dao'>('items');
+  const [collectionTab, setCollectionTab] = useState<'items' | 'holders' | 'traits' | 'activity' | 'analytics' | 'dao'>('items');
   const [copiedContract, setCopiedContract] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -73,9 +68,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   const [daoVoteFilter, setDaoVoteFilter] = useState<'active' | 'past'>('active');
   const [daoBalances, setDaoBalances] = useState<DaoBalances | null>(null);
 
-  // Quick Offer Modal State
-  const [offerModalToken, setOfferModalToken] = useState<TokenItem | null>(null);
-  const [offerInputAmount, setOfferInputAmount] = useState('1.50');
 
   // Active collection if one is selected
   const activeCollection = selectedCollectionId
@@ -152,89 +144,29 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     setTimeout(() => setCopiedContract(false), 2000);
   };
 
-  // Submit Offer
-  const handleQuickOfferSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!offerModalToken || !onPlaceOffer) return;
-    const amountNum = parseFloat(offerInputAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
-    onPlaceOffer(offerModalToken, amountNum.toFixed(2));
-    setOfferModalToken(null);
-  };
-
   // =========================================================================
   // 1. DEDICATED OPENSEA-STYLE COLLECTION VIEW (Molten Hours or Tidewater)
   // =========================================================================
   if (activeCollection) {
-    const liveListingsPrices = rawCollectionListings
-      .map((l) => parseFloat(l.price || '0'))
-      .filter((p) => p > 0);
-    const liveFloorPrice = liveListingsPrices.length > 0
-      ? `${Math.min(...liveListingsPrices).toFixed(2)} NEAR`
-      : `${activeCollection.floor_price_near} NEAR`;
-
-    const stats = {
-      floorPrice: liveFloorPrice,
-      floorChange1D: activeCollection.change_24h || '+0%',
-      topOffer: activeCollection.id === 'molten-hours' ? '1.80 NEAR' : activeCollection.id === 'tidewater' ? '1.50 NEAR' : '0.85 NEAR',
-      volume24H: `${(liveListingsPrices.reduce((a, b) => a + b, 0) * 0.4).toFixed(2)} NEAR`,
-      totalVolume: `${((liveListingsPrices.reduce((a, b) => a + b, 0) * 1.5) + ((activeCollection.minted || 1) * 1.03)).toFixed(2)} NEAR`,
-      listedCount: rawCollectionListings.length,
-      listedPercent: Math.round((rawCollectionListings.length / (activeCollection.supply || 20)) * 100),
-      uniqueOwnersCount: 2,
-      uniqueOwnersPercent: 10,
-      contractId: activeCollection.id === 'molten-hours'
-        ? 'molten.qrm1.testnet'
-        : activeCollection.id === 'tidewater'
-          ? 'tide.qrm1.testnet'
-          : `${activeCollection.id.replace(/-collection$/, '').replace(/-protocol$/, '').replace(/[^a-z0-9]/g, '')}.qrm1.testnet`,
-      createdDate: 'NOV 2026',
-      royaltyPercent: activeCollection.royalty_percent,
-    };
-
-    const holders = COLLECTION_HOLDERS[activeCollection.id] || [
-      {
-        rank: 1,
-        accountId: activeCollection.creator || 'qrm1.testnet',
-        tokensHeld: Array.from({ length: 17 }, (_, i) => `#${i + 4}`),
-        count: 17,
-        percent: 85,
-        votingPower: 17,
-        vaultValueNear: '8.50 NEAR',
-      },
-      {
-        rank: 2,
-        accountId: walletAccountId || 'malekoala9992.testnet',
-        tokensHeld: ['#2', '#3'],
-        count: 2,
-        percent: 10,
-        votingPower: 2,
-        vaultValueNear: '1.00 NEAR',
-      },
-    ];
-    const colOffers = COLLECTION_OFFERS[activeCollection.id] || [];
-    const traits = COLLECTION_TRAITS[activeCollection.id] || [
-      { name: 'Luminescent Core', category: 'Visual Element', rarityPercent: 50, count: 10 },
-      { name: 'Celestial Glass Quill', category: 'Visual Element', rarityPercent: 50, count: 10 },
-      { name: '0.50 Native NEAR Vault', category: 'Vault Reserve', rarityPercent: 100, count: 20 },
-      { name: '1 DAO Share / Vote', category: 'Governance Weight', rarityPercent: 100, count: 20 },
-    ];
-    const activities = (COLLECTION_ACTIVITY[activeCollection.id] || [
-      {
-        id: `act-${activeCollection.id}-list`,
-        event: 'List',
-        tokenId: '4-20',
-        title: `${activeCollection.name} #4–#20`,
-        priceNear: `${activeCollection.price_near} NEAR ea.`,
-        from: activeCollection.creator,
-        to: 'mkt.qrm1.testnet',
-        date: '1 hour ago',
-        txHash: '9VxM41nL2w8P',
-      },
-    ]).filter((act) => {
-      if (activityFilter === 'all') return true;
-      return act.event === activityFilter;
-    });
+    // Every figure comes from the chain (see chain.ts): contract state, the market's sale counters
+    // and its recorded sales. Nothing is estimated or defaulted.
+    const stats = activeCollection.stats!;
+    const holders = holdersByCollection?.[activeCollection.id] ?? [];
+    const traits: { name: string; category: string; rarityPercent: number; count: number }[] = [];
+    const activities: CollectionActivity[] = (sales || [])
+      .filter((x) => x.collection === activeCollection.name)
+      .map((x, i) => ({
+        id: `sale-${i}`,
+        event: 'Sale' as const,
+        tokenId: x.nft_id.split('#')[1] || '',
+        title: x.nft_id,
+        priceNear: `${x.price_near} NEAR`,
+        from: x.seller || '',
+        to: x.buyer,
+        date: x.date,
+        txHash: '',
+      }))
+      .filter((act) => activityFilter === 'all' || act.event === activityFilter);
 
     // DAO Governance Proposals & Voting Rights
     const collectionProposals = (proposals || []).filter(
@@ -535,8 +467,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </span>
             <span className="neutral-badge">{stats.createdDate}</span>
             <span className="neutral-badge">{stats.royaltyPercent}% CREATOR FEE</span>
-            <span className="success-badge">0.50 NEAR KEYLESS VAULT</span>
-            <span className="gold-badge">{(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR DAO TREASURY</span>
+            <span className="success-badge">{activeCollection.backing_summary.toUpperCase()}</span>
+            <span className="gold-badge">{activeCollection.treasuryNear} NEAR DAO TREASURY</span>
           </div>
 
           <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.6, color: '#C4C4CC', maxWidth: '820px' }}>
@@ -615,7 +547,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         >
           {[
             { id: 'items', label: `Items (${rawCollectionListings.length})`, icon: Layers },
-            { id: 'offers', label: `Offers (${colOffers.length})`, icon: Tag },
             { id: 'holders', label: `Holders (${holders.length})`, icon: Users },
             { id: 'traits', label: `Traits (${traits.length})`, icon: Sparkles },
             { id: 'activity', label: 'Activity', icon: Activity },
@@ -799,7 +730,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           borderRadius: '8px',
                         }}
                       >
-                        0.50 NEAR Vault
+                        {token.backing}
                       </span>
                       {token.is_on_chain && (
                         <span
@@ -820,7 +751,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             gap: '4px',
                           }}
                         >
-                          <ShieldCheck size={11} /> On-chain (mkt.qrm1)
+                          <ShieldCheck size={11} /> On-chain (market)
                         </span>
                       )}
                     </div>
@@ -854,17 +785,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       >
                         Buy for {token.price} NEAR
                       </button>
-                      {onPlaceOffer && (
-                        <button
-                          type="button"
-                          onClick={() => setOfferModalToken(token)}
-                          className="btn-secondary"
-                          style={{ minHeight: '40px', padding: '0 14px', fontSize: '13px' }}
-                          title="Place escrow offer"
-                        >
-                          Offer
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -878,100 +798,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         {/* ===================================================================
             TAB 2: OFFERS (COLLECTION-WIDE ESCROW OFFERS)
            =================================================================== */}
-        {collectionTab === 'offers' && (
-          <section
-            style={{
-              background: '#15151B',
-              border: '1px solid #2A2A33',
-              borderRadius: '24px',
-              padding: '24px',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 600 }}>Active Offers on {activeCollection.name}</h2>
-                <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-                  Offers are locked in Quorum testnet escrow and settle instantly when accepted.
-                </span>
-              </div>
-              <span className="gold-badge">{colOffers.length} Active Offers</span>
-            </div>
-
-            {colOffers.length === 0 ? (
-              <div style={{ padding: '48px 24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '16px', border: '1px solid #2A2A33' }}>
-                <Tag size={32} color="#71717A" style={{ marginBottom: '8px' }} />
-                <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#F4F4F5' }}>No Active Offers Yet</h3>
-                <p style={{ margin: 0, fontSize: '13px' }}>
-                  Be the first to place an escrow offer on {activeCollection.name} pieces.
-                </p>
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '600px' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', color: '#A1A1AA', fontSize: '12px' }}>
-                      <th style={{ padding: '10px 12px' }}>Item</th>
-                      <th style={{ padding: '10px 12px' }}>Offer Price</th>
-                      <th style={{ padding: '10px 12px' }}>Vault Backing</th>
-                      <th style={{ padding: '10px 12px' }}>Offered By</th>
-                      <th style={{ padding: '10px 12px' }}>Duration</th>
-                      <th style={{ padding: '10px 12px' }}>Status</th>
-                      <th style={{ padding: '10px 12px' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {colOffers.map((o) => {
-                      const isOwner = userNfts?.some((nft) => nft.id === o.nft_id) || (walletAccountId === 'malekoala9992.testnet' && o.nft_id.includes('molt'));
-                      return (
-                        <tr key={o.id}>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <img src={o.image} alt={o.nft_title} style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }} />
-                              <strong>{o.nft_title}</strong>
-                            </div>
-                          </td>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
-                            {o.amount_near} NEAR
-                          </td>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#86EFAC' }}>
-                            0.50 NEAR
-                          </td>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
-                            {o.from}
-                          </td>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>
-                            {o.expires_in}
-                          </td>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
-                            <span className="success-badge" style={{ fontSize: '11px' }}>Escrowed</span>
-                          </td>
-                          <td style={{ padding: '12px', borderTop: '1px solid #2A2A33' }}>
-                            {isOwner && onAcceptOffer ? (
-                              <button
-                                type="button"
-                                onClick={() => onAcceptOffer(o)}
-                                className="btn-primary"
-                                style={{ minHeight: '34px', padding: '0 14px', fontSize: '12px' }}
-                              >
-                                Accept &amp; Settle
-                              </button>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: '#71717A' }}>Held in Escrow</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        )}
         {collectionTab === 'holders' && (
           <section
             style={{
@@ -1235,70 +1061,12 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               </span>
             </div>
 
-            {/* Visual Floor & Volume Chart */}
-            <div
-              style={{
-                background: '#1D1D25',
-                border: '1px solid #2A2A33',
-                borderRadius: '16px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <strong style={{ fontSize: '15px' }}>7-Day Floor Price &amp; Trading Volume (NEAR)</strong>
-                <span className="success-badge">+100% Floor Growth (1.00 → 2.00 NEAR)</span>
-              </div>
-
-              {/* Chart SVG Graphic */}
-              <div style={{ width: '100%', height: '160px', position: 'relative' }}>
-                <svg viewBox="0 0 600 140" style={{ width: '100%', height: '100%' }}>
-                  <defs>
-                    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#F5A524" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="#F5A524" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
-                  {/* Grid lines */}
-                  <line x1="0" y1="20" x2="600" y2="20" stroke="#2A2A33" strokeDasharray="4" />
-                  <line x1="0" y1="70" x2="600" y2="70" stroke="#2A2A33" strokeDasharray="4" />
-                  <line x1="0" y1="120" x2="600" y2="120" stroke="#2A2A33" />
-
-                  {/* Volume Bars */}
-                  <rect x="40" y="80" width="24" height="40" fill="#2A2A33" rx="4" />
-                  <rect x="130" y="60" width="24" height="60" fill="#2A2A33" rx="4" />
-                  <rect x="220" y="40" width="24" height="80" fill="#2A2A33" rx="4" />
-                  <rect x="310" y="50" width="24" height="70" fill="#2A2A33" rx="4" />
-                  <rect x="400" y="30" width="24" height="90" fill="#2A2A33" rx="4" />
-                  <rect x="490" y="20" width="24" height="100" fill="rgba(245, 165, 36, 0.6)" rx="4" />
-
-                  {/* Price Line & Fill */}
-                  <path
-                    d="M 52 100 Q 142 90 232 75 T 412 40 T 502 25"
-                    fill="none"
-                    stroke="#F5A524"
-                    strokeWidth="3"
-                  />
-                  <circle cx="502" cy="25" r="5" fill="#F5A524" />
-                </svg>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#71717A' }}>
-                <span>Day 1 (Mint @ 1.00 NEAR)</span>
-                <span>Day 3 (Vault Funded)</span>
-                <span>Day 5 (Secondary Trades)</span>
-                <span style={{ color: '#F5A524', fontWeight: 600 }}>Today (Floor: {stats.floorPrice})</span>
-              </div>
-            </div>
-
             {/* Solvency & Depth Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
               <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
                 <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Individual Vault Reserves</span>
                 <strong style={{ display: 'block', fontSize: '20px', color: '#86EFAC', marginTop: '4px' }}>
-                  {((activeCollection.minted || 1) * 0.50).toFixed(2)} NEAR
+                  {fmtNear(activeCollection.escrowYocto)} NEAR
                 </strong>
                 <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
                   100% held in verifiable keyless sub-accounts
@@ -1308,7 +1076,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
                 <span style={{ fontSize: '12px', color: '#A1A1AA' }}>DAO Treasury Reserve</span>
                 <strong style={{ display: 'block', fontSize: '20px', color: '#F4F4F5', marginTop: '4px' }}>
-                  {(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR
+                  {activeCollection.treasuryNear} NEAR
                 </strong>
                 <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
                   Controlled by {activeCollection.name} DAO
@@ -1318,7 +1086,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '16px', padding: '16px' }}>
                 <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Combined Community Capital</span>
                 <strong style={{ display: 'block', fontSize: '20px', color: '#F5A524', marginTop: '4px' }}>
-                  {(((activeCollection.minted || 1) * 0.50) + (daoBalances?.totalBalance ?? 2.00)).toFixed(2)} NEAR
+                  {fmtNear(activeCollection.escrowYocto + activeCollection.treasuryYocto)} NEAR
                 </strong>
                 <span style={{ fontSize: '11px', color: '#71717A', marginTop: '2px', display: 'block' }}>
                   Vault backing + Treasury collateral
@@ -1345,9 +1113,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           const colDaoAccounts = getCollectionDaoAccounts(activeCollection.id);
           const activeTreasuryAccount = daoBalances?.treasuryAccount || colDaoAccounts.treasuryAccount;
           const activeDaoAccount = daoBalances?.daoAccount || colDaoAccounts.daoAccount;
-          const treasuryNear = daoBalances?.treasuryBalance ?? 1.50;
-          const treasuryCapacity = 20.00;
-          const fillPercent = Math.min(92, Math.max(18, Math.round((treasuryNear / treasuryCapacity) * 100)));
+          const treasuryNear = Number(activeCollection.treasuryNear);
+          // Most the mint can ever route to the treasury: half of every mint price at full supply.
+          const treasuryCapacity = Math.max(0.01, (activeCollection.supply * Number(activeCollection.price_near)) / 2);
+          const fillPercent = Math.min(100, Math.round((treasuryNear / treasuryCapacity) * 100));
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
@@ -1507,7 +1276,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     </strong>
 
                     <span style={{ fontSize: '12px', color: '#D4D4D8' }}>
-                      ~${(treasuryNear * 5.2).toFixed(2)} USD • 100% Reserve
+                      testnet NEAR · read from the treasury contract
                     </span>
 
                     <span
@@ -1545,7 +1314,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       {activeCollection.name} DAO Treasury
                     </h2>
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-                      Quorum enforces an exact <strong>50/50 capital split</strong> at mint: <strong>50% (0.50 NEAR per NFT)</strong> funds this collection's dedicated on-chain Treasury (<code style={{ color: '#F5A524' }}>{activeTreasuryAccount}</code>), and <strong>50% (0.50 NEAR per NFT)</strong> locks into the holder's keyless vault. Both balances are live from NEAR testnet RPC.
+                      Quorum enforces an exact <strong>50/50 capital split</strong> at mint: <strong>50% of each mint price</strong> funds this collection's dedicated on-chain Treasury (<code style={{ color: '#F5A524' }}>{activeTreasuryAccount}</code>), and <strong>50% of each mint price</strong> locks into the holder's keyless vault. Both balances are live from NEAR testnet RPC.
                     </p>
                   </div>
 
@@ -1554,16 +1323,23 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>50% DAO TREASURY</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#F5A524', marginTop: '2px' }}>
-                        {(daoBalances?.treasuryBalance ?? 1.50).toFixed(2)} NEAR
+                        {activeCollection.treasuryNear} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>Target: 10.00 NEAR @ 20/20</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{(() => {
+                          // Where the treasury's balance came from, derived from chain figures only:
+                          // 50% of every mint, 5% of market volume, and whatever else was sent in or paid out.
+                          const mintShare = activeCollection.minted * Number(activeCollection.price_near) / 2;
+                          const feeShare = parseFloat(stats.totalVolume) * 0.05;
+                          const other = Number(activeCollection.treasuryNear) - mintShare - feeShare;
+                          return `mints ${mintShare.toFixed(2)} · sale fees ${feeShare.toFixed(2)} · other ${other.toFixed(2)} (seed, donations, net of payouts)`;
+                        })()}</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>50% VAULT ESCROW</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#86EFAC', marginTop: '2px' }}>
-                        {((activeCollection.minted || 1) * 0.50).toFixed(2)} NEAR
+                        {fmtNear(activeCollection.escrowYocto)} NEAR
                       </strong>
-                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>0.50 NEAR / minted NFT</span>
+                      <span style={{ fontSize: '11px', color: '#A1A1AA' }}>half of each mint price</span>
                     </div>
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>SPLIT RATIO</span>
@@ -1575,7 +1351,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     <div style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: '14px', padding: '12px 14px' }}>
                       <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase' }}>GOV DAO RESERVE</span>
                       <strong style={{ display: 'block', fontSize: '18px', color: '#D8B4FE', marginTop: '2px' }}>
-                        {(daoBalances?.daoBalance ?? 0.50).toFixed(2)} NEAR
+                        {daoBalances ? daoBalances.daoBalance.toFixed(2) : '…'} NEAR
                       </strong>
                       <span style={{ fontSize: '11px', color: '#A1A1AA' }}>{activeDaoAccount}</span>
                     </div>
@@ -1608,7 +1384,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             {(daoBalances?.treasuryBalance ?? 1.50).toFixed(4)} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                            ~${((daoBalances?.treasuryBalance ?? 1.50) * 5.2).toFixed(2)}
+ testnet NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <a
@@ -1632,10 +1408,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             Governance DAO
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#86EFAC', fontFamily: 'Space Grotesk' }}>
-                            {(daoBalances?.daoBalance ?? 0.50).toFixed(4)} NEAR
+                            {daoBalances ? daoBalances.daoBalance.toFixed(4) : '…'} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
-                            ~${((daoBalances?.daoBalance ?? 0.50) * 5.2).toFixed(2)}
+ testnet NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <a
@@ -1656,10 +1432,10 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             {activeCollection.name}
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 800, color: '#FFFFFF', fontFamily: 'Space Grotesk' }}>
-                            {(daoBalances?.totalBalance ?? 2.00).toFixed(4)} NEAR
+                            {activeCollection.treasuryNear} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 600 }}>
-                            ~${((daoBalances?.totalBalance ?? 2.00) * 5.2).toFixed(2)}
+ testnet NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <span className="success-badge" style={{ fontSize: '11px' }}>100% Verifiable</span>
@@ -1955,101 +1731,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           );
         })()}
 
-        {/* Quick Offer Modal */}
-        {offerModalToken && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.7)',
-              backdropFilter: 'blur(6px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: '16px',
-            }}
-          >
-            <div
-              style={{
-                background: '#15151B',
-                border: '1px solid #2A2A33',
-                borderRadius: '24px',
-                padding: '28px',
-                maxWidth: '440px',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Make Escrow Offer</h3>
-                <button
-                  type="button"
-                  onClick={() => setOfferModalToken(null)}
-                  style={{ background: 'transparent', border: 'none', color: '#A1A1AA', cursor: 'pointer', fontSize: '18px' }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#1D1D25', padding: '12px', borderRadius: '14px', border: '1px solid #2A2A33' }}>
-                <img src={offerModalToken.image} alt={offerModalToken.title} style={{ width: '48px', height: '48px', borderRadius: '10px', objectFit: 'cover' }} />
-                <div>
-                  <strong style={{ fontSize: '15px' }}>{offerModalToken.title}</strong>
-                  <span style={{ fontSize: '12px', color: '#A1A1AA', display: 'block' }}>Listed at: {offerModalToken.price} NEAR</span>
-                </div>
-              </div>
-
-              <form onSubmit={handleQuickOfferSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#A1A1AA' }}>
-                  Your Offer Amount (NEAR test tokens)
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0.1"
-                    value={offerInputAmount}
-                    onChange={(e) => setOfferInputAmount(e.target.value)}
-                    style={{
-                      minHeight: '44px',
-                      borderRadius: '12px',
-                      border: '1px solid #2A2A33',
-                      background: '#1D1D25',
-                      color: '#F4F4F5',
-                      padding: '0 12px',
-                      fontSize: '15px',
-                      fontFamily: 'Space Grotesk',
-                    }}
-                  />
-                </label>
-
-                <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#71717A' }}>
-                  Your offer will be locked into Quorum testnet escrow. If accepted, the piece transfers to your wallet. You can cancel and refund anytime.
-                </p>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setOfferModalToken(null)}
-                    className="btn-secondary"
-                    style={{ flex: 1, minHeight: '44px' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    style={{ flex: 1, minHeight: '44px' }}
-                  >
-                    Lock Offer &amp; Escrow
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -2252,7 +1933,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             }}
           >
             <strong style={{ color: '#F4F4F5', display: 'block', marginBottom: '2px' }}>100% On-Chain Testnet Assets</strong>
-            Every piece holds 0.50 NEAR in its dedicated keyless vault.
+            Every piece holds half its mint price in its own keyless vault.
           </div>
         </aside>
       </div>
@@ -2339,7 +2020,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     {col.description}
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', borderTop: '1px solid #2A2A33', paddingTop: '12px' }}>
-                    <span>Backing: <strong style={{ color: '#86EFAC' }}>0.50 NEAR</strong></span>
+                    <span>Backing: <strong style={{ color: '#86EFAC' }}>{col.backing_summary.replace(' in vault', '')}</strong></span>
                     <span style={{ color: '#F5A524', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       View {col.name} Dashboard <ArrowRight size={14} />
                     </span>
@@ -2374,7 +2055,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </span>
           </div>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>
-            Each piece holds 0.50 NEAR in its keyless sub-account vault
+            Each piece holds half its mint price in its keyless sub-account vault
           </span>
         </div>
 
@@ -2489,7 +2170,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     borderRadius: '8px',
                   }}
                 >
-                  0.50 NEAR Vault
+                  {token.backing}
                 </span>
                 {token.is_on_chain && (
                   <span
@@ -2510,7 +2191,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       gap: '4px',
                     }}
                   >
-                    <ShieldCheck size={11} /> On-chain (mkt.qrm1)
+                    <ShieldCheck size={11} /> On-chain (market)
                   </span>
                 )}
               </div>
@@ -2523,7 +2204,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#A1A1AA' }}>
-                  <span>Backing: 0.50 NEAR</span>
+                  <span>Backing: {token.backing}</span>
                   <a
                     href={`https://testnet.nearblocks.io/address/${token.vault_account}`}
                     target="_blank"

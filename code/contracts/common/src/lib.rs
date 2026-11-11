@@ -22,3 +22,20 @@ pub const SALE_POOL_BPS: u16 = 500;
 pub const REDEEM_POOL_BPS: u16 = 1_000;
 /// Maximum asset types one vault or the pool may hold: NEAR plus 8 fungible tokens.
 pub const MAX_ASSET_TYPES: usize = 9;
+
+/// Aborts the call with `msg` kept in the failure text. In these builds `env::panic_str` compiles to a
+/// bare trap (users only see "unreachable"); the host `panic_utf8` call keeps the reason visible.
+#[allow(deprecated)]
+pub fn fail(msg: &str) -> ! {
+    near_sdk::env::panic(msg.as_bytes())
+}
+
+/// Like `near_sdk::require!` but the message survives in release builds.
+#[macro_export]
+macro_rules! require {
+    ($cond:expr, $msg:expr $(,)?) => {
+        if !$cond {
+            $crate::fail($msg)
+        }
+    };
+}

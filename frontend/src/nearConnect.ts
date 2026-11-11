@@ -13,7 +13,7 @@ export function getNearConnector(): NearConnector {
         version: string;
       },
       signIn: {
-        contractId: 'qrm1.testnet',
+        contractId: 'market.qrmx-founder1.testnet',
       },
     });
   }
@@ -178,10 +178,11 @@ export async function sendNearTransaction(params: {
     network: 'testnet',
   });
 
-  const txHash =
-    outcome?.transaction?.hash ||
-    outcome?.transaction_outcome?.id ||
-    `tx_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const txHash = outcome?.transaction?.hash || outcome?.transaction_outcome?.id;
+  if (!txHash) {
+    // Never invent a hash: without one nothing can be verified on-chain.
+    throw new Error('The wallet did not return a transaction hash, so the result cannot be verified on-chain.');
+  }
 
   return { hash: txHash, success: true };
 }

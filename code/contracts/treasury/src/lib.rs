@@ -13,21 +13,28 @@
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk::store::LookupMap;
-use near_sdk::{env, ext_contract, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError};
+use near_sdk::{env, ext_contract, near, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError};
+use quorum_common::require;
 use quorum_common::asset::ft_contract;
 use quorum_common::events::emit;
 use quorum_common::ext::{ext_ft, ext_wrap};
 use quorum_common::swap::{route_output, swap_msg, Hop};
 use quorum_common::MAX_ASSET_TYPES;
 
-/// Fixed-point scale for the reward index.
-const SCALE: u128 = 1_000_000_000_000_000_000_000_000;
+/// Fixed-point scale for the reward index. Kept small on purpose: assets have up to 24 decimals, so
+/// `amount * SCALE` with a 10^24 scale needs ~10^48 and overflows u128 (max ~3.4e38) for any real
+/// distribution. At 10^9 the index holds up to ~340k NEAR per token in total, and rounding dust
+/// is at most 1e-9 yocto per token per distribution.
+const SCALE: u128 = 1_000_000_000;
 const GAS_QUERY: Gas = Gas::from_tgas(10);
 const GAS_PAY: Gas = Gas::from_tgas(20);
 const GAS_CB: Gas = Gas::from_tgas(30);
 const YOCTO: NearToken = NearToken::from_yoctonear(1);
 /// NEAR kept for storage so the pool account can never be starved.
 const NEAR_RESERVE: NearToken = NearToken::from_near(1);
+/// One spend may take at most this share of the treasury's free funds (25%). A captured vote
+/// can then never empty the treasury in one transaction.
+const SPEND_CAP_BPS: u128 = 2_500;
 
 #[ext_contract(ext_nft_supply)]
 pub trait NftSupply {
@@ -83,6 +90,7 @@ impl Treasury {
     pub fn spend(&mut self, recipient: AccountId, asset: String, amount: U128, purpose: String) -> Promise {
         self.only_dao();
         require!(amount.0 > 0, "Amount must be positive");
+        quorum_common::asset::assert_asset(&asset);
         self.available(&asset).then(
             Self::ext(env::current_account_id()).with_static_gas(GAS_CB)
                 .on_spend_funds(recipient, asset, amount, purpose),
@@ -91,9 +99,10 @@ impl Treasury {
 
     #[private]
     pub fn on_spend_funds(&mut self, #[callback_result] bal: Result<U128, PromiseError>, recipient: AccountId, asset: String, amount: U128, purpose: String) -> Promise {
-        let have = bal.unwrap_or_else(|_| env::panic_str("Balance check failed")).0;
+        let have = bal.unwrap_or_else(|_| quorum_common::fail("Balance check failed")).0;
         let free = have.saturating_sub(self.reserved_of(&asset));
         require!(free >= amount.0, "Insufficient unreserved funds");
+        require!(amount.0.saturating_mul(10_000) <= free.saturating_mul(SPEND_CAP_BPS), "A single spend may not exceed 25% of the treasury's free funds");
         emit("treasury_spend", json!({ "recipient": recipient, "asset": asset, "amount": amount, "purpose": purpose }));
         self.send(&asset, &recipient, amount.0)
     }
@@ -102,6 +111,7 @@ impl Treasury {
     pub fn distribute(&mut self, asset: String, amount: U128) -> Promise {
         self.only_dao();
         require!(amount.0 > 0, "Amount must be positive");
+        quorum_common::asset::assert_asset(&asset);
         if !self.assets.contains(&asset) {
             require!(self.assets.len() < MAX_ASSET_TYPES, "Too many distributed asset types");
         }
@@ -113,22 +123,22 @@ impl Treasury {
     #[private]
     pub fn on_distribute_inputs(&mut self, asset: String, amount: U128) {
         let supply: near_sdk::json_types::U64 = match env::promise_result_checked(0, 64) {
-            Ok(b) => near_sdk::serde_json::from_slice(&b).unwrap_or_else(|_| env::panic_str("Bad supply")),
-            Err(_) => env::panic_str("Supply check failed"),
+            Ok(b) => near_sdk::serde_json::from_slice(&b).unwrap_or_else(|_| quorum_common::fail("Bad supply")),
+            Err(_) => quorum_common::fail("Supply check failed"),
         };
         let have: U128 = match env::promise_result_checked(1, 64) {
-            Ok(b) => near_sdk::serde_json::from_slice(&b).unwrap_or_else(|_| env::panic_str("Bad balance")),
-            Err(_) => env::panic_str("Balance check failed"),
+            Ok(b) => near_sdk::serde_json::from_slice(&b).unwrap_or_else(|_| quorum_common::fail("Bad balance")),
+            Err(_) => quorum_common::fail("Balance check failed"),
         };
         require!(supply.0 > 0, "No live NFTs");
         let free = have.0.saturating_sub(self.reserved_of(&asset));
         require!(free >= amount.0, "Insufficient unreserved funds");
-        let per_token = amount.0 * SCALE / supply.0 as u128;
-        let distributed = per_token * supply.0 as u128 / SCALE; // dust stays in the pool
+        let per_token = quorum_common::mul_div(amount.0, SCALE, supply.0 as u128);
+        let distributed = quorum_common::mul_div(per_token, supply.0 as u128, SCALE); // dust stays in the pool
         let i = self.slot(&asset);
         self.index[i] += per_token;
         self.reserved[i] += distributed;
-        emit("treasury_distribution", json!({ "asset": asset, "amount": amount, "per_token_e24": U128(per_token), "live_supply": supply, "distributed": U128(distributed) }));
+        emit("treasury_distribution", json!({ "asset": asset, "amount": amount, "per_token_scaled": U128(per_token), "live_supply": supply, "distributed": U128(distributed) }));
     }
 
     /// Swaps pool funds into another asset through an approved DEX (Rhea/Ref classic
@@ -140,7 +150,7 @@ impl Treasury {
         require!(self.dexes.contains(&dex), "That DEX has not been approved");
         require!(route_output(&hops) == Some(&token_out), "The route must end in the output token");
         let in_account = self.swap_input_account(&token_in);
-        swap_msg(&in_account, amount.0, &hops, min_out.0).unwrap_or_else(|e| env::panic_str(e));
+        swap_msg(&in_account, amount.0, &hops, min_out.0).unwrap_or_else(|e| quorum_common::fail(e));
         self.available(&token_in).then(
             Self::ext(env::current_account_id()).with_static_gas(Gas::from_tgas(230))
                 .on_swap_funds(token_in, amount, token_out, hops, min_out, dex),
@@ -149,10 +159,10 @@ impl Treasury {
 
     #[private]
     pub fn on_swap_funds(&mut self, #[callback_result] bal: Result<U128, PromiseError>, token_in: String, amount: U128, token_out: AccountId, hops: Vec<Hop>, min_out: U128, dex: AccountId) -> Promise {
-        let have = bal.unwrap_or_else(|_| env::panic_str("Balance check failed")).0;
+        let have = bal.unwrap_or_else(|_| quorum_common::fail("Balance check failed")).0;
         require!(have.saturating_sub(self.reserved_of(&token_in)) >= amount.0, "Insufficient unreserved funds");
         let in_account = self.swap_input_account(&token_in);
-        let msg = swap_msg(&in_account, amount.0, &hops, min_out.0).unwrap_or_else(|e| env::panic_str(e));
+        let msg = swap_msg(&in_account, amount.0, &hops, min_out.0).unwrap_or_else(|e| quorum_common::fail(e));
         emit("treasury_swap_started", json!({ "token_in": token_in, "amount": amount, "token_out": token_out, "min_out": min_out, "dex": dex }));
         let register = ext_ft::ext(token_out.clone()).with_static_gas(Gas::from_tgas(15)).with_attached_deposit(NearToken::from_millinear(5))
             .storage_deposit(Some(env::current_account_id()), Some(true));
@@ -180,15 +190,15 @@ impl Treasury {
         self.only_dao();
         match key.as_str() {
             "allow_dex" => {
-                let a: AccountId = value.parse().unwrap_or_else(|_| env::panic_str("Invalid account"));
+                let a: AccountId = value.parse().unwrap_or_else(|_| quorum_common::fail("Invalid account"));
                 require!(self.dexes.len() < 5, "At most 5 approved DEXes");
                 if !self.dexes.contains(&a) { self.dexes.push(a); }
             }
             "revoke_dex" => {
-                let a: AccountId = value.parse().unwrap_or_else(|_| env::panic_str("Invalid account"));
+                let a: AccountId = value.parse().unwrap_or_else(|_| quorum_common::fail("Invalid account"));
                 self.dexes.retain(|d| d != &a);
             }
-            _ => env::panic_str("Unknown parameter"),
+            _ => quorum_common::fail("Unknown parameter"),
         }
         emit("treasury_param", json!({ "key": key, "value": value }));
     }
@@ -247,7 +257,7 @@ fn ck(token_id: &str, asset: &str) -> String { format!("{token_id}|{asset}") }
 
 impl Treasury {
     fn swap_input_account(&self, token_in: &str) -> AccountId {
-        if token_in == "near" { self.wrap.clone() } else { ft_contract(token_in).unwrap_or_else(|| env::panic_str("token_in must be near or nep141:<token>")) }
+        if token_in == "near" { self.wrap.clone() } else { ft_contract(token_in).unwrap_or_else(|| quorum_common::fail("token_in must be near or nep141:<token>")) }
     }
     fn only_dao(&self) { require!(env::predecessor_account_id() == self.dao, "Only the DAO"); }
     fn only_nft(&self) { require!(env::predecessor_account_id() == self.nft, "Only the NFT contract"); }

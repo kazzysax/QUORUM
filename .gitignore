@@ -50,3 +50,10 @@ desktop.ini
 **/.vercel
 *.log
 deploy_out.txt
+
+# local secrets and deploy output
+.env.local
+.vercel
+deploy_out.txt
+vercel_deploy.log
+*credentials*.json

@@ -4,7 +4,6 @@ import {
   PieChart,
   Rocket,
   CheckSquare,
-  Tag,
   ArrowUpRight,
   LayoutGrid,
   Sparkles,
@@ -38,7 +37,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { page: 'portfolio' as Page, label: 'Portfolio', icon: PieChart },
     { page: 'launch' as Page, label: 'Launch', icon: Rocket },
     { page: 'governance' as Page, label: 'Votings', icon: CheckSquare },
-    { page: 'offers' as Page, label: 'Offers', icon: Tag },
     { page: 'sells' as Page, label: 'Sells', icon: ArrowUpRight },
   ];
 
@@ -79,9 +77,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Brand Home Button */}
         <button
-          onClick={() => onNavigate('landing')}
+          onClick={() => { window.location.href = '/'; }}
           aria-label="Quorum home"
-          title={collapsed ? 'Quorum Overview' : undefined}
+          title={collapsed ? 'Quorum home' : undefined}
           style={{
             position: 'relative',
             width: collapsed ? '40px' : '46px',
@@ -113,25 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             />
           )}
-          <svg aria-hidden="true" width={collapsed ? 22 : 26} height={collapsed ? 22 : 26} viewBox="0 0 64 64">
-            <defs>
-              <linearGradient id="dg-side" x1="0.2" y1="0" x2="0.8" y2="1">
-                <stop offset="0" stopColor="#FFF4D6" />
-                <stop offset="0.38" stopColor="#F5C35A" />
-                <stop offset="0.72" stopColor="#E08A0B" />
-                <stop offset="1" stopColor="#7A3E05" />
-              </linearGradient>
-              <radialGradient id="dr-side" cx="0.5" cy="0.72" r="0.42">
-                <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.35" />
-                <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-            <path d="M32 4C32 4 12 27 12 40a20 20 0 0 0 40 0C52 27 32 4 32 4Z" fill="url(#dg-side)" />
-            <path d="M32 4C32 4 12 27 12 40a20 20 0 0 0 40 0C52 27 32 4 32 4Z" fill="url(#dr-side)" />
-            <path d="M32 4C32 4 12 27 12 40a20 20 0 0 0 40 0C52 27 32 4 32 4Z" fill="none" stroke="#FFF4D6" strokeOpacity="0.55" strokeWidth="1" />
-            <path d="M22 38c0-5 3-11 7-17" fill="none" stroke="#FFFFFF" strokeOpacity="0.85" strokeWidth="3.2" strokeLinecap="round" />
-            <ellipse cx="25" cy="46" rx="2.4" ry="1.6" fill="#FFFFFF" fillOpacity="0.6" />
-          </svg>
+          <img src="/logo.png" alt="" aria-hidden="true" width={collapsed ? 30 : 36} height={collapsed ? 30 : 36} style={{ display: 'block' }} />
         </button>
 
         {/* Collapse / Expand Toggle Button */}

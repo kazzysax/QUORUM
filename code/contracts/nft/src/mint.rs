@@ -49,7 +49,7 @@ pub fn validate_stages(stages: &[Stage]) {
         require!(s.per_wallet_limit > 0, "Per-wallet limit must be positive");
         match s.kind {
             StageKind::Presale => {
-                let root = s.merkle_root.as_ref().unwrap_or_else(|| env::panic_str("Presale needs an allowlist root"));
+                let root = s.merkle_root.as_ref().unwrap_or_else(|| quorum_common::fail("Presale needs an allowlist root"));
                 require!(root.0.len() == 32, "Merkle root must be 32 bytes");
                 require!(i + 1 < stages.len(), "Public stage must be last");
             }
@@ -70,7 +70,7 @@ impl Contract {
         let buyer = env::predecessor_account_id();
         let cfg = self.config.clone();
         require!(!cfg.paused, "Minting is paused");
-        let st = cfg.stages.get(stage as usize).unwrap_or_else(|| env::panic_str("Unknown stage")).clone();
+        let st = cfg.stages.get(stage as usize).unwrap_or_else(|| quorum_common::fail("Unknown stage")).clone();
         let now = env::block_timestamp_ms();
         require!(now >= st.start_ms.0 && now < st.end_ms.0, "Stage is not active");
         if st.kind == StageKind::Presale {

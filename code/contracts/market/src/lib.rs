@@ -11,8 +11,9 @@
 
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::{self, json};
-use near_sdk::store::LookupMap;
-use near_sdk::{env, ext_contract, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError};
+use near_sdk::store::{IterableMap, LookupMap, LookupSet};
+use near_sdk::{env, ext_contract, near, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError, PromiseOrValue};
+use quorum_common::require;
 use quorum_common::events::emit;
 use quorum_common::sale_split;
 
@@ -43,14 +44,47 @@ pub struct Listing {
     pub approval_id: u64,
 }
 
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug, Default)]
+pub struct SaleStats {
+    pub sales: u64,
+    /// Sum of completed sale prices in yoctoNEAR.
+    pub volume: U128,
+}
+
+const MAX_RECENT_SALES: usize = 100;
+
+#[near(serializers = [borsh, json])]
+#[derive(Clone, Debug)]
+pub struct SaleRecord {
+    pub nft: AccountId,
+    pub token_id: String,
+    pub buyer: AccountId,
+    pub seller: AccountId,
+    pub price: U128,
+    pub pool_fee: U128,
+    pub royalty: U128,
+    pub seller_net: U128,
+    pub at_ms: u64,
+}
+
 #[near(serializers = [borsh])]
 #[derive(BorshStorageKey)]
-enum Key { Listings }
+enum Key { Listings, Collections, Stats }
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
 pub struct Market {
-    listings: LookupMap<String, Listing>,
+    listings: IterableMap<String, Listing>,
+    /// Per-collection sales counters, so volume shown in the UI is read from chain state.
+    stats: LookupMap<AccountId, SaleStats>,
+    /// The last `MAX_RECENT_SALES` completed sales across all collections, oldest first.
+    recent: Vec<SaleRecord>,
+    /// Registers collections only. The owner cannot touch listings, prices or funds.
+    owner: AccountId,
+    /// Quorum collections allowed to list here. An unknown contract could return
+    /// attacker-chosen treasury/royalty accounts from `sale_terms`.
+    collections: LookupSet<AccountId>,
 }
 
 fn lk(nft: &AccountId, token_id: &str) -> String { format!("{nft}|{token_id}") }
@@ -58,15 +92,26 @@ fn lk(nft: &AccountId, token_id: &str) -> String { format!("{nft}|{token_id}") }
 #[near]
 impl Market {
     #[init]
-    pub fn new() -> Self { Self { listings: LookupMap::new(Key::Listings) } }
+    pub fn new(owner: AccountId) -> Self {
+        Self { listings: IterableMap::new(Key::Listings), stats: LookupMap::new(Key::Stats), recent: Vec::new(), owner, collections: LookupSet::new(Key::Collections) }
+    }
+
+    pub fn register_collection(&mut self, nft: AccountId) {
+        require!(env::predecessor_account_id() == self.owner, "Only the owner");
+        self.collections.insert(nft.clone());
+        emit("collection_registered", json!({ "nft": nft }));
+    }
+
+    pub fn is_collection(&self, nft: AccountId) -> bool { self.collections.contains(&nft) }
 
     /// NEP-178 callback: `nft_approve(token_id, market, msg = {"price": "..."})`.
     pub fn nft_on_approve(&mut self, token_id: String, owner_id: AccountId, approval_id: u64, msg: String) {
         let nft = env::predecessor_account_id();
+        require!(self.collections.contains(&nft), "Collection is not registered on this market");
         #[derive(near_sdk::serde::Deserialize)]
         #[serde(crate = "near_sdk::serde")]
         struct M { price: U128 }
-        let m: M = serde_json::from_str(&msg).unwrap_or_else(|_| env::panic_str("msg must be {\"price\":\"<yocto>\"}"));
+        let m: M = serde_json::from_str(&msg).unwrap_or_else(|_| quorum_common::fail("msg must be {\"price\":\"<yocto>\"}"));
         require!(m.price.0 > 0, "Price must be positive");
         let l = Listing { seller: owner_id, price: m.price, approval_id };
         emit("listed", json!({ "nft": nft, "token_id": token_id, "listing": l }));
@@ -75,7 +120,7 @@ impl Market {
 
     pub fn update_price(&mut self, nft: AccountId, token_id: String, price: U128) {
         require!(price.0 > 0, "Price must be positive");
-        let l = self.listings.get_mut(&lk(&nft, &token_id)).unwrap_or_else(|| env::panic_str("Not listed"));
+        let l = self.listings.get_mut(&lk(&nft, &token_id)).unwrap_or_else(|| quorum_common::fail("Not listed"));
         require!(env::predecessor_account_id() == l.seller, "Only the seller");
         l.price = price;
         emit("price_updated", json!({ "nft": nft, "token_id": token_id, "price": price }));
@@ -83,7 +128,7 @@ impl Market {
 
     pub fn cancel(&mut self, nft: AccountId, token_id: String) {
         let k = lk(&nft, &token_id);
-        let l = self.listings.get(&k).unwrap_or_else(|| env::panic_str("Not listed"));
+        let l = self.listings.get(&k).unwrap_or_else(|| quorum_common::fail("Not listed"));
         require!(env::predecessor_account_id() == l.seller, "Only the seller");
         self.listings.remove(&k);
         emit("cancelled", json!({ "nft": nft, "token_id": token_id }));
@@ -94,7 +139,7 @@ impl Market {
         let buyer = env::predecessor_account_id();
         let paid = env::attached_deposit();
         let k = lk(&nft, &token_id);
-        let l = self.listings.get(&k).cloned().unwrap_or_else(|| env::panic_str("Not listed"));
+        let l = self.listings.get(&k).cloned().unwrap_or_else(|| quorum_common::fail("Not listed"));
         require!(paid.as_yoctonear() == l.price.0, "Attach exactly the listed price");
         require!(approval_id == l.approval_id, "Stale listing: the approval id changed");
         require!(buyer != l.seller, "Cannot buy your own listing");
@@ -106,41 +151,74 @@ impl Market {
     }
 
     #[private]
-    pub fn on_terms(&mut self, #[callback_result] terms: Result<SaleTerms, PromiseError>, nft: AccountId, token_id: String, buyer: AccountId, seller: AccountId, price: U128, approval_id: u64) -> Promise {
-        let Ok(terms) = terms else { return self.refund(buyer, price, "terms unavailable") };
+    pub fn on_terms(&mut self, #[callback_result] terms: Result<SaleTerms, PromiseError>, nft: AccountId, token_id: String, buyer: AccountId, seller: AccountId, price: U128, approval_id: u64) -> PromiseOrValue<()> {
+        let Ok(terms) = terms else { self.refund(buyer, price, "terms unavailable"); return PromiseOrValue::Value(()) };
         // Reject a collection whose terms would take more than the whole price.
         if quorum_common::SALE_POOL_BPS as u32 + terms.royalty_bps as u32 > quorum_common::BPS as u32 {
-            return self.refund(buyer, price, "royalty too high");
+            self.refund(buyer, price, "royalty too high");
+            return PromiseOrValue::Value(());
         }
-        ext_collection::ext(nft.clone()).with_static_gas(GAS_TRANSFER).with_attached_deposit(YOCTO)
+        PromiseOrValue::Promise(ext_collection::ext(nft.clone()).with_static_gas(GAS_TRANSFER).with_attached_deposit(YOCTO)
             .nft_transfer(buyer.clone(), token_id.clone(), Some(approval_id), Some("quorum sale".into()))
             .then(Self::ext(env::current_account_id()).with_static_gas(GAS_CB)
-                .on_transferred(nft, token_id, buyer, seller, price, terms))
+                .on_transferred(nft, token_id, buyer, seller, price, terms)))
     }
 
     #[private]
-    pub fn on_transferred(&mut self, #[callback_result] moved: Result<(), PromiseError>, nft: AccountId, token_id: String, buyer: AccountId, seller: AccountId, price: U128, terms: SaleTerms) -> Promise {
+    pub fn on_transferred(&mut self, #[callback_result] moved: Result<(), PromiseError>, nft: AccountId, token_id: String, buyer: AccountId, seller: AccountId, price: U128, terms: SaleTerms) {
         if moved.is_err() {
-            return self.refund(buyer, price, "transfer failed");
+            self.refund(buyer, price, "transfer failed");
+            return;
         }
         let (pool, royalty, seller_net) = sale_split(price.0, terms.royalty_bps);
+        let mut s = self.stats.get(&nft).cloned().unwrap_or_default();
+        s.sales += 1;
+        s.volume = U128(s.volume.0 + price.0);
+        self.stats.insert(nft.clone(), s);
+        self.recent.push(SaleRecord {
+            nft: nft.clone(), token_id: token_id.clone(), buyer: buyer.clone(), seller: seller.clone(), price,
+            pool_fee: U128(pool), royalty: U128(royalty), seller_net: U128(seller_net), at_ms: env::block_timestamp_ms(),
+        });
+        if self.recent.len() > MAX_RECENT_SALES { self.recent.remove(0); }
         emit("sale", json!({ "nft": nft, "token_id": token_id, "buyer": buyer, "seller": seller, "price": price, "pool_fee": U128(pool), "royalty": U128(royalty), "seller_net": U128(seller_net) }));
-        let mut p = Promise::new(terms.treasury).transfer(NearToken::from_yoctonear(pool));
+        // Separate transfers: the runtime does not allow a callback to return a joined promise.
+        Promise::new(terms.treasury).transfer(NearToken::from_yoctonear(pool)).detach();
         if royalty > 0 {
-            p = p.and(Promise::new(terms.royalty_recipient).transfer(NearToken::from_yoctonear(royalty)));
+            Promise::new(terms.royalty_recipient).transfer(NearToken::from_yoctonear(royalty)).detach();
         }
-        p.and(Promise::new(seller).transfer(NearToken::from_yoctonear(seller_net)))
+        Promise::new(seller).transfer(NearToken::from_yoctonear(seller_net)).detach();
     }
 
     pub fn get_listing(&self, nft: AccountId, token_id: String) -> Option<Listing> {
         self.listings.get(&lk(&nft, &token_id)).cloned()
     }
+
+    /// Listings of one collection, as `(token_id, listing)`. A listing can outlive its
+    /// approval (the token moved or was burned): `buy` then fails and refunds, and clients
+    /// should confirm with `nft_is_approved` on the collection before showing one as live.
+    pub fn get_listings(&self, nft: AccountId, from_index: u64, limit: u64) -> Vec<(String, Listing)> {
+        let prefix = format!("{nft}|");
+        self.listings
+            .iter()
+            .filter(|(k, _)| k.starts_with(&prefix))
+            .skip(from_index as usize)
+            .take(limit as usize)
+            .map(|(k, l)| (k[prefix.len()..].to_string(), l.clone()))
+            .collect()
+    }
+
+    pub fn get_stats(&self, nft: AccountId) -> SaleStats { self.stats.get(&nft).cloned().unwrap_or_default() }
+
+    /// Newest first. `nft = None` returns sales of every collection.
+    pub fn recent_sales(&self, nft: Option<AccountId>, limit: u64) -> Vec<SaleRecord> {
+        self.recent.iter().rev().filter(|s| nft.as_ref().map_or(true, |n| &s.nft == n)).take(limit as usize).cloned().collect()
+    }
 }
 
 impl Market {
-    fn refund(&self, buyer: AccountId, price: U128, why: &str) -> Promise {
+    fn refund(&self, buyer: AccountId, price: U128, why: &str) {
         emit("sale_failed", json!({ "buyer": buyer, "price": price, "reason": why }));
-        Promise::new(buyer).transfer(NearToken::from_yoctonear(price.0))
+        Promise::new(buyer).transfer(NearToken::from_yoctonear(price.0)).detach();
     }
 }
 

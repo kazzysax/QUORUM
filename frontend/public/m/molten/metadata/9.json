@@ -1,0 +1,15 @@
+{
+  "name": "Molten Hours #9",
+  "description": "Amber currents caught mid-pour. Each Molten Hours NFT owns a keyless vault account and one vote in its own collection DAO.",
+  "image": "https://quorumio.vercel.app/media/molten/9",
+  "attributes": [
+    {
+      "trait_type": "Collection",
+      "value": "Molten Hours"
+    },
+    {
+      "trait_type": "Vault",
+      "value": "v9.<collection contract>"
+    }
+  ]
+}

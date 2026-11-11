@@ -29,7 +29,8 @@ use near_contract_standards::non_fungible_token::metadata::{NFTContractMetadata,
 use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128, U64};
 use near_sdk::store::LookupMap;
-use near_sdk::{env, near, require, AccountId, BorshStorageKey, NearToken, PanicOnDefault};
+use near_sdk::{env, near, AccountId, BorshStorageKey, NearToken, PanicOnDefault};
+use quorum_common::require;
 use quorum_common::asset::{ft_asset, NATIVE_NEAR};
 use quorum_common::{AssetId, MAX_ASSET_TYPES};
 
@@ -203,7 +204,7 @@ impl Contract {
 pub(crate) fn vault_account(token_id: &str) -> AccountId {
     format!("v{token_id}.{}", env::current_account_id())
         .parse()
-        .unwrap_or_else(|_| env::panic_str("Invalid vault account"))
+        .unwrap_or_else(|_| quorum_common::fail("Invalid vault account"))
 }
 
 /// Round-robin by weight: token number n (1-based) -> group index. Public and
@@ -225,6 +226,7 @@ pub(crate) fn validate_config(c: &Config) {
         "Pool fee plus royalty exceeds 100%"
     );
     require!(c.max_supply > 0, "Supply must be positive");
+    require!(c.settle_grace_ms.0 >= 3_600_000, "Settlement grace must be at least one hour");
     if let Some(h) = &c.provenance_hash { require!(h.0.len() == 32, "Provenance hash must be 32 bytes"); }
     require!(!c.asset_plan.is_empty() && c.asset_plan.len() <= 7, "1 to 7 plan assets");
     for (i, p) in c.asset_plan.iter().enumerate() {

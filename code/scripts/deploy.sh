@@ -40,11 +40,14 @@ done
 echo "== 3. deploy and initialise dao, treasury, market =="
 near contract deploy $DAO use-file $W/quorum_dao.wasm with-init-call new json-args "{\"nft\":\"$NFT\",\"treasury\":\"$TRE\",\"bounds\":$BOUNDS}" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
 near contract deploy $TRE use-file $W/quorum_treasury.wasm with-init-call new json-args "{\"dao\":\"$DAO\",\"nft\":\"$NFT\",\"dex\":\"$DEX\",\"wrap\":\"$WRAP\"}" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
-near contract deploy $MKT use-file $W/quorum_market.wasm with-init-call new json-args '{}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
+near contract deploy $MKT use-file $W/quorum_market.wasm with-init-call new json-args "{\"owner\":\"$FOUNDER\"}" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
 
 echo "== 4. initialise the collection (mainnet starts PAUSED with a small supply cap) =="
 INIT=$(FOUNDER=$FOUNDER TREASURY=$TRE DAO=$DAO VAULT_CODE_HASH=$HASH node scripts/make-init.mjs)
 near contract deploy $NFT use-file $W/quorum_nft.wasm with-init-call new json-args "$INIT" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
+
+echo "== 5. register the collection on the market so it can list =="
+near contract call-function as-transaction $MKT register_collection json-args "{\"nft\":\"$NFT\"}" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as $FOUNDER $NET
 
 cat <<MSG
 

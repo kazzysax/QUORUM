@@ -221,3 +221,68 @@ fn swap_proposals_round_trip_through_json() {
     let back: Kind = near_sdk::serde_json::from_str(&s).unwrap();
     assert_eq!(k, back);
 }
+
+#[test]
+#[should_panic(expected = "Asset must be")]
+fn a_spend_proposal_with_a_non_canonical_asset_is_refused() {
+    let mut d = dao();
+    testing_env!(ctx("nft.near", T0, 100).build());
+    let kind = Kind::Spend { recipient: acc("vendor.near"), asset: "NEAR".into(), amount: U128(5) };
+    d.create_proposal(acc("alice.near"), kind, "Pay".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+}
+
+#[test]
+fn a_batch_vote_counts_every_token_in_one_call() {
+    let mut d = dao();
+    let id = open(&mut d);
+    testing_env!(ctx("nft.near", T0 + 1_000, 150).build());
+    d.record_votes(id, acc("voter.near"), vec![
+        VoteToken { token_id: "1".into(), last_transfer_block: U64(10) },
+        VoteToken { token_id: "2".into(), last_transfer_block: U64(10) },
+        VoteToken { token_id: "3".into(), last_transfer_block: U64(10) },
+    ], 1);
+    assert_eq!(d.get_proposal(id).unwrap().yes.0, 3);
+    assert!(d.has_voted(id, "2".into()));
+}
+
+#[test]
+#[should_panic(expected = "changed hands")]
+fn one_ineligible_token_fails_the_whole_batch() {
+    let mut d = dao();
+    let id = open(&mut d);
+    testing_env!(ctx("nft.near", T0 + 1_000, 150).build());
+    d.record_votes(id, acc("voter.near"), vec![
+        VoteToken { token_id: "1".into(), last_transfer_block: U64(10) },
+        VoteToken { token_id: "2".into(), last_transfer_block: U64(120) },
+    ], 1);
+}
+
+#[test]
+#[should_panic(expected = "longer than 30 days")]
+fn a_voting_period_over_30_days_is_refused() {
+    let mut d = dao();
+    testing_env!(ctx("nft.near", T0, 100).build());
+    d.create_proposal(acc("alice.near"), spend(), "Pay".into(), U64(31 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+}
+
+#[test]
+fn a_passed_proposal_expires_after_the_execution_window() {
+    let mut d = dao();
+    let id = open(&mut d);
+    for (i, t) in ["1", "2", "3"].iter().enumerate() { vote(&mut d, id, t, 10, 1, T0 + 1_000 + i as u64); }
+    testing_env!(ctx("anyone.near", AFTER_LOCK, 200).build());
+    assert_eq!(d.status_of(id), Status::Passed);
+    testing_env!(ctx("anyone.near", AFTER_LOCK + 15 * DAY_MS, 200).build());
+    assert_eq!(d.status_of(id), Status::Expired);
+}
+
+#[test]
+fn list_proposals_returns_the_history_in_order() {
+    let mut d = dao();
+    let a = open(&mut d);
+    let b = open(&mut d);
+    let all = d.list_proposals(1, 10);
+    assert_eq!(all.iter().map(|p| p.id).collect::<Vec<_>>(), vec![a, b]);
+    assert_eq!(d.list_proposals(2, 10).len(), 1);
+    assert!(d.list_proposals(3, 10).is_empty());
+}

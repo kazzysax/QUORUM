@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, TokenItem } from '../types';
+import type { LiveCollection } from '../chain';
+import { fmtNear } from '../chain';
 import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 
 interface PortfolioPageProps {
@@ -12,6 +14,10 @@ interface PortfolioPageProps {
   onClaimSingle: (token: TokenItem) => void;
   onBurnToken: (token: TokenItem) => void;
   onAddToVault: (token: TokenItem, amount: string) => void;
+  collections?: LiveCollection[];
+  onCredit?: (collectionId: string, group: number) => void;
+  onEnableFallback?: (collectionId: string, group: number) => void;
+  onAbortSwap?: (collectionId: string, group: number) => void;
 }
 
 export const PortfolioPage: React.FC<PortfolioPageProps> = ({
@@ -24,6 +30,10 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   onClaimSingle,
   onBurnToken,
   onAddToVault,
+  collections = [],
+  onCredit,
+  onEnableFallback,
+  onAbortSwap,
 }) => {
   const [selectedTokenId, setSelectedTokenId] = useState<string>(nfts[0]?.id || '');
   const [showBurnModal, setShowBurnModal] = useState(false);
@@ -46,15 +56,12 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   }, 0);
 
   // Calculate dynamic NEAR backing across all owned NFTs
-  const totalNearBacking = nfts.reduce((acc, t) => {
-    const m = t.backing.match(/([\d.]+)\s*NEAR/i);
-    return acc + (m ? parseFloat(m[1]) : 1.0);
-  }, 0);
+  const sumNear = (str: string) => [...str.matchAll(/([\d.]+)\s*NEAR/gi)].reduce((a, m) => a + parseFloat(m[1]), 0);
+  const totalNearBacking = nfts.reduce((acc, t) => acc + sumNear(t.backing), 0);
 
   // Calculate 90% burn value (Pure NEAR)
   const parseBacking = (backingStr: string) => {
-    const nearMatch = backingStr.match(/([\d.]+)\s*NEAR/i);
-    const nearNum = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
+    const nearNum = sumNear(backingStr);
 
     const youGetNear = (nearNum * 0.9).toFixed(2);
     const daoNear = (nearNum * 0.1).toFixed(2);
@@ -70,8 +77,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   // Calculate projected new backing for Add to Vault modal
   const calculateProjectedBacking = () => {
     if (!selectedToken) return '';
-    const nearMatch = selectedToken.backing.match(/([\d.]+)\s*NEAR/i);
-    let curNear = nearMatch ? parseFloat(nearMatch[1]) : 1.0;
+    let curNear = sumNear(selectedToken.backing);
     const added = parseFloat(addAmount) || 0;
     curNear += added;
 
@@ -120,7 +126,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           </div>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 700 }}>Wallet Disconnected</h2>
           <p style={{ margin: 0, color: '#A1A1AA', fontSize: '15px', lineHeight: 1.6, maxWidth: '500px' }}>
-            Please connect your testnet wallet (<strong style={{ color: '#F4F4F5' }}>malekoala9992.testnet</strong>) to view and manage your 6 Keyless Vault NFTs, collect secondary sales dividends, deposit NEAR into vaults, or dissolve for 90% floor payout.
+            Connect a NEAR testnet wallet to see the Quorum NFTs it holds, claim distributions, add to vaults, or burn for the 90% floor payout. Everything here is read from the contracts.
           </p>
           <button
             type="button"
@@ -149,6 +155,32 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
         </button>
       </div>
 
+      {/* Settlement: permissionless steps, driven by on-chain group state */}
+      {collections.some((c) => c.groups.length > 0) && (
+        <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <strong style={{ fontSize: '15px' }}>Settlement (on-chain)</strong>
+          {collections.map((c) => c.groups.map((g) => (
+            <div key={c.id + g.index} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', color: '#A1A1AA' }}>
+              <span>
+                <strong style={{ color: '#F4F4F5' }}>{c.name}</strong> · group {g.index} ({g.asset}) · phase <strong style={{ color: '#F5A524' }}>{g.phase}</strong> · escrow {fmtNear(g.total_share, 3)} NEAR
+                {c.closed ? '' : ' · mint still open'}
+              </span>
+              <span style={{ display: 'flex', gap: '8px' }}>
+                {c.closed && g.phase === 'Pending' && onEnableFallback && (
+                  <button className="btn-secondary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={() => onEnableFallback(c.id, g.index)}>Enable NEAR fallback</button>
+                )}
+                {(g.phase === 'Swapped' || g.phase === 'Fallback') && onCredit && (
+                  <button className="btn-primary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={() => onCredit(c.id, g.index)}>Credit vaults</button>
+                )}
+                {g.phase === 'Swapping' && onAbortSwap && (
+                  <button className="btn-secondary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={() => onAbortSwap(c.id, g.index)}>Abort stuck swap</button>
+                )}
+              </span>
+            </div>
+          )))}
+        </div>
+      )}
+
       {/* 4 Stat Metric Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -161,7 +193,7 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           <strong style={{ fontSize: '24px', fontWeight: 700, color: '#F5A524' }}>
             {totalNearBacking.toFixed(2)} NEAR
           </strong>
-          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>100% Real testnet NEAR in vaults</span>
+          <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Vault balances plus mint escrow, read from chain</span>
         </div>
         <div style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Voting Power</span>

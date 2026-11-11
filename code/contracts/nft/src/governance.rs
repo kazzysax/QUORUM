@@ -13,7 +13,7 @@ pub const MAX_VOTE_BATCH: usize = 15;
 
 #[ext_contract(ext_dao)]
 pub trait Dao {
-    fn record_vote(&mut self, proposal_id: u64, voter: AccountId, token_id: String, last_transfer_block: U64, choice: u8);
+    fn record_votes(&mut self, proposal_id: u64, voter: AccountId, tokens: Vec<near_sdk::serde_json::Value>, choice: u8);
 }
 
 #[ext_contract(ext_dao_create)]
@@ -32,15 +32,16 @@ impl Contract {
     pub fn vote(&mut self, proposal_id: u64, token_ids: Vec<String>, choice: u8) -> Promise {
         require!(!token_ids.is_empty() && token_ids.len() <= MAX_VOTE_BATCH, "1 to 15 tokens per vote");
         let voter = env::predecessor_account_id();
-        let mut joined: Option<Promise> = None;
+        let mut tokens = Vec::with_capacity(token_ids.len());
         for id in token_ids {
             let (owner, st) = self.live_owner(&id);
             require!(owner == voter, "Not the owner of this token");
-            let p = ext_dao::ext(self.config.dao.clone()).with_static_gas(GAS_VOTE)
-                .record_vote(proposal_id, voter.clone(), id, st.last_transfer_block, choice);
-            joined = Some(match joined { Some(j) => j.and(p), None => p });
+            tokens.push(near_sdk::serde_json::json!({ "token_id": id, "last_transfer_block": st.last_transfer_block }));
         }
-        joined.unwrap()
+        // One call: the DAO records every token or none, and the voter is told which rule failed.
+        ext_dao::ext(self.config.dao.clone())
+            .with_static_gas(Gas::from_tgas(GAS_VOTE.as_tgas() * tokens.len() as u64 + 10))
+            .record_votes(proposal_id, voter, tokens, choice)
     }
 
     /// Holders and the founder can open proposals (F5). The DAO enforces the
@@ -64,9 +65,9 @@ impl Contract {
 
 impl Contract {
     pub(crate) fn live_owner(&self, token_id: &str) -> (AccountId, TokenState) {
-        let st = self.token_state.get(token_id).cloned().unwrap_or_else(|| env::panic_str("Unknown token"));
+        let st = self.token_state.get(token_id).cloned().unwrap_or_else(|| quorum_common::fail("Unknown token"));
         require!(!st.burned, "Token is burned");
-        let owner = self.tokens.owner_by_id.get(&token_id.to_string()).unwrap_or_else(|| env::panic_str("Unknown token"));
+        let owner = self.tokens.owner_by_id.get(&token_id.to_string()).unwrap_or_else(|| quorum_common::fail("Unknown token"));
         (owner, st)
     }
 }

@@ -1,9 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/media/molten/:id", "destination": "/images/molten-0.jpg" },
+    { "source": "/media/tide/:id", "destination": "/images/tidewater-0.jpg" },
+    { "source": "/media/feather/:id", "destination": "/images/feather-avatar.jpg" }
   ]
 }

@@ -1,28 +1,34 @@
-import { useState, useEffect, useMemo } from 'react';
-import type { Page, TokenItem, CollectionItem, ProposalItem, UserWallet, OfferItem, SaleRecord } from './types';
-import {
-  INITIAL_COLLECTIONS,
-  INITIAL_USER_NFTS,
-  INITIAL_MARKET_LISTINGS,
-  INITIAL_PROPOSALS,
-  INITIAL_SALES_HISTORY,
-  INITIAL_OFFERS,
-} from './mockData';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { Page, TokenItem, ProposalItem, UserWallet, SaleRecord, CollectionHolder } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
-import { fetchNearAccountBalance, fetchTokensForOwner, fetchOnChainMarketplaceListings, getCollectionDaoAccounts } from './near';
+import { DEPLOYMENTS, EXPLORER, MARKET } from './deployments';
+import {
+  GAS,
+  assertTxSucceeded,
+  fn,
+  loadBounds,
+  loadCollection,
+  loadHolders,
+  loadMarketListings,
+  loadOwnedTokens,
+  loadProposals,
+  loadSales,
+  nearToYocto,
+  uncreditedTokens,
+  view,
+} from './chain';
+import type { LiveCollection, LiveProposal } from './chain';
+import { fetchNearAccountBalance } from './near';
 import {
   getNearConnector,
   subscribeToNearConnect,
   openNearConnect,
   disconnectNearConnect,
   sendNearTransaction,
-  createTransferAction,
-  createFunctionCallAction,
-  nearToYocto,
 } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
@@ -31,1158 +37,318 @@ import { PortfolioPage } from './pages/PortfolioPage';
 import { VotingsPage } from './pages/VotingsPage';
 import { LaunchPage } from './pages/LaunchPage';
 import { SellsPage } from './pages/SellsPage';
-import { OffersPage } from './pages/OffersPage';
 import { LandingPage } from './pages/LandingPage';
 
-const STORAGE_KEYS = {
-  USER_NFTS: 'quorum_testnet_user_nfts_v16',
-  MARKET_LISTINGS: 'quorum_testnet_market_listings_v16',
-  OFFERS: 'quorum_testnet_offers_v16',
-  SALES_HISTORY: 'quorum_testnet_sales_history_v16',
-  PROPOSALS: 'quorum_testnet_proposals_v16',
-  COLLECTIONS: 'quorum_testnet_collections_v16',
-};
+const REFRESH_MS = 15000;
+const NO_WALLET: UserWallet = { connected: false, accountId: '', balanceNear: 0, network: 'testnet', connector: undefined };
 
-// Clear obsolete caches from older test iterations to prevent stale dummy addresses
-try {
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const k = localStorage.key(i);
-    if (k && (k.startsWith('quorum_testnet_') || k.startsWith('quorum_')) && !k.endsWith('_v16')) {
-      localStorage.removeItem(k);
-    }
-  }
-} catch (_) { }
-
-function loadStored<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      return JSON.parse(raw);
-    }
-  } catch (err) {
-    console.warn(`Failed reading ${key} from localStorage`, err);
-  }
-  return fallback;
-}
-
-function persistState<T>(key: string, data: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (err) {
-    console.warn(`Failed writing ${key} to localStorage`, err);
-  }
-}
-
+/**
+ * Every list and figure below is read from the NEAR testnet contracts in deployments.ts.
+ * There is no mock data and no localStorage state: a reload shows exactly what the chain says.
+ */
 export function App() {
   const [currentPage, setCurrentPage] = useState<Page>('marketplace');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [wallet, setWallet] = useState<UserWallet>(NO_WALLET);
 
-  // App Data State: Starts disconnected so users connect their OWN real NEAR testnet wallet
-  const [wallet, setWallet] = useState<UserWallet>({
-    connected: false,
-    accountId: '',
-    balanceNear: 0,
-    network: 'testnet',
-    connector: undefined,
-  });
-
-  const [collections, setCollections] = useState<CollectionItem[]>(() =>
-    loadStored(STORAGE_KEYS.COLLECTIONS, INITIAL_COLLECTIONS)
-  );
-  const [userNfts, setUserNfts] = useState<TokenItem[]>(() =>
-    loadStored(STORAGE_KEYS.USER_NFTS, INITIAL_USER_NFTS)
-  );
-  const [marketListings, setMarketListings] = useState<TokenItem[]>(() =>
-    loadStored(STORAGE_KEYS.MARKET_LISTINGS, INITIAL_MARKET_LISTINGS)
-  );
-  const [proposals, setProposals] = useState<ProposalItem[]>(() =>
-    loadStored(STORAGE_KEYS.PROPOSALS, INITIAL_PROPOSALS)
-  );
-  const [salesHistory, setSalesHistory] = useState<SaleRecord[]>(() =>
-    loadStored(STORAGE_KEYS.SALES_HISTORY, INITIAL_SALES_HISTORY)
-  );
-  const [offers, setOffers] = useState<OfferItem[]>(() =>
-    loadStored(STORAGE_KEYS.OFFERS, INITIAL_OFFERS)
-  );
-
-  // Toast notifications
+  const [collections, setCollections] = useState<LiveCollection[]>([]);
+  const [marketListings, setMarketListings] = useState<TokenItem[]>([]);
+  const [salesHistory, setSalesHistory] = useState<SaleRecord[]>([]);
+  const [userNfts, setUserNfts] = useState<TokenItem[]>([]);
+  const [proposals, setProposals] = useState<LiveProposal[]>([]);
+  const [holders, setHolders] = useState<Record<string, CollectionHolder[]>>({});
+  const [sync, setSync] = useState<{ loading: boolean; error: string | null; at: number | null }>({ loading: true, error: null, at: null });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const busy = useRef(false);
 
   const addToast = (type: 'success' | 'error' | 'info', title: string, description?: string) => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, type, title, description }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4500);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 7000);
   };
+  const removeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  // ---------------------------------------------------------------- chain sync
+  const accountRef = useRef('');
+  accountRef.current = wallet.accountId;
 
-  const syncOnchainTokens = async (accId: string) => {
+  const refresh = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
     try {
-      const customCols = collections.map((c) => ({
-        name: c.name,
-        contract: c.stats?.contractId || getCollectionDaoAccounts(c.id).nftContract,
-        symbol: c.symbol,
-        image: c.avatar_image,
-      }));
-      const onchain = await fetchTokensForOwner(accId, customCols);
-      if (onchain && onchain.length > 0) {
-        setUserNfts(onchain);
-        persistState(STORAGE_KEYS.USER_NFTS, onchain);
-        return onchain;
-      } else if (accId === 'malekoala9992.testnet') {
-        setUserNfts(INITIAL_USER_NFTS);
-        persistState(STORAGE_KEYS.USER_NFTS, INITIAL_USER_NFTS);
-        return INITIAL_USER_NFTS;
-      } else {
-        setUserNfts([]);
-        persistState(STORAGE_KEYS.USER_NFTS, []);
-        return [];
+      const cols = await Promise.all(DEPLOYMENTS.map(loadCollection));
+      const account = accountRef.current;
+      const [listings, sales, owned, holderLists] = await Promise.all([
+        loadMarketListings(cols),
+        loadSales(cols),
+        account ? loadOwnedTokens(account, cols) : Promise.resolve([] as TokenItem[]),
+        Promise.all(cols.map((c) => loadHolders(c.dep))),
+      ]);
+      const props = (await Promise.all(cols.map((c) =>
+        loadProposals(c.dep, c.name, owned.filter((t) => t.nft_contract === c.dep.nft).map((t) => t.token_id))))).flat();
+      setCollections(cols);
+      setMarketListings(listings);
+      setSalesHistory(sales);
+      setUserNfts(owned);
+      setProposals(props);
+      setHolders(Object.fromEntries(cols.map((c, i) => [c.id, holderLists[i]])));
+      if (account) {
+        const bal = await fetchNearAccountBalance(account);
+        setWallet((w) => (w.accountId === account ? { ...w, balanceNear: bal } : w));
       }
-    } catch (err) {
-      console.warn('Error syncing on-chain tokens:', err);
-      if (accId === 'malekoala9992.testnet') {
-        setUserNfts(INITIAL_USER_NFTS);
-        persistState(STORAGE_KEYS.USER_NFTS, INITIAL_USER_NFTS);
-        return INITIAL_USER_NFTS;
-      }
-      setUserNfts([]);
-      persistState(STORAGE_KEYS.USER_NFTS, []);
-      return [];
+      setSync({ loading: false, error: null, at: Date.now() });
+    } catch (e: any) {
+      setSync((s) => ({ ...s, loading: false, error: e?.message || String(e) }));
+    } finally {
+      busy.current = false;
     }
-  };
+  }, []);
 
-  const syncOnchainMarketListings = async () => {
-    try {
-      const onchainListings = await fetchOnChainMarketplaceListings();
-      if (onchainListings && onchainListings.length > 0) {
-        setMarketListings((prevListings) => {
-          const merged = [...prevListings];
-          for (const onchain of onchainListings) {
-            const idx = merged.findIndex(
-              (l) =>
-                (l.nft_contract && l.nft_contract === onchain.nft_contract && l.token_id === onchain.token_id) ||
-                (l.collection.toLowerCase() === onchain.collection.toLowerCase() && l.token_id === onchain.token_id)
-            );
-            if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...onchain };
-            } else {
-              merged.push(onchain);
-            }
-          }
-          persistState(STORAGE_KEYS.MARKET_LISTINGS, merged);
-          return merged;
-        });
-      }
-    } catch (err) {
-      console.warn('Error syncing on-chain marketplace listings:', err);
-    }
-  };
-
-  // Check for an existing wallet session and load live on-chain market listings on mount
   useEffect(() => {
-    let isMounted = true;
+    refresh();
+    const t = setInterval(refresh, REFRESH_MS);
+    return () => clearInterval(t);
+  }, [refresh]);
+  useEffect(() => { refresh(); }, [wallet.accountId, refresh]);
 
-    // Immediately sync live on-chain marketplace listings from mkt.qrm1.testnet
-    syncOnchainMarketListings();
-
-    const connector = getNearConnector();
-    connector
+  // ----------------------------------------------------------------- wallet
+  useEffect(() => {
+    let alive = true;
+    getNearConnector()
       .wallet()
       .then(async (w) => {
-        if (!isMounted || !w) return;
+        if (!alive || !w) return;
         const accounts = await w.getAccounts({ network: 'testnet' }).catch(() => []);
-        if (accounts.length > 0 && accounts[0]?.accountId) {
-          const accId = accounts[0].accountId;
-          const rpcBal = await fetchNearAccountBalance(accId);
-          if (isMounted) {
-            setWallet({
-              connected: true,
-              accountId: accId,
-              balanceNear: rpcBal !== null ? rpcBal : 0,
-              network: 'testnet',
-              connector: (w as any).id || (w as any).name || 'hot-connect',
-            });
-            await syncOnchainTokens(accId);
-          }
+        const accountId = accounts?.[0]?.accountId;
+        if (accountId && alive) {
+          setWallet({ connected: true, accountId, balanceNear: 0, network: 'testnet', connector: (w as any).id || (w as any).name || 'hot-connect' });
         }
       })
       .catch(() => { });
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { alive = false; };
   }, []);
 
-  // Listen to official NearConnector events
   useEffect(() => {
     const unsubscribe = subscribeToNearConnect(
       async ({ accountId, connectorName }) => {
-        const rpcBalance = await fetchNearAccountBalance(accountId);
-        setWallet({
-          connected: true,
-          accountId,
-          balanceNear: rpcBalance !== null ? rpcBalance : 0,
-          network: 'testnet',
-          connector: connectorName,
-        });
-
-        await syncOnchainTokens(accountId);
+        setWallet({ connected: true, accountId, balanceNear: 0, network: 'testnet', connector: connectorName });
         addToast('success', `Connected: ${connectorName}`, `Signed in as ${accountId} on testnet`);
       },
       () => {
-        setWallet({
-          connected: false,
-          accountId: '',
-          balanceNear: 0,
-          network: 'testnet',
-          connector: undefined,
-        });
+        setWallet(NO_WALLET);
         setUserNfts([]);
-        persistState(STORAGE_KEYS.USER_NFTS, []);
         addToast('info', 'Disconnected', 'Wallet has been signed out.');
       }
     );
     return () => unsubscribe();
   }, []);
 
-  // Trigger the Official HOT Connector modal directly
   const handleOpenOfficialConnect = async () => {
-    setIsWalletOpen(false);
-    const result = await openNearConnect();
-    if (result) {
-      const rpcBalance = await fetchNearAccountBalance(result.accountId);
-      setWallet({
-        connected: true,
-        accountId: result.accountId,
-        balanceNear: rpcBalance !== null ? rpcBalance : 0,
-        network: 'testnet',
-        connector: result.connectorName,
-      });
+    await openNearConnect();
+  };
 
-      await syncOnchainTokens(result.accountId);
-      addToast('success', `Connected: ${result.connectorName}`, `Signed in as ${result.accountId} on testnet`);
+  const requireWallet = (): string | null => {
+    if (!wallet.connected || !wallet.accountId) {
+      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
+      handleOpenOfficialConnect();
+      return null;
+    }
+    return wallet.accountId;
+  };
+
+  /** Signs, submits, then checks the chain: a hash alone is not success (cross-contract receipts can fail). */
+  const run = async (title: string, receiverId: string, actions: any[]): Promise<string | null> => {
+    const signer = requireWallet();
+    if (!signer) return null;
+    try {
+      addToast('info', title, 'Approve the transaction in your wallet…');
+      const tx = await sendNearTransaction({ receiverId, actions, signerId: signer });
+      addToast('info', 'Submitted', `Verifying ${tx.hash.slice(0, 10)}… on-chain`);
+      await assertTxSucceeded(tx.hash, signer);
+      addToast('success', `${title}: confirmed`, `${EXPLORER}/txns/${tx.hash}`);
+      await refresh();
+      return tx.hash;
+    } catch (e: any) {
+      addToast('error', `${title} failed`, e?.message || String(e));
+      return null;
     }
   };
 
-  // User NFTs strictly filtered to the connected wallet account
-  // When disconnected (!wallet.connected), returns empty array [] so no mock NFTs are visible!
-  const displayedUserNfts = useMemo(() => {
-    if (!wallet.connected || !wallet.accountId) return [];
-    return userNfts.filter((t) => {
-      if (t.owner_id === wallet.accountId) return true;
-      if (wallet.accountId === 'malekoala9992.testnet' && (!t.owner_id || t.owner_id === 'malekoala9992.testnet')) {
-        return true;
-      }
-      return false;
-    });
-  }, [wallet.connected, wallet.accountId, userNfts]);
+  const depFor = (token: TokenItem) => {
+    const d = DEPLOYMENTS.find((x) => x.nft === token.nft_contract);
+    if (!d) throw new Error(`Unknown collection contract ${token.nft_contract}`);
+    return d;
+  };
 
-  // Buy Listing Handler with real NEAR testnet transaction execution via mkt.qrm1.testnet
+  // -------------------------------------------------------------- marketplace
   const handleBuyListing = async (token: TokenItem) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
+    if (!token.price_yocto || token.approval_id === undefined) {
+      addToast('error', 'Not a live listing', 'This token has no verified on-chain listing.');
       return;
     }
-
-    const priceNum = parseFloat(token.price || '1.00');
-    const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
-    const nftContract = token.nft_contract || daoAccounts.nftContract;
-
-    let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
-    if (!cleanTokenId) {
-      const match = (token.title || token.id || '').match(/#?(\d+)/);
-      cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
-    }
-
-    const approvalId = Number(token.approval_id || 1);
-    const priceYocto = nearToYocto(String(priceNum));
-
-    try {
-      addToast('info', 'Initiating On-Chain Purchase...', `Purchasing ${token.title} on mkt.qrm1.testnet for ${priceNum} NEAR.`);
-
-      let tx: any;
-      if (token.approval_id || token.is_on_chain) {
-        // Real atomic smart contract execution via mkt.qrm1.testnet
-        tx = await sendNearTransaction({
-          receiverId: 'mkt.qrm1.testnet',
-          actions: [
-            createFunctionCallAction(
-              'buy',
-              {
-                nft: nftContract,
-                token_id: cleanTokenId,
-                approval_id: approvalId,
-              },
-              priceYocto,
-              '140000000000000' // 140 Tgas
-            ),
-          ],
-          signerId: wallet.accountId,
-        });
-      } else {
-        // Direct testnet transfer fallback
-        const recipient = token.owner_id || 'qrm1.testnet';
-        tx = await sendNearTransaction({
-          receiverId: recipient,
-          actions: [createTransferAction(priceNum)],
-          signerId: wallet.accountId,
-        });
-      }
-
-      const acquiredToken: TokenItem = {
-        ...token,
-        owner_id: wallet.accountId,
-        price: undefined,
-        nft_contract: nftContract,
-        is_on_chain: true,
-      };
-
-      const updatedListings = marketListings.filter((l) => l.id !== token.id);
-      const updatedUserNfts = [acquiredToken, ...userNfts];
-
-      const newSale: SaleRecord = {
-        nft_id: token.title,
-        buyer: wallet.accountId,
-        price_near: token.price || '1.00',
-        to_dao: (priceNum * 0.05).toFixed(3),
-        royalty: (priceNum * 0.05).toFixed(3),
-        net_seller: (priceNum * 0.90).toFixed(3),
-        date: 'Just now',
-      };
-      const updatedSales = [newSale, ...salesHistory];
-
-      setMarketListings(updatedListings);
-      setUserNfts(updatedUserNfts);
-      setSalesHistory(updatedSales);
-
-      persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-      persistState(STORAGE_KEYS.SALES_HISTORY, updatedSales);
-
-      const rpcBal = await fetchNearAccountBalance(wallet.accountId);
-      if (rpcBal !== null) {
-        setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      } else {
-        setWallet((prev) => ({ ...prev, balanceNear: Math.max(0, prev.balanceNear - priceNum) }));
-      }
-
-      addToast(
-        'success',
-        `Purchased ${token.title}! (Atomic Settlement)`,
-        `Keyless vault and token transferred on testnet. 5% DAO treasury fee deposited. Tx: ${tx.hash.slice(0, 10)}...`
-      );
-
-      // Re-sync live on-chain tokens & listings
-      await syncOnchainTokens(wallet.accountId);
-      await syncOnchainMarketListings();
-    } catch (err: any) {
-      console.error('Buy listing error:', err);
-      addToast('error', 'Purchase Failed or Cancelled', err?.message || 'Could not complete on NEAR testnet.');
-    }
+    await run(`Buy ${token.title}`, MARKET, [
+      fn('buy', { nft: token.nft_contract, token_id: token.token_id, approval_id: token.approval_id }, token.price_yocto, GAS.buy),
+    ]);
   };
 
-  // List NFT for Sale with real on-chain NEP-178 registration on mkt.qrm1.testnet
   const handleListNft = async (token: TokenItem, priceNear: string) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    try {
-      addToast('info', 'Registering Listing On-Chain...', 'Please approve the listing authorization in your wallet.');
-
-      const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
-      const nftContract = token.nft_contract || daoAccounts.nftContract;
-
-      let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
-      if (!cleanTokenId) {
-        const match = (token.title || token.id || '').match(/#?(\d+)/);
-        cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
-      }
-
-      const priceNum = parseFloat(priceNear) || 1.0;
-      const priceYocto = nearToYocto(String(priceNum));
-
-      // Real on-chain NEP-178 listing call: nft_approve with 0.005 NEAR storage deposit
-      const tx = await sendNearTransaction({
-        receiverId: nftContract,
-        actions: [
-          createFunctionCallAction(
-            'nft_approve',
-            {
-              token_id: cleanTokenId,
-              account_id: 'mkt.qrm1.testnet',
-              msg: JSON.stringify({ price: priceYocto }),
-            },
-            '5000000000000000000000', // 0.005 NEAR deposit required by NEP-178
-            '60000000000000' // 60 Tgas
-          ),
-        ],
-        signerId: wallet.accountId,
-      });
-
-      const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: priceNear } : t));
-      const listedToken: TokenItem = { ...token, price: priceNear, approval_id: 1, is_on_chain: true, nft_contract: nftContract };
-      const updatedListings = [listedToken, ...marketListings.filter((l) => l.id !== token.id)];
-
-      // Generate incoming collector offer for the newly listed NFT (routed to user's Offers tab)
-      const offerAmount = Math.max(0.1, +(priceNum * 0.9).toFixed(2)).toFixed(2);
-      const incomingOffer: OfferItem = {
-        id: `off-rec-${Date.now()}`,
-        nft_id: token.id,
-        nft_title: token.title,
-        image: token.image,
-        collection: token.collection || 'Molten Hours',
-        from: 'qrm1.testnet',
-        to: wallet.accountId,
-        amount_near: offerAmount,
-        expires_in: '5 days',
-        type: 'received',
-      };
-      const updatedOffers = [incomingOffer, ...offers.filter((o) => o.nft_id !== token.id)];
-
-      setUserNfts(updatedUserNfts);
-      setMarketListings(updatedListings);
-      setOffers(updatedOffers);
-
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-      persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
-      persistState(STORAGE_KEYS.OFFERS, updatedOffers);
-
-      addToast(
-        'success',
-        `Listed on mkt.qrm1.testnet!`,
-        `Tx ${tx.hash.slice(0, 10)}... active on-chain for ${priceNear} NEAR.`
-      );
-
-      // Re-sync live on-chain market listings
-      await syncOnchainMarketListings();
-      await syncOnchainTokens(wallet.accountId);
-    } catch (err: any) {
-      console.error('Listing error:', err);
-      addToast('error', 'Listing Failed', err?.message || 'Transaction rejected.');
-    }
+    const dep = depFor(token);
+    await run(`List ${token.title}`, dep.nft, [
+      fn('nft_approve', { token_id: token.token_id, account_id: MARKET, msg: JSON.stringify({ price: nearToYocto(priceNear) }) }, '10000000000000000000000', GAS.approve),
+    ]);
   };
 
-  // Cancel Listing with real on-chain cancel on mkt.qrm1.testnet
   const handleCancelListing = async (token: TokenItem) => {
-    if (wallet.connected && wallet.accountId && (token.is_on_chain || token.approval_id)) {
-      try {
-        const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
-        const nftContract = token.nft_contract || daoAccounts.nftContract;
-        let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
-        if (!cleanTokenId) {
-          const match = (token.title || token.id || '').match(/#?(\d+)/);
-          cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
-        }
+    const dep = depFor(token);
+    await run(`Cancel listing ${token.title}`, MARKET, [fn('cancel', { nft: dep.nft, token_id: token.token_id }, '0', GAS.call)]);
+  };
 
-        addToast('info', 'Cancelling Listing On-Chain...', `Cancelling ${token.title} on mkt.qrm1.testnet.`);
-        await sendNearTransaction({
-          receiverId: 'mkt.qrm1.testnet',
-          actions: [
-            createFunctionCallAction(
-              'cancel',
-              {
-                nft: nftContract,
-                token_id: cleanTokenId,
-              },
-              '0',
-              '50000000000000'
-            ),
-          ],
-          signerId: wallet.accountId,
-        });
-      } catch (err) {
-        console.warn('On-chain cancel note:', err);
-      }
-    }
+  // -------------------------------------------------------------------- mint
+  const handleMint = async (_stage: 'pre' | 'pub', _total: number) => {
+    const col = collections.find((c) => c.id === selectedCollectionId) || collections.find((c) => c.status === 'live');
+    if (!col) { addToast('error', 'Nothing to mint', 'No collection is open for minting.'); return; }
+    if (col.activeStage === null || !col.mintCostYocto) { addToast('error', 'Mint closed', `${col.name} has no active mint stage.`); return; }
+    await run(`Mint ${col.name}`, col.dep.nft, [fn('mint', { stage: col.activeStage, proof: null }, col.mintCostYocto, GAS.mint)]);
+  };
 
-    const updatedUserNfts = userNfts.map((t) => (t.id === token.id ? { ...t, price: undefined } : t));
-    const updatedListings = marketListings.filter((l) => l.id !== token.id);
-    const updatedOffers = offers.filter((o) => o.nft_id !== token.id && o.nft_title !== token.title);
+  // --------------------------------------------------------------- portfolio
+  const handleClaimSingle = async (token: TokenItem) => {
+    const dep = depFor(token);
+    await run(`Claim distribution ${token.title}`, dep.nft, [fn('claim_distribution', { token_id: token.token_id, asset: 'near' }, '0', GAS.claim)]);
+  };
 
-    setUserNfts(updatedUserNfts);
-    setMarketListings(updatedListings);
-    setOffers(updatedOffers);
-
-    persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-    persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
-    persistState(STORAGE_KEYS.OFFERS, updatedOffers);
-
-    addToast('info', `Listing Cancelled for ${token.title}`, 'Listing removed from marketplace.');
-    if (wallet.accountId) {
-      await syncOnchainMarketListings();
-      await syncOnchainTokens(wallet.accountId);
+  const handleClaimAll = async () => {
+    for (const dep of DEPLOYMENTS) {
+      const owing = userNfts.filter((t) => t.nft_contract === dep.nft && parseFloat(t.unclaimed_distribution || '0') > 0);
+      if (!owing.length) continue;
+      await run(`Claim ${owing.length} distribution(s)`, dep.nft,
+        owing.map((t) => fn('claim_distribution', { token_id: t.token_id, asset: 'near' }, '0', GAS.claim)));
     }
   };
 
-  // Claim Distributions
-  const handleClaimSingle = (token: TokenItem) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    const owed = parseFloat(token.unclaimed_distribution || '0');
-    if (owed <= 0) return;
-
-    setWallet((prev) => ({ ...prev, balanceNear: prev.balanceNear + owed }));
-    const updatedUserNfts = userNfts.map((t) =>
-      t.id === token.id ? { ...t, unclaimed_distribution: '0.00 NEAR' } : t
-    );
-    setUserNfts(updatedUserNfts);
-    persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-
-    addToast('success', `Claimed ${owed} NEAR`, `Disbursed to ${wallet.accountId}`);
-  };
-
-  const handleClaimAll = () => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    let totalClaimed = 0;
-    const updatedUserNfts = userNfts.map((t) => {
-      totalClaimed += parseFloat(t.unclaimed_distribution || '0');
-      return { ...t, unclaimed_distribution: '0.00 NEAR' };
-    });
-    if (totalClaimed > 0) {
-      setWallet((prev) => ({ ...prev, balanceNear: prev.balanceNear + totalClaimed }));
-      setUserNfts(updatedUserNfts);
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-      addToast('success', `Claimed ${totalClaimed.toFixed(2)} NEAR`, 'Transferred from DAO dividends.');
-    } else {
-      addToast('info', 'No unclaimed dividends currently available.');
-    }
-  };
-
-  // Burn Token & Liquid Exit with real testnet signature
   const handleBurnToken = async (token: TokenItem) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    const nearMatch = token.backing.match(/([\d.]+)\s*NEAR/i);
-    const nearNum = nearMatch ? parseFloat(nearMatch[1]) : 0.50;
-    const refundNear = nearNum * 0.9;
-    const refundStr = refundNear.toFixed(2);
-
-    // Rigorously sanitize token ID to the exact numeric ID string used on-chain ('1', '2', '3')
-    let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
-    if (!cleanTokenId) {
-      const match = (token.title || token.id || '').match(/#?(\d+)/);
-      cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
-    }
-
-    const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
-    const burnContract = token.nft_contract || daoAccounts.nftContract;
-
-    try {
-      addToast('info', 'Initiating Vault Dissolution & Burn...', `Burning #${cleanTokenId} on ${burnContract}. Please sign the burn authorization in your wallet.`);
-
-      const tx = await sendNearTransaction({
-        receiverId: burnContract,
-        actions: [
-          createFunctionCallAction(
-            'burn_and_redeem',
-            { token_id: cleanTokenId },
-            '0',
-            '150000000000000', // 150 Tgas
-            '1' // Exact 1 yoctoNEAR attached as required by contract
-          ),
-        ],
-        signerId: wallet.accountId,
-      });
-
-      const updatedUserNfts = userNfts.filter((t) => !(t.token_id === cleanTokenId && t.collection === token.collection) && t.id !== token.id);
-      const updatedListings = marketListings.filter((l) => !(l.token_id === cleanTokenId && l.collection === token.collection) && l.id !== token.id);
-
-      setUserNfts(updatedUserNfts);
-      setMarketListings(updatedListings);
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-      persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
-
-      const rpcBal = await fetchNearAccountBalance(wallet.accountId);
-      if (rpcBal !== null) {
-        setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      } else {
-        setWallet((prev) => ({ ...prev, balanceNear: prev.balanceNear + refundNear }));
-      }
-
-      addToast(
-        'success',
-        `${token.title} Burned & Redeemed!`,
-        `Tx ${tx.hash.slice(0, 10)}... 90% floor payout of ${refundStr} NEAR refunded to ${wallet.accountId}.`
-      );
-
-      // Re-sync live on-chain tokens & listings
-      await syncOnchainTokens(wallet.accountId);
-      await syncOnchainMarketListings();
-    } catch (err: any) {
-      console.error('Burn error:', err);
-      addToast('error', 'Redemption Failed', err?.message || 'Transaction rejected.');
-    }
+    const dep = depFor(token);
+    await run(`Burn ${token.title}`, dep.nft, [fn('burn_and_redeem', { token_id: token.token_id }, '1', GAS.burn)]);
   };
 
-  // Add to Vault with real testnet transfer (100% Native testnet NEAR)
   const handleAddToVault = async (token: TokenItem, amount: string) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
+    if (!token.vault_account) { addToast('error', 'No vault', 'This token has no vault account.'); return; }
+    await run(`Add ${amount} NEAR to vault`, token.vault_account, [fn('deposit_near', {}, nearToYocto(amount), GAS.call)]);
+  };
 
-    const addedNum = parseFloat(amount) || 0;
-    if (addedNum <= 0) return;
-
-    const daoAccounts = getCollectionDaoAccounts(token.nft_contract || token.collection || token.id);
-    const contractId = token.nft_contract || daoAccounts.nftContract;
-
-    let cleanTokenId = String(token.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
-    if (!cleanTokenId) {
-      const match = (token.title || token.id || '').match(/#?(\d+)/);
-      cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
-    }
-
-    const safeVaultAccount = (token.vault_account && token.vault_account.includes('.testnet'))
-      ? token.vault_account
-      : `v${cleanTokenId}.${contractId}`;
-
-    try {
-      addToast('info', `Depositing ${addedNum} NEAR to Keyless Vault...`, 'Please approve the vault transfer in your connected wallet.');
-
-      const tx = await sendNearTransaction({
-        receiverId: safeVaultAccount,
-        actions: [
-          createFunctionCallAction(
-            'deposit_near',
-            {},
-            addedNum.toString(),
-            '50000000000000'
-          ),
-        ],
-        signerId: wallet.accountId,
-      });
-
-      const updatedUserNfts = userNfts.map((t) => {
-        if (t.id !== token.id && !(t.token_id === cleanTokenId && t.collection === token.collection)) return t;
-
-        const nearMatch = t.backing.match(/([\d.]+)\s*NEAR/i);
-        let currentNear = nearMatch ? parseFloat(nearMatch[1]) : 0.50;
-        currentNear += addedNum;
-
-        return { ...t, backing: `${currentNear.toFixed(2)} NEAR` };
-      });
-
-      setUserNfts(updatedUserNfts);
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-
-      const rpcBal = await fetchNearAccountBalance(wallet.accountId);
-      if (rpcBal !== null) {
-        setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      } else {
-        setWallet((prev) => ({ ...prev, balanceNear: Math.max(0, prev.balanceNear - addedNum) }));
-      }
-
-      addToast(
-        'success',
-        `Vault Deposit Confirmed (NEAR)`,
-        `Tx ${tx.hash.slice(0, 10)}... Added ${amount} NEAR to ${safeVaultAccount}`
-      );
-    } catch (err: any) {
-      console.error('Vault deposit error:', err);
-      addToast('error', 'Deposit Failed', err?.message || 'Transaction rejected.');
+  /** Credits every uncredited vault of a settled (or fallback) group, 3 per transaction. */
+  const handleCredit = async (collectionId: string, group: number) => {
+    const col = collections.find((c) => c.id === collectionId);
+    if (!col) return;
+    const ids = await uncreditedTokens(col.dep, group);
+    if (!ids.length) { addToast('info', 'Nothing to credit', 'Every vault in this group is already credited.'); return; }
+    for (let i = 0; i < ids.length; i += 3) {
+      const ok = await run(`Credit vaults ${ids.slice(i, i + 3).join(', ')}`, col.dep.nft, [fn('credit_batch', { group, token_ids: ids.slice(i, i + 3) }, '0', GAS.execute)]);
+      if (!ok) return;
     }
   };
 
-  // DAO Voting with real testnet signing strictly per sovereign collection
+  const handleEnableFallback = async (collectionId: string, group: number) => {
+    const col = collections.find((c) => c.id === collectionId);
+    if (col) await run('Enable NEAR fallback settlement', col.dep.nft, [fn('enable_fallback', { group }, '0', GAS.call)]);
+  };
+
+  const handleAbortSwap = async (collectionId: string, group: number) => {
+    const col = collections.find((c) => c.id === collectionId);
+    if (col) await run('Abort stuck swap', col.dep.nft, [fn('abort_swap', { group }, '0', GAS.call)]);
+  };
+
+  // -------------------------------------------------------------- governance
+  const findProposal = (id: number): LiveProposal | undefined => proposals.find((p) => p.id === id);
+
   const handleCastVote = async (proposalId: number, choice: 'yes' | 'no' | 'abstain') => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
+    const p = findProposal(proposalId);
+    if (!p) { addToast('error', 'Unknown proposal', 'Reload and try again.'); return; }
+    const tokens = p.votable_tokens ?? [];
+    if (!tokens.length) {
+      addToast('error', 'No eligible votes', 'You need an NFT of this collection that you held before the proposal opened and have not yet voted with.');
       return;
     }
-
-    const targetProp = proposals.find((p) => p.id === proposalId);
-    const propCollection = targetProp?.collection || 'Molten Hours';
-
-    // Strictly enforce holder-only voting within the proposal's sovereign collection
-    const colTokens = userNfts.filter((t) => t.collection === propCollection);
-    const votingPower = colTokens.length;
-
-    if (votingPower === 0) {
-      addToast(
-        'error',
-        'Zero Voting Power',
-        `You hold 0 ${propCollection} NFTs. Cross-collection voting is prohibited; only ${propCollection} holders govern this DAO.`
-      );
-      return;
-    }
-
-    const daoAccounts = getCollectionDaoAccounts(propCollection);
-    const daoReceiver = daoAccounts.daoAccount;
-
-    try {
-      addToast(
-        'info',
-        `Submitting Vote to ${propCollection} DAO...`,
-        `Please sign on-chain vote at ${daoReceiver} with ${votingPower} NFT vote${votingPower === 1 ? '' : 's'}.`
-      );
-
-      const tx = await sendNearTransaction({
-        receiverId: daoReceiver,
-        actions: [createTransferAction('0.0001')],
-        signerId: wallet.accountId,
-      });
-
-      const updatedProposals = proposals.map((p) => {
-        if (p.id !== proposalId) return p;
-        return {
-          ...p,
-          votes_yes: choice === 'yes' ? p.votes_yes + votingPower : p.votes_yes,
-          votes_no: choice === 'no' ? p.votes_no + votingPower : p.votes_no,
-          votes_abstain: choice === 'abstain' ? p.votes_abstain + votingPower : p.votes_abstain,
-          voted_choice: choice,
-        };
-      });
-
-      setProposals(updatedProposals);
-      persistState(STORAGE_KEYS.PROPOSALS, updatedProposals);
-
-      addToast(
-        'success',
-        `Vote Recorded: ${choice.toUpperCase()}!`,
-        `Tx ${tx.hash.slice(0, 10)}... confirmed on ${daoReceiver} with ${votingPower} ${propCollection} vote${votingPower === 1 ? '' : 's'}.`
-      );
-    } catch (err: any) {
-      console.error('Vote error:', err);
-      addToast('error', 'Vote Failed', err?.message || 'Could not record vote on testnet.');
+    const code = choice === 'no' ? 0 : choice === 'yes' ? 1 : 2;
+    for (let i = 0; i < tokens.length; i += 15) {
+      const ok = await run(`Vote ${choice.toUpperCase()} on #${p.chain_id}`, p.nft_contract!, [
+        fn('vote', { proposal_id: p.chain_id, token_ids: tokens.slice(i, i + 15), choice: code }, '0', GAS.vote),
+      ]);
+      if (!ok) return;
     }
   };
 
-  // Create Proposal
-  const handleCreateProposal = (propData: Partial<ProposalItem>) => {
-    const colName = propData.collection || 'Molten Hours';
-    const colVotingPower = userNfts.filter((t) => t.collection === colName).length;
-    const daoAccounts = getCollectionDaoAccounts(colName);
-    const newPropId = proposals.length > 0 ? Math.max(...proposals.map((p) => p.id)) + 1 : 1;
-
-    const newProp: ProposalItem = {
-      id: newPropId,
-      kind: propData.kind || 'Spend',
-      title: propData.title || 'Untitled Proposal',
-      description: propData.description || '',
-      status: 'Voting open',
-      time_remaining: '3d 0h',
-      votes_yes: Math.max(1, colVotingPower),
-      votes_no: 0,
-      votes_abstain: 0,
-      quorum_reached: false,
-      quorum_percent: 25,
-      target_account: propData.target_account || daoAccounts.treasuryAccount,
-      amount_near: propData.amount_near || '1.00 NEAR',
-      collection: colName,
-      proposer: wallet.accountId || 'qrm1.testnet',
-      ...propData,
-    };
-    const updatedProposals = [newProp, ...proposals];
-    setProposals(updatedProposals);
-    persistState(STORAGE_KEYS.PROPOSALS, updatedProposals);
-
-    addToast('success', `Proposal #${newProp.id} Created!`, `Opened for ${colName} community voting.`);
+  const handleCreateProposal = async (propData: Partial<ProposalItem> & { recipient?: string; group?: number }) => {
+    const col = collections.find((c) => c.name === propData.collection);
+    if (!col) { addToast('error', 'Pick a collection', 'Proposals belong to one collection DAO.'); return; }
+    const amount = (propData.amount_near || '').replace(/[^\d.]/g, '');
+    let kind: unknown;
+    let slot: number;
+    switch (propData.kind) {
+      case 'Spend':
+        if (!propData.recipient) { addToast('error', 'Recipient required', 'A spend proposal needs a recipient account.'); return; }
+        kind = { Spend: { recipient: propData.recipient, asset: 'near', amount: nearToYocto(amount || '1') } }; slot = 0; break;
+      case 'Distribute':
+        kind = { Distribute: { asset: 'near', amount: nearToYocto(amount || '1') } }; slot = 1; break;
+      case 'Settle':
+        kind = { Settle: { group: propData.group ?? 0, hops: [], min_out: '1' } }; slot = 0; break;
+      default:
+        kind = 'Text'; slot = 3;
+    }
+    const b = (await loadBounds(col.dep))[slot];
+    await run(`Propose on ${col.name}`, col.dep.nft, [
+      fn('propose', {
+        kind,
+        purpose: propData.title || 'Untitled proposal',
+        voting_period_ms: b.min_period_ms,
+        quorum_bps: b.min_quorum_bps,
+        pass_bps: b.min_pass_bps,
+        timelock_ms: b.min_timelock_ms,
+      }, '0', GAS.propose),
+    ]);
   };
 
-  // Collection Created (Launch Studio)
-  const handleCollectionCreated = async (col: CollectionItem) => {
-    const daoAccounts = getCollectionDaoAccounts(col.stats?.contractId || col.symbol || col.id || col.name);
-    const contractId = col.stats?.contractId || daoAccounts.nftContract;
-    const treAccount = daoAccounts.treasuryAccount;
-    const daoAccount = daoAccounts.daoAccount;
-    const priceNum = parseFloat(col.price_near || '1.00') || 1.0;
-    const vaultBackingNear = +(priceNum * 0.5).toFixed(2);
-
-    if (wallet.connected && wallet.accountId) {
-      try {
-        addToast('info', `Deploying ${col.name} Sovereign DAO & Treasury...`, 'Please sign the deployment transaction in your wallet.');
-        const tx = await sendNearTransaction({
-          receiverId: 'qrm1.testnet',
-          actions: [createTransferAction('0.001')],
-          signerId: wallet.accountId,
-        });
-        addToast(
-          'success',
-          `Collection "${col.name}" Deployed On-Chain!`,
-          `Tx ${tx.hash.slice(0, 10)}... DAO (${daoAccount}) & Treasury (${treAccount}) active on NEAR testnet.`
-        );
-      } catch (err: any) {
-        console.warn('Launch transaction cancelled or skipped:', err);
-        addToast('info', 'Collection Registered', 'Creator settings saved and opened for testnet community minting.');
-      }
-    }
-
-    const updatedCollections = [col, ...collections.filter((c) => c.id !== col.id)];
-    setCollections(updatedCollections);
-    persistState(STORAGE_KEYS.COLLECTIONS, updatedCollections);
-    setSelectedCollectionId(col.id);
-
-    // 1. Automatically generate the Sovereign DAO Proposal #1 for this new collection
-    const initialPropId = proposals.length > 0 ? Math.max(...proposals.map((p) => p.id)) + 1 : 1;
-    const initialProposal: ProposalItem = {
-      id: initialPropId,
-      kind: 'Spend',
-      title: `${col.name} Sovereign Treasury Activation`,
-      description: `Authorizes ${daoAccount} to manage incoming mint proceeds (50% per mint deposited directly to ${treAccount}). Voting restricted strictly to ${col.name} NFT holders with 0 cross-bridging.`,
-      target_account: treAccount,
-      amount_near: `${(col.supply * vaultBackingNear).toFixed(2)} NEAR`,
-      status: 'Voting open',
-      time_remaining: '7 days left',
-      quorum_reached: false,
-      end_date: '7 days left',
-      votes_yes: wallet.connected ? 1 : 0,
-      votes_no: 0,
-      votes_abstain: 0,
-      quorum_percent: 25,
-      collection: col.name,
-      proposer: wallet.accountId || col.creator || 'qrm1.testnet',
-    };
-    const updatedProposals = [initialProposal, ...proposals];
-    setProposals(updatedProposals);
-    persistState(STORAGE_KEYS.PROPOSALS, updatedProposals);
-
-    // 2. Provision Token #1 to the creator's wallet if connected
-    if (wallet.connected && wallet.accountId) {
-      const creatorToken: TokenItem = {
-        id: `${(col.symbol || col.id).toLowerCase()}-1`,
-        token_id: '1',
-        owner_id: wallet.accountId,
-        collection: col.name,
-        title: `${col.name} #1`,
-        asset: 'NEAR',
-        backing: `${vaultBackingNear.toFixed(2)} NEAR`,
-        backing_status: 'credited',
-        image: col.avatar_image || '/images/feather-avatar.jpg',
-        votes_cast: 1,
-        unclaimed_distribution: '0.00 NEAR',
-        vault_account: `v1.${contractId}`,
-        nft_contract: contractId,
-        is_on_chain: true,
-      };
-      const updatedNfts = [creatorToken, ...userNfts.filter((t) => t.id !== creatorToken.id)];
-      setUserNfts(updatedNfts);
-      persistState(STORAGE_KEYS.USER_NFTS, updatedNfts);
-    }
-
-    addToast(
-      'success',
-      `Sovereign DAO Active!`,
-      `Dedicated Treasury (${treAccount}) & Proposal #${initialPropId} initialized for ${col.name}. Token #1 reserved with ${vaultBackingNear.toFixed(2)} NEAR keyless vault.`
-    );
+  const handleExecute = async (proposalId: number) => {
+    const p = findProposal(proposalId);
+    if (!p) return;
+    await run(`Execute proposal #${p.chain_id}`, p.dao!, [fn('execute', { proposal_id: p.chain_id }, '0', GAS.execute)]);
   };
 
-  // Real Mint Handler executing on NEAR testnet
-  const handleMint = async (_stage: 'pre' | 'pub', _totalNear: number) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet to mint.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    const targetCol =
-      collections.find((c) => c.id === (selectedCollectionId || 'feather-protocol')) ||
-      collections.find((c) => c.id === 'feather-protocol') ||
-      collections[0];
-
-    const daoAccounts = getCollectionDaoAccounts(targetCol.stats?.contractId || targetCol.symbol || targetCol.id || targetCol.name);
-    const contractId = targetCol.stats?.contractId || daoAccounts.nftContract;
-    const treasuryAccount = daoAccounts.treasuryAccount;
-
-    const priceNum = parseFloat(targetCol.price_near || '1.00') || 1.0;
-    const totalMintNear = (priceNum + 0.03).toFixed(2);
-    const vaultBackingNear = +(priceNum * 0.5).toFixed(2);
-
-    try {
-      addToast('info', 'Broadcasting Mint to NEAR Testnet...', `Please approve the ${totalMintNear} NEAR transaction on ${contractId} (50% to ${targetCol.name} Treasury, 50% to Vault).`);
-
-      const tx = await sendNearTransaction({
-        receiverId: contractId,
-        actions: [
-          createFunctionCallAction(
-            'mint',
-            { stage: 0 },
-            totalMintNear,
-            '100000000000000'
-          ),
-        ],
-        signerId: wallet.accountId,
-      });
-
-      const nextNum = Math.min(targetCol.supply, targetCol.minted + 1);
-      const updatedCollections = collections.map((c) =>
-        c.id === targetCol.id ? { ...c, minted: nextNum } : c
-      );
-      setCollections(updatedCollections);
-      persistState(STORAGE_KEYS.COLLECTIONS, updatedCollections);
-
-      const newMintedToken: TokenItem = {
-        id: `${(targetCol.symbol || 'NFT').toLowerCase()}-${nextNum}`,
-        token_id: String(nextNum),
-        owner_id: wallet.accountId,
-        collection: targetCol.name,
-        title: `${targetCol.name} #${nextNum}`,
-        asset: 'NEAR',
-        backing: `${vaultBackingNear.toFixed(2)} NEAR`,
-        backing_status: 'credited',
-        image: targetCol.avatar_image || '/images/feather-avatar.jpg',
-        votes_cast: 0,
-        unclaimed_distribution: '0.00 NEAR',
-        vault_account: `v${nextNum}.${contractId}`,
-        nft_contract: contractId,
-        is_on_chain: true,
-      };
-
-      const updatedUserNfts = [newMintedToken, ...userNfts];
-      setUserNfts(updatedUserNfts);
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-
-      setTimeout(async () => {
-        const bal = await fetchNearAccountBalance(wallet.accountId);
-        if (bal !== null) setWallet((prev) => ({ ...prev, balanceNear: bal }));
-      }, 1500);
-
-      addToast(
-        'success',
-        `Mint Successful: ${newMintedToken.title}!`,
-        `Tx ${tx.hash.slice(0, 10)}... 50% (${vaultBackingNear.toFixed(2)} NEAR) deposited to ${targetCol.name} DAO Treasury (${treasuryAccount}), 50% (${vaultBackingNear.toFixed(2)} NEAR) locked into keyless vault v${nextNum}.${contractId}.`
-      );
-
-      // Re-sync live on-chain tokens & listings
-      await syncOnchainTokens(wallet.accountId);
-    } catch (err: any) {
-      console.error('Minting error:', err);
-      addToast('error', 'Mint Failed', err?.message || 'Transaction rejected.');
-    }
-  };
-
-  // Accept Offer Handler with real testnet execution
-  const handleAcceptOffer = async (offer: OfferItem) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    try {
-      addToast('info', 'Accepting Offer On-Chain...', 'Please sign to transfer NFT & keyless vault rights to buyer.');
-
-      const matchingNft = userNfts.find((t) => t.id === offer.nft_id || t.title === offer.nft_title);
-      const targetToken = matchingNft || userNfts[0];
-
-      if (!targetToken) {
-        addToast('error', 'Token Not Found', 'You do not own this token to accept an offer.');
-        return;
-      }
-
-      let cleanTokenId = String(targetToken.token_id || '').replace(/^[^\d]*/, '').replace(/^0+/, '');
-      if (!cleanTokenId) {
-        const match = (targetToken.title || targetToken.id || '').match(/#?(\d+)/);
-        cleanTokenId = match ? String(parseInt(match[1], 10)) : '1';
-      }
-
-      const daoAccounts = getCollectionDaoAccounts(targetToken.nft_contract || targetToken.collection || targetToken.id);
-      const nftContract = targetToken.nft_contract || daoAccounts.nftContract;
-      const buyerAccount = (offer.from && offer.from.endsWith('.testnet')) ? offer.from : 'qrm1.testnet';
-
-      // Real on-chain NEP-171 nft_transfer to the buyer
-      const tx = await sendNearTransaction({
-        receiverId: nftContract,
-        actions: [
-          createFunctionCallAction(
-            'nft_transfer',
-            {
-              receiver_id: buyerAccount,
-              token_id: cleanTokenId,
-              memo: `Accepted offer of ${offer.amount_near} NEAR on Quorum`,
-            },
-            '0',
-            '100000000000000',
-            '1' // 1 yoctoNEAR required by NEP-171 standard
-          ),
-        ],
-        signerId: wallet.accountId,
-      });
-
-      // Automated on-chain settlement payout to seller from the buyer
-      let payoutTxHash = '';
-      try {
-        const payoutRes = await fetch('/api/payout-offer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sellerAccountId: wallet.accountId,
-            amountNear: offer.amount_near,
-            tokenId: cleanTokenId,
-            txHash: tx.hash,
-          }),
-        });
-        if (payoutRes.ok) {
-          const payoutData = await payoutRes.json();
-          payoutTxHash = payoutData.txHash || '';
-        }
-      } catch (payoutErr) {
-        console.warn('Automated payout note:', payoutErr);
-      }
-
-      const updatedUserNfts = matchingNft ? userNfts.filter((t) => t.id !== matchingNft.id) : userNfts.slice(1);
-      const updatedListings = matchingNft ? marketListings.filter((l) => l.id !== matchingNft.id) : marketListings;
-      const updatedOffers = offers.filter((o) => o.id !== offer.id && o.nft_id !== matchingNft?.id);
-
-      const offerNum = parseFloat(offer.amount_near || '1.0');
-      const newSale: SaleRecord = {
-        nft_id: targetToken.title || offer.nft_title,
-        buyer: buyerAccount,
-        price_near: offer.amount_near,
-        to_dao: (offerNum * 0.05).toFixed(3),
-        royalty: (offerNum * 0.05).toFixed(3),
-        net_seller: (offerNum * 0.90).toFixed(3),
-        date: 'Just now',
-      };
-      const updatedSales = [newSale, ...salesHistory];
-
-      setUserNfts(updatedUserNfts);
-      setMarketListings(updatedListings);
-      setOffers(updatedOffers);
-      setSalesHistory(updatedSales);
-
-      persistState(STORAGE_KEYS.USER_NFTS, updatedUserNfts);
-      persistState(STORAGE_KEYS.MARKET_LISTINGS, updatedListings);
-      persistState(STORAGE_KEYS.OFFERS, updatedOffers);
-      persistState(STORAGE_KEYS.SALES_HISTORY, updatedSales);
-
-      // Re-fetch balance with slight delay to ensure testnet block has finalized
-      setTimeout(async () => {
-        const rpcBal = await fetchNearAccountBalance(wallet.accountId);
-        if (rpcBal !== null) {
-          setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-        }
-      }, 1800);
-
-      addToast(
-        'success',
-        'Offer Accepted & Payout Credited!',
-        `Transferred #${cleanTokenId} to ${buyerAccount}. Credited ${offer.amount_near} NEAR on-chain${payoutTxHash ? ` (Tx: ${payoutTxHash.slice(0, 10)}...)` : ''}.`
-      );
-
-      // Re-sync live on-chain tokens & listings
-      await syncOnchainTokens(wallet.accountId);
-      await syncOnchainMarketListings();
-    } catch (err: any) {
-      console.error('Accept offer error:', err);
-      addToast('error', 'Accept Offer Failed', err?.message || 'Transaction rejected.');
-    }
-  };
-
-  // Cancel Offer Handler
-  const handleCancelOffer = (offer: OfferItem) => {
-    const amount = parseFloat(offer.amount_near || '0');
-    const updatedOffers = offers.filter((o) => o.id !== offer.id);
-    setOffers(updatedOffers);
-    persistState(STORAGE_KEYS.OFFERS, updatedOffers);
-
-    if (offer.type === 'made' && wallet.connected) {
-      setWallet((prev) => ({ ...prev, balanceNear: prev.balanceNear + amount }));
-    }
-    addToast('info', 'Offer Cancelled', `Escrowed ${amount.toFixed(2)} test NEAR returned to your balance.`);
-  };
-
-  // Place Offer Handler with real testnet escrow transfer
-  const handlePlaceOffer = async (targetNft: TokenItem, amountNear: string) => {
-    if (!wallet.connected || !wallet.accountId) {
-      addToast('info', 'Connect Wallet', 'Please connect your NEAR testnet wallet first.');
-      handleOpenOfficialConnect();
-      return;
-    }
-
-    const amountNum = parseFloat(amountNear);
-    try {
-      addToast('info', 'Escrowing Testnet Deposit...', 'Please approve the escrow transaction in your wallet.');
-
-      const tx = await sendNearTransaction({
-        receiverId: 'qrm1.testnet',
-        actions: [createTransferAction(amountNum)],
-        signerId: wallet.accountId,
-      });
-
-      const newOffer: OfferItem = {
-        id: `off-${Date.now()}`,
-        nft_id: targetNft.id,
-        nft_title: targetNft.title,
-        image: targetNft.image,
-        from: wallet.accountId,
-        amount_near: amountNear,
-        expires_in: '7 days',
-        type: 'made',
-      };
-
-      const updatedOffers = [newOffer, ...offers];
-      setOffers(updatedOffers);
-      persistState(STORAGE_KEYS.OFFERS, updatedOffers);
-
-      const rpcBal = await fetchNearAccountBalance(wallet.accountId);
-      if (rpcBal !== null) {
-        setWallet((prev) => ({ ...prev, balanceNear: rpcBal }));
-      } else {
-        setWallet((prev) => ({ ...prev, balanceNear: Math.max(0, prev.balanceNear - amountNum) }));
-      }
-
-      addToast(
-        'success',
-        `Offer Placed: ${amountNear} NEAR (On-Chain)`,
-        `Tx ${tx.hash.slice(0, 10)}... held in Quorum escrow for ${targetNft.title}.`
-      );
-    } catch (err: any) {
-      console.error('Place offer error:', err);
-      addToast('error', 'Offer Cancelled', err?.message || 'Transaction rejected.');
-    }
-  };
+  // ----------------------------------------------------------------- derived
+  const displayedUserNfts = useMemo(
+    () => (wallet.connected ? userNfts.filter((t) => t.owner_id === wallet.accountId) : []),
+    [wallet.connected, wallet.accountId, userNfts]
+  );
 
   const handleNavigate = (page: Page) => {
     if (page === 'mint') {
-      const currentCol = collections.find((c) => c.id === selectedCollectionId);
-      if (!currentCol || currentCol.minted >= currentCol.supply) {
-        const liveCol = collections.find((c) => c.minted < c.supply);
-        if (liveCol) setSelectedCollectionId(liveCol.id);
+      const current = collections.find((c) => c.id === selectedCollectionId);
+      if (!current || current.status !== 'live') {
+        const live = collections.find((c) => c.status === 'live');
+        if (live) setSelectedCollectionId(live.id);
       }
     }
     setCurrentPage(page);
   };
 
+  const mintCollection = collections.find((c) => c.id === selectedCollectionId) || collections.find((c) => c.status === 'live') || collections[0];
+
+  const syncBanner = sync.error ? (
+    <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5', padding: '10px 14px', borderRadius: 12, fontSize: 13 }}>
+      Live chain data failed to load: {sync.error}. Nothing is being shown from cache.
+    </div>
+  ) : (
+    <div style={{ color: '#71717A', fontSize: 12, padding: '0 4px' }}>
+      {sync.loading ? 'Loading from NEAR testnet…' : `Live from NEAR testnet · refreshed ${sync.at ? new Date(sync.at).toLocaleTimeString() : ''}`}
+      {' · '}market <a href={`${EXPLORER}/address/${MARKET}`} target="_blank" rel="noreferrer" style={{ color: '#A1A1AA' }}>{MARKET}</a>
+    </div>
+  );
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        background: '#0A0A0D',
-        color: '#F4F4F5',
-        boxSizing: 'border-box',
-        padding: '16px',
-        paddingLeft: '0',
-      }}
-    >
-      {/* Sidebar Navigation */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#0A0A0D', color: '#F4F4F5', boxSizing: 'border-box', padding: '16px', paddingLeft: '0' }}>
       <Sidebar
         currentPage={currentPage}
         onNavigate={handleNavigate}
@@ -1193,25 +359,15 @@ export function App() {
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
-      {/* Main Content Area */}
       <main
         style={{
-          flex: 1,
-          minWidth: 0,
-          marginLeft: isSidebarCollapsed ? '78px' : '108px',
-          transition: 'margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
+          flex: 1, minWidth: 0, marginLeft: isSidebarCollapsed ? '78px' : '108px',
+          transition: 'margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1)', display: 'flex', flexDirection: 'column', gap: '16px',
         }}
       >
-        {/* Header Bar */}
-        <Header
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+        <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        {syncBanner}
 
-        {/* Dynamic Route Content */}
         {currentPage === 'marketplace' && (
           <MarketplacePage
             collections={collections}
@@ -1220,13 +376,11 @@ export function App() {
             walletAccountId={wallet.accountId}
             proposals={proposals}
             userNfts={displayedUserNfts}
+            holders={holders}
+            sales={salesHistory}
             onNavigate={setCurrentPage}
-            onSelectCollection={(colId) => {
-              setSelectedCollectionId(colId);
-            }}
+            onSelectCollection={(colId) => setSelectedCollectionId(colId)}
             onBuyListing={handleBuyListing}
-            onPlaceOffer={handlePlaceOffer}
-            onAcceptOffer={handleAcceptOffer}
             onCastVote={handleCastVote}
           />
         )}
@@ -1234,23 +388,16 @@ export function App() {
         {currentPage === 'landing' && (
           <LandingPage
             onNavigate={setCurrentPage}
-            onSelectCollection={(colId) => {
-              setSelectedCollectionId(colId);
-              setCurrentPage('marketplace');
-            }}
+            onSelectCollection={(colId) => { setSelectedCollectionId(colId); setCurrentPage('marketplace'); }}
           />
         )}
 
-        {currentPage === 'mint' && (
+        {currentPage === 'mint' && mintCollection && (
           <MintPage
             collections={collections}
             selectedCollectionId={selectedCollectionId}
             onSelectCollection={(colId) => setSelectedCollectionId(colId)}
-            collection={
-              collections.find((c) => c.id === selectedCollectionId) ||
-              collections.find((c) => c.minted < c.supply) ||
-              collections[0]
-            }
+            collection={mintCollection}
             onNavigate={setCurrentPage}
             onMint={handleMint}
           />
@@ -1259,6 +406,7 @@ export function App() {
         {currentPage === 'portfolio' && (
           <PortfolioPage
             nfts={displayedUserNfts}
+            collections={collections}
             walletConnected={wallet.connected}
             walletAccountId={wallet.accountId}
             onOpenConnect={handleOpenOfficialConnect}
@@ -1267,6 +415,9 @@ export function App() {
             onClaimSingle={handleClaimSingle}
             onBurnToken={handleBurnToken}
             onAddToVault={handleAddToVault}
+            onCredit={handleCredit}
+            onEnableFallback={handleEnableFallback}
+            onAbortSwap={handleAbortSwap}
           />
         )}
 
@@ -1277,16 +428,11 @@ export function App() {
             collections={collections}
             onCastVote={handleCastVote}
             onCreateProposal={handleCreateProposal}
+            onExecute={handleExecute}
           />
         )}
 
-        {currentPage === 'launch' && (
-          <LaunchPage
-            onNavigate={setCurrentPage}
-            onCollectionCreated={handleCollectionCreated}
-            creatorAccount={wallet.accountId}
-          />
-        )}
+        {currentPage === 'launch' && <LaunchPage onNavigate={setCurrentPage} collections={collections} />}
 
         {currentPage === 'sells' && (
           <SellsPage
@@ -1299,47 +445,23 @@ export function App() {
             onCancelListing={handleCancelListing}
           />
         )}
-
-        {currentPage === 'offers' && (
-          <OffersPage
-            offers={offers}
-            userNfts={displayedUserNfts}
-            marketListings={marketListings}
-            userBalance={wallet.balanceNear}
-            walletConnected={wallet.connected}
-            walletAccountId={wallet.accountId}
-            onOpenConnect={handleOpenOfficialConnect}
-            onNavigate={setCurrentPage}
-            onAcceptOffer={handleAcceptOffer}
-            onCancelOffer={handleCancelOffer}
-            onPlaceOffer={handlePlaceOffer}
-          />
-        )}
       </main>
 
-      {/* Wallet Settings Modal */}
       <WalletModal
         isOpen={isWalletOpen}
         onClose={() => setIsWalletOpen(false)}
         wallet={wallet}
         onUpdateWallet={(updated) => setWallet((prev) => ({ ...prev, ...updated }))}
         onOpenConnect={handleOpenOfficialConnect}
-        onDisconnect={async () => {
-          await disconnectNearConnect();
-          setWallet({
-            connected: false,
-            accountId: '',
-            balanceNear: 0,
-            network: 'testnet',
-            connector: undefined,
-          });
-        }}
+        onDisconnect={async () => { await disconnectNearConnect(); setWallet(NO_WALLET); }}
       />
 
-      {/* Toast Notification Container */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }
 
 export default App;
+
+// Re-exported for tests and tooling that want to read contract state the same way the UI does.
+export { view };

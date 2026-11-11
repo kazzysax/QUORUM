@@ -10,7 +10,8 @@ import {
   Wallet,
   CheckCircle2,
 } from 'lucide-react';
-import { fetchNearAccountBalance, NEAR_TESTNET_EXPLORER, NEAR_TESTNET_RPC } from '../near';
+import { RPC_ENDPOINTS } from '../deployments';
+import { fetchNearAccountBalance, NEAR_TESTNET_EXPLORER } from '../near';
 import { disconnectNearConnect } from '../nearConnect';
 
 interface WalletModalProps {
@@ -306,7 +307,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
             borderTop: '1px solid #2A2A33',
           }}
         >
-          <span>RPC: {NEAR_TESTNET_RPC.replace('https://', '')}</span>
+          <span>RPC: {RPC_ENDPOINTS[0].replace('https://', '')}</span>
           {wallet.connected && (
             <a
               href={`${NEAR_TESTNET_EXPLORER}/address/${wallet.accountId}`}

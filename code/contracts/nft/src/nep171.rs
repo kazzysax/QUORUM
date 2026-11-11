@@ -11,7 +11,7 @@ use near_sdk::{near, Promise, PromiseOrValue};
 
 impl Contract {
     fn touch(&mut self, token_id: &str) {
-        let st = self.token_state.get_mut(token_id).unwrap_or_else(|| env::panic_str("Unknown token"));
+        let st = self.token_state.get_mut(token_id).unwrap_or_else(|| quorum_common::fail("Unknown token"));
         require!(!st.burned, "Token is burned");
         st.last_transfer_block = U64(env::block_height());
     }

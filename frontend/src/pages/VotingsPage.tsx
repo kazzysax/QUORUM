@@ -8,7 +8,8 @@ interface VotingsPageProps {
   userNfts: TokenItem[];
   collections: CollectionItem[];
   onCastVote: (proposalId: number, choice: 'yes' | 'no' | 'abstain') => void;
-  onCreateProposal?: (prop: Partial<ProposalItem>) => void;
+  onCreateProposal?: (prop: Partial<ProposalItem> & { recipient?: string; group?: number }) => void;
+  onExecute?: (proposalId: number) => void;
 }
 
 export const VotingsPage: React.FC<VotingsPageProps> = ({
@@ -17,6 +18,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
   collections,
   onCastVote,
   onCreateProposal,
+  onExecute,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [votingOnId, setVotingOnId] = useState<number | null>(null);
@@ -25,21 +27,24 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
   const [newPropTitle, setNewPropTitle] = useState('');
   const [newPropDesc, setNewPropDesc] = useState('');
   const [newPropAmount, setNewPropAmount] = useState('1.00');
-  const [newPropKind, setNewPropKind] = useState<'Spend' | 'Distribute' | 'Parameter'>('Spend');
+  const [newPropKind, setNewPropKind] = useState<'Spend' | 'Distribute' | 'Settle' | 'Text'>('Spend');
+  const [newPropRecipient, setNewPropRecipient] = useState('');
+  const [newPropGroup, setNewPropGroup] = useState('0');
+  const [balError, setBalError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const fetchAll = async () => {
       const results = await Promise.all(
         collections.map(async (c) => {
-          const bal = await fetchLiveDaoBalances(c.id || c.name);
+          const bal = await fetchLiveDaoBalances(c.id || c.name).catch((e) => { if (mounted) setBalError(String(e?.message || e)); return null; });
           return { name: c.name, bal };
         })
       );
       if (!mounted) return;
       const map: Record<string, DaoBalances> = {};
       results.forEach((r) => {
-        map[r.name] = r.bal;
+        if (r.bal) map[r.name] = r.bal;
       });
       setColBalances(map);
     };
@@ -59,7 +64,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
   const activeCollectionNames = Array.from(
     new Set([
       ...collections.map((c) => c.name),
-      ...proposals.map((p) => p.collection || 'Molten Hours'),
+      ...proposals.map((p) => p.collection).filter((n): n is string => !!n),
     ])
   );
 
@@ -142,7 +147,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
 
         {activeCollectionNames.map((colName) => {
           const power = userNftsByCollection[colName] || 0;
-          const count = proposals.filter((p) => (p.collection || 'Molten Hours') === colName).length;
+          const count = proposals.filter((p) => p.collection === colName).length;
           const isSelected = selectedFilter === colName;
 
           return (
@@ -190,14 +195,14 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
           .filter((colName) => selectedFilter === 'all' || selectedFilter === colName)
           .map((colName) => {
             const colProposals = proposals.filter(
-              (p) => (p.collection || 'Molten Hours') === colName
+              (p) => p.collection === colName
             );
 
             const colMeta = collections.find((c) => c.name === colName);
             const userVotesInCol = userNftsByCollection[colName] || 0;
             const accounts = getCollectionDaoAccounts(colName);
             const liveBal = colBalances[colName];
-            const treasuryDisplay = liveBal ? `${liveBal.treasuryBalance.toFixed(2)} NEAR Treasury` : '10.00 NEAR Treasury';
+            const treasuryDisplay = liveBal ? `${liveBal.treasuryBalance.toFixed(2)} NEAR Treasury` : balError ? 'treasury unavailable' : 'loading treasury…';
 
             return (
               <section
@@ -301,8 +306,11 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                         kind: newPropKind,
                         amount_near: `${newPropAmount || '1.00'} NEAR`,
                         collection: colName,
-                        target_account: accounts.treasuryAccount,
+                        target_account: newPropRecipient || undefined,
+                        recipient: newPropRecipient || undefined,
+                        group: Number(newPropGroup) || 0,
                       });
+                      setNewPropRecipient('');
                       setCreatingForCol(null);
                       setNewPropTitle('');
                       setNewPropDesc('');
@@ -372,10 +380,19 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                       >
                         <option value="Spend">Spend</option>
                         <option value="Distribute">Distribute</option>
-                        <option value="Parameter">Parameter</option>
+                        <option value="Settle">Settle group</option>
+                        <option value="Text">Text (signal)</option>
                       </select>
                     </div>
 
+                    {newPropKind === 'Spend' && (
+                      <input type="text" placeholder="Recipient account (e.g. alice.testnet)" value={newPropRecipient} onChange={(e) => setNewPropRecipient(e.target.value)} required
+                        style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '10px', padding: '10px 12px', color: '#F4F4F5', fontSize: '13px' }} />
+                    )}
+                    {newPropKind === 'Settle' && (
+                      <input type="number" min="0" placeholder="Asset group index" value={newPropGroup} onChange={(e) => setNewPropGroup(e.target.value)}
+                        style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '10px', padding: '10px 12px', color: '#F4F4F5', fontSize: '13px' }} />
+                    )}
                     <textarea
                       placeholder="Detailed proposal rationale and execution plan for holders to vote on..."
                       value={newPropDesc}
@@ -453,7 +470,13 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                     const totalVotes = prop.votes_yes + prop.votes_no + prop.votes_abstain;
                     const yesPercent = totalVotes > 0 ? Math.round((prop.votes_yes / totalVotes) * 100) : 0;
                     const noPercent = totalVotes > 0 ? Math.round((prop.votes_no / totalVotes) * 100) : 0;
-                    const hasVoted = Boolean(prop.voted_choice);
+                    const votable = prop.votable_tokens ?? [];
+                    const hasVoted = prop.status !== 'Voting open' || votable.length === 0;
+                    const voteNote = prop.status !== 'Voting open'
+                      ? `Voting closed · ${prop.time_remaining}`
+                      : (prop.my_voted ?? 0) > 0
+                        ? `Your vote is recorded on-chain (${prop.my_voted} of ${prop.my_tokens} tokens voted)`
+                        : 'None of your tokens can vote here: a token must be held before the proposal opens.';
                     const isVoting = votingOnId === prop.id;
 
                     return (
@@ -545,6 +568,11 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                           </div>
                         </div>
 
+                        {prop.can_execute && onExecute && (
+                          <button type="button" className="btn-primary" style={{ alignSelf: 'flex-start', padding: '8px 18px', fontSize: '13px' }} onClick={() => onExecute(prop.id)}>
+                            Execute on-chain (anyone can)
+                          </button>
+                        )}
                         {/* Quick On-Chain Cast Vote Buttons */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', paddingTop: '4px' }}>
                           {hasVoted ? (
@@ -564,7 +592,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({
                             >
                               <CheckCircle2 size={16} color="#4ADE80" />
                               <span>
-                                You voted {prop.voted_choice?.toUpperCase()} with {userVotesInCol} votes on {accounts.daoAccount}
+                                {voteNote}
                               </span>
                             </div>
                           ) : (

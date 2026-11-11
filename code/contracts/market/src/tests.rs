@@ -13,7 +13,7 @@ fn ctx(pred: &str, deposit: u128) -> VMContextBuilder {
 
 fn listed() -> Market {
     testing_env!(ctx("nft.near", 0).build());
-    let mut m = Market::new();
+    let mut m = market();
     m.nft_on_approve("1".into(), acc("seller.near"), 7, r#"{"price":"1000"}"#.into());
     m
 }
@@ -33,7 +33,7 @@ fn listing_is_created_from_the_approval_callback() {
 #[should_panic(expected = "msg must be")]
 fn bad_approval_msg_is_rejected() {
     testing_env!(ctx("nft.near", 0).build());
-    let mut m = Market::new();
+    let mut m = market();
     m.nft_on_approve("1".into(), acc("s.near"), 1, "nope".into());
 }
 
@@ -127,4 +127,58 @@ fn successful_sale_pays_pool_royalty_and_seller() {
     assert!(log.contains(r#""pool_fee":"500""#), "{log}");
     assert!(log.contains(r#""royalty":"750""#), "{log}");
     assert!(log.contains(r#""seller_net":"8750""#), "{log}");
+}
+
+fn market() -> Market {
+    testing_env!(ctx("owner.near", 0).build());
+    let mut m = Market::new(acc("owner.near"));
+    m.register_collection(acc("nft.near"));
+    testing_env!(ctx("nft.near", 0).build());
+    m
+}
+
+#[test]
+#[should_panic(expected = "not registered")]
+fn an_unregistered_collection_cannot_list() {
+    let mut m = market();
+    testing_env!(ctx("fake-nft.near", 0).build());
+    m.nft_on_approve("1".into(), acc("s.near"), 1, r#"{"price":"5"}"#.into());
+}
+
+#[test]
+#[should_panic(expected = "Only the owner")]
+fn only_the_owner_registers_collections() {
+    let mut m = market();
+    testing_env!(ctx("mallory.near", 0).build());
+    m.register_collection(acc("fake-nft.near"));
+}
+
+#[test]
+fn get_listings_filters_by_collection_and_stats_count_completed_sales() {
+    let mut m = listed();
+    let l = m.get_listings(acc("nft.near"), 0, 10);
+    assert_eq!(l.len(), 1);
+    assert_eq!(l[0].0, "1");
+    assert!(m.get_listings(acc("elsewhere.near"), 0, 10).is_empty());
+    assert_eq!(m.get_stats(acc("nft.near")).sales, 0);
+    testing_env!(ctx("buyer.near", 1000).build());
+    let _ = m.buy(acc("nft.near"), "1".into(), 7);
+    testing_env!(ctx("market.near", 0).build());
+    let _ = m.on_transferred(Ok(()), acc("nft.near"), "1".into(), acc("buyer.near"), acc("seller.near"), U128(1000), terms(500));
+    let s = m.get_stats(acc("nft.near"));
+    assert_eq!((s.sales, s.volume.0), (1, 1000));
+    assert!(m.get_listings(acc("nft.near"), 0, 10).is_empty());
+}
+
+#[test]
+fn recent_sales_keep_the_split_and_are_newest_first() {
+    let mut m = listed();
+    testing_env!(ctx("market.near", 0).build());
+    let _ = m.on_transferred(Ok(()), acc("nft.near"), "1".into(), acc("buyer.near"), acc("seller.near"), U128(10_000), terms(750));
+    let _ = m.on_transferred(Ok(()), acc("nft.near"), "2".into(), acc("buyer.near"), acc("seller.near"), U128(2_000), terms(0));
+    let r = m.recent_sales(Some(acc("nft.near")), 10);
+    assert_eq!(r.len(), 2);
+    assert_eq!(r[0].token_id, "2");
+    assert_eq!((r[1].pool_fee.0, r[1].royalty.0, r[1].seller_net.0), (500, 750, 8_750));
+    assert!(m.recent_sales(Some(acc("other.near")), 10).is_empty());
 }

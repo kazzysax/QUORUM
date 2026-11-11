@@ -152,7 +152,23 @@ fn spend_cannot_touch_reserved_funds() {
     }));
     assert!(r.is_err());
     with_results("treasury.near", vec![json_ok(U128(1_000))]);
-    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(400), "ok".into());
+    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(100), "ok".into());
+}
+
+#[test]
+#[should_panic(expected = "25%")]
+fn one_spend_cannot_exceed_a_quarter_of_the_free_funds() {
+    let mut t = treasury();
+    with_results("treasury.near", vec![json_ok(U128(1_000))]);
+    // 1000 free: 250 is the most one spend may take.
+    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(251), "too big".into());
+}
+
+#[test]
+fn a_quarter_of_the_free_funds_is_allowed() {
+    let mut t = treasury();
+    with_results("treasury.near", vec![json_ok(U128(1_000))]);
+    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(250), "limit".into());
 }
 
 #[test]
@@ -228,4 +244,28 @@ fn the_dao_can_approve_and_revoke_dexes_nobody_else_can() {
     assert_eq!(t.approved_dexes().len(), 2);
     t.set_param("revoke_dex".into(), "d2.near".into());
     assert_eq!(t.approved_dexes(), vec![acc("v2.ref-finance.near")]);
+}
+
+#[test]
+fn a_distribution_of_real_near_amounts_does_not_overflow() {
+    // 0.4 NEAR over 8 NFTs: the case that overflowed with a 10^24 index scale.
+    let mut t = treasury();
+    testing_env!(ctx("nft.near").build());
+    for i in 1..=8 { t.register_token(i.to_string()); }
+    let amount: u128 = 400_000_000_000_000_000_000_000;
+    distribute(&mut t, amount, 8, amount * 5);
+    assert_eq!(t.owed_to("1".into(), USDC.into()).0, amount / 8);
+    assert_eq!(t.reserved_for(USDC.into()).0, amount);
+}
+
+#[test]
+fn a_huge_distribution_still_fits() {
+    // 100,000 NEAR over 3 NFTs.
+    let mut t = treasury();
+    testing_env!(ctx("nft.near").build());
+    for i in 1..=3 { t.register_token(i.to_string()); }
+    let amount: u128 = 100_000 * 1_000_000_000_000_000_000_000_000;
+    distribute(&mut t, amount, 3, amount * 2);
+    let owed = t.owed_to("1".into(), USDC.into()).0;
+    assert!(owed <= amount / 3 && amount / 3 - owed < 3);
 }

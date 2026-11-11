@@ -19,14 +19,14 @@ impl Contract {
     pub fn set_param(&mut self, key: String, value: String) {
         require!(env::predecessor_account_id() == self.config.dao, "Only the DAO");
         match key.as_str() {
-            "paused" => self.config.paused = value.parse().unwrap_or_else(|_| env::panic_str("true or false")),
+            "paused" => self.config.paused = value.parse().unwrap_or_else(|_| quorum_common::fail("true or false")),
             "royalty_bps" => {
-                let v: u16 = value.parse().unwrap_or_else(|_| env::panic_str("Invalid bps"));
+                let v: u16 = value.parse().unwrap_or_else(|_| quorum_common::fail("Invalid bps"));
                 require!(quorum_common::SALE_POOL_BPS as u32 + v as u32 <= quorum_common::BPS as u32, "Pool fee plus royalty exceeds 100%");
                 self.config.royalty_bps = v;
             }
             // Where swaps are sent. Changing it needs a vote, so a DEX migration does not need new code.
-            "dex" => self.config.dex = value.parse().unwrap_or_else(|_| env::panic_str("Invalid account")),
+            "dex" => self.config.dex = value.parse().unwrap_or_else(|_| quorum_common::fail("Invalid account")),
             "vault_allowlist_add" => {
                 if !self.config.vault_allowlist.contains(&value) {
                     require!(self.config.vault_allowlist.len() < MAX_ASSET_TYPES, "Allow-list full");
@@ -39,7 +39,7 @@ impl Contract {
                 require!(!protected, "Plan assets and NEAR must stay on the allow-list");
                 self.config.vault_allowlist.retain(|a| a != &value);
             }
-            _ => env::panic_str("Unknown parameter"),
+            _ => quorum_common::fail("Unknown parameter"),
         }
         emit("param_changed", json!({ "key": key, "value": value }));
     }

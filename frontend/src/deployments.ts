@@ -1,0 +1,58 @@
+// The only static data in the app: WHERE the contracts live. Every number the UI shows is
+// read from these contracts over RPC at runtime. Each collection has its own NFT, DAO and
+// treasury contract; there is no pooled treasury or shared DAO.
+
+export const NETWORK = 'testnet' as const;
+export const EXPLORER = 'https://testnet.nearblocks.io';
+export const RPC_ENDPOINTS = [
+  'https://test.rpc.fastnear.com',
+  'https://near-testnet.drpc.org',
+  'https://rpc.testnet.near.org',
+];
+
+/** Shared secondary market. Only registered Quorum collections can list here. */
+export const MARKET = 'market.qrmx-founder1.testnet';
+
+export interface Deployment {
+  id: string;
+  slug: string;
+  nft: string;
+  dao: string;
+  treasury: string;
+  description: string;
+  cover: string;
+  avatar: string;
+}
+
+export const DEPLOYMENTS: Deployment[] = [
+  {
+    id: 'molten-hours',
+    slug: 'molten',
+    nft: 'qrmx-molten.testnet',
+    dao: 'qrmx-molten-dao.testnet',
+    treasury: 'qrmx-molten-tre.testnet',
+    description: 'Amber currents caught mid-pour. Every piece holds half of its mint price in its own keyless vault and one vote in the Molten Hours DAO.',
+    cover: '/images/banner-molten.jpg',
+    avatar: '/images/molten-0.jpg',
+  },
+  {
+    id: 'tidewater',
+    slug: 'tide',
+    nft: 'qrmx-tide.testnet',
+    dao: 'tide-dao.qrmx-founder1.testnet',
+    treasury: 'tide-tre.qrmx-founder1.testnet',
+    description: 'Teal tides and gold flecks. Every piece holds half of its mint price in its own keyless vault and one vote in the Tidewater DAO.',
+    cover: '/images/banner-tidewater.jpg',
+    avatar: '/images/tidewater-0.jpg',
+  },
+  {
+    id: 'feather-protocol',
+    slug: 'feather',
+    nft: 'feather.qrmx-founder1.testnet',
+    dao: 'feather-dao.qrmx-founder1.testnet',
+    treasury: 'feather-tre.qrmx-founder1.testnet',
+    description: 'Weightless plumage, anchored on-chain. Every piece holds half of its mint price in its own keyless vault and one vote in the Feather Protocol DAO.',
+    cover: '/images/feather-banner.jpg',
+    avatar: '/images/feather-avatar.jpg',
+  },
+];

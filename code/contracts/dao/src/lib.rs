@@ -13,7 +13,8 @@
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json::json;
 use near_sdk::store::{LookupMap, LookupSet};
-use near_sdk::{env, ext_contract, near, require, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError};
+use near_sdk::{env, ext_contract, near, AccountId, BorshStorageKey, Gas, NearToken, PanicOnDefault, Promise, PromiseError};
+use quorum_common::require;
 use quorum_common::events::emit;
 use quorum_common::swap::Hop;
 
@@ -22,6 +23,11 @@ const GAS_EXEC: Gas = Gas::from_tgas(100);
 const GAS_SWAP_EXEC: Gas = Gas::from_tgas(250);
 const GAS_CB: Gas = Gas::from_tgas(20);
 const DAY_MS: u64 = 86_400_000;
+/// A voting period longer than this is refused: a proposal must resolve in a reasonable time.
+const MAX_VOTING_PERIOD_MS: u64 = 30 * DAY_MS;
+/// A passed proposal must be executed within this window after its timelock. Older ones expire,
+/// so a stale approval cannot be fired against a treasury that has changed since the vote.
+const EXECUTION_WINDOW_MS: u64 = 14 * DAY_MS;
 
 #[ext_contract(ext_treasury_dao)]
 pub trait TreasuryDao {
@@ -71,6 +77,12 @@ pub struct Bounds {
     pub min_timelock_ms: U64,
 }
 
+#[near(serializers = [json])]
+pub struct VoteToken {
+    pub token_id: String,
+    pub last_transfer_block: U64,
+}
+
 #[near(serializers = [borsh, json])]
 #[derive(Clone, Debug)]
 pub struct Proposal {
@@ -94,7 +106,7 @@ pub struct Proposal {
 
 #[near(serializers = [json])]
 #[derive(Clone, Debug, PartialEq)]
-pub enum Status { Voting, Passed, Failed, Executed }
+pub enum Status { Voting, Passed, Failed, Executed, Expired }
 
 #[near(serializers = [borsh])]
 #[derive(BorshStorageKey)]
@@ -137,11 +149,17 @@ impl Dao {
         if let Kind::Spend { amount, .. } | Kind::Distribute { amount, .. } | Kind::Swap { amount, .. } = &kind {
             require!(amount.0 > 0, "Amount must be positive");
         }
+        match &kind {
+            Kind::Spend { asset, .. } | Kind::Distribute { asset, .. } => quorum_common::asset::assert_asset(asset),
+            Kind::Swap { token_in, .. } => quorum_common::asset::assert_asset(token_in),
+            _ => {}
+        }
         if let Kind::Settle { min_out, .. } | Kind::Swap { min_out, .. } = &kind {
             require!(min_out.0 > 0, "A minimum output is required");
         }
         let b = &self.bounds[kind.slot()];
         require!(voting_period_ms.0 >= b.min_period_ms.0, "Voting period below the founder minimum");
+        require!(voting_period_ms.0 <= MAX_VOTING_PERIOD_MS, "Voting period longer than 30 days");
         require!(quorum_bps >= b.min_quorum_bps && quorum_bps <= 10_000, "Quorum below the founder minimum");
         require!(pass_bps >= b.min_pass_bps && pass_bps < 10_000, "Pass threshold below the founder minimum");
         require!(timelock_ms.0 >= b.min_timelock_ms.0, "Timelock below the founder minimum");
@@ -160,9 +178,25 @@ impl Dao {
 
     /// choice: 0 = no, 1 = yes, 2 = abstain.
     pub fn record_vote(&mut self, proposal_id: u64, voter: AccountId, token_id: String, last_transfer_block: U64, choice: u8) {
+        self.record_votes(proposal_id, voter, vec![VoteToken { token_id, last_transfer_block }], choice);
+    }
+
+    /// Records several tokens in one call. All-or-nothing: one ineligible token fails the whole
+    /// call, so the voter sees why instead of a partly counted vote.
+    pub fn record_votes(&mut self, proposal_id: u64, voter: AccountId, tokens: Vec<VoteToken>, choice: u8) {
         require!(env::predecessor_account_id() == self.nft, "Only the NFT contract");
+        require!(!tokens.is_empty(), "No tokens to vote with");
+        require!(choice <= 2, "Choice must be 0, 1 or 2");
+        for t in tokens {
+            self.record_one(proposal_id, &voter, t.token_id, t.last_transfer_block, choice);
+        }
+    }
+}
+
+impl Dao {
+    fn record_one(&mut self, proposal_id: u64, voter: &AccountId, token_id: String, last_transfer_block: U64, choice: u8) {
         let now = env::block_timestamp_ms();
-        let p = self.proposals.get_mut(&proposal_id).unwrap_or_else(|| env::panic_str("No such proposal"));
+        let p = self.proposals.get_mut(&proposal_id).unwrap_or_else(|| quorum_common::fail("No such proposal"));
         require!(now >= p.start_ms.0 && now < p.voting_end_ms.0, "Outside the voting window");
         require!(last_transfer_block.0 < p.start_block.0, "Token changed hands after this proposal opened");
         let key = format!("{proposal_id}:{token_id}");
@@ -173,10 +207,14 @@ impl Dao {
             0 => p.no = U64(p.no.0 + 1),
             1 => p.yes = U64(p.yes.0 + 1),
             2 => p.abstain = U64(p.abstain.0 + 1),
-            _ => env::panic_str("Choice must be 0, 1 or 2"),
+            _ => quorum_common::fail("Choice must be 0, 1 or 2"),
         }
         emit("vote", json!({ "proposal_id": proposal_id, "voter": voter, "token_id": token_id, "choice": choice }));
     }
+}
+
+#[near]
+impl Dao {
 
     /// Anyone can execute once the proposal passed and its timelock elapsed.
     pub fn execute(&mut self, proposal_id: u64) -> Promise {
@@ -213,18 +251,26 @@ impl Dao {
     // ----------------------------------------------------------------- views
     pub fn get_proposal(&self, proposal_id: u64) -> Option<&Proposal> { self.proposals.get(&proposal_id) }
     pub fn proposal_count(&self) -> u64 { self.next_id - 1 }
+
+    /// Proposals with ids in `from_id..from_id + limit` (ids start at 1), so a client can read the
+    /// whole history in a few calls.
+    pub fn list_proposals(&self, from_id: u64, limit: u64) -> Vec<Proposal> {
+        (from_id.max(1)..self.next_id).take(limit as usize).filter_map(|i| self.proposals.get(&i).cloned()).collect()
+    }
     pub fn get_bounds(&self) -> &Vec<Bounds> { &self.bounds }
     pub fn has_voted(&self, proposal_id: u64, token_id: String) -> bool { self.votes.contains(&format!("{proposal_id}:{token_id}")) }
 
     pub fn status_of(&self, proposal_id: u64) -> Status {
-        let p = self.proposals.get(&proposal_id).unwrap_or_else(|| env::panic_str("No such proposal"));
+        let p = self.proposals.get(&proposal_id).unwrap_or_else(|| quorum_common::fail("No such proposal"));
         if p.executed { return Status::Executed; }
         if env::block_timestamp_ms() < p.voting_end_ms.0 { return Status::Voting; }
         let turnout = (p.yes.0 + p.no.0 + p.abstain.0) as u128 * 10_000;
         let quorum_met = turnout >= p.supply.0 as u128 * p.quorum_bps as u128;
         // Strictly more than the threshold: ties fail. Abstain counts for quorum only.
         let passed = p.yes.0 as u128 * 10_000 > (p.yes.0 + p.no.0) as u128 * p.pass_bps as u128;
-        if quorum_met && passed { Status::Passed } else { Status::Failed }
+        if !(quorum_met && passed) { return Status::Failed; }
+        if env::block_timestamp_ms() > p.voting_end_ms.0 + p.timelock_ms.0 + EXECUTION_WINDOW_MS { return Status::Expired; }
+        Status::Passed
     }
 }
 

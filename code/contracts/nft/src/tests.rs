@@ -51,7 +51,7 @@ fn config() -> Config {
         royalty_bps: 500, royalty_recipient: acc("founder.near"),
         metadata_base_url: "https://api.test".into(), media_base_url: "https://media.test".into(),
         paused: false, provenance_hash: None, asset_plan: plan(), dex: acc(DEX), wrap_account: acc(WRAP),
-        settle_grace_ms: U64(10_000),
+        settle_grace_ms: U64(3_600_000),
     }
 }
 
@@ -349,10 +349,10 @@ fn failed_balance_check_or_empty_swap_returns_the_group_to_pending() {
     let _ = c.on_before(Err(PromiseError::Failed), 0, vec![hop(1, "usdc.near")], U128(5), U128(NEAR * 3 / 2));
     assert_eq!(c.groups[0].phase, Phase::Pending);
     c.groups[0].phase = Phase::Swapping;
-    c.on_after(Ok(U128(1_000)), 0, U128(1_000)); // balance unchanged: the DEX reverted
+    c.on_after(Ok(U128(1_000)), 0, U128(1_000), U128(1)); // balance unchanged: the DEX reverted
     assert_eq!(c.groups[0].phase, Phase::Pending);
     c.groups[0].phase = Phase::Swapping;
-    c.on_after(Err(PromiseError::Failed), 0, U128(1_000));
+    c.on_after(Err(PromiseError::Failed), 0, U128(1_000), U128(1));
     assert_eq!(c.groups[0].phase, Phase::Pending);
 }
 
@@ -361,7 +361,7 @@ fn a_successful_swap_records_exactly_what_arrived() {
     let mut c = closed_collection();
     c.groups[0].phase = Phase::Swapping;
     with(ctx(NFT, CLOSED), vec![]);
-    c.on_after(Ok(U128(5_000_400)), 0, U128(5_000_000));
+    c.on_after(Ok(U128(5_000_400)), 0, U128(5_000_000), U128(400));
     let g = &c.groups[0];
     assert_eq!((g.phase.clone(), g.out_total.0, g.swap_share.0), (Phase::Swapped, 400, NEAR / 2 + NEAR));
 }
@@ -373,7 +373,8 @@ fn a_wnear_group_settles_by_wrapping_one_to_one() {
     let _ = c.settle_group(1, vec![], U128(0));
     assert_eq!(c.groups[1].phase, Phase::Swapping);
     with(ctx(NFT, CLOSED), created_ok());
-    c.on_wrapped(Ok(()), 1, U128(NEAR));
+    let _ = c.on_before_wrap(Ok(U128(7)), 1, U128(NEAR));
+    c.on_after(Ok(U128(7 + NEAR)), 1, U128(7), U128(NEAR));
     assert_eq!((c.groups[1].phase.clone(), c.groups[1].out_total.0), (Phase::Swapped, NEAR));
 }
 
@@ -382,7 +383,7 @@ fn a_wnear_group_settles_by_wrapping_one_to_one() {
 fn swapped(c: &mut Contract, out: u128) {
     c.groups[0].phase = Phase::Swapping;
     with(ctx(NFT, CLOSED), vec![]);
-    c.on_after(Ok(U128(out)), 0, U128(0));
+    c.on_after(Ok(U128(out)), 0, U128(0), U128(1));
 }
 
 #[test]
@@ -429,11 +430,11 @@ fn crediting_rules() {
 #[test]
 fn fallback_needs_the_grace_period_and_then_credits_plain_near() {
     let mut c = closed_collection();
-    testing_env!(ctx("anyone.near", CLOSED + 9_999).build());
+    testing_env!(ctx("anyone.near", CLOSED + 3_599_999).build());
     assert!(panics(std::panic::AssertUnwindSafe(|| c.enable_fallback(0))).contains("grace period"));
     testing_env!(ctx("anyone.near", T0 + 4_000).build());
     assert!(panics(std::panic::AssertUnwindSafe(|| c.enable_fallback(0))).contains("still open"));
-    testing_env!(ctx("anyone.near", CLOSED + 10_000).build());
+    testing_env!(ctx("anyone.near", CLOSED + 3_600_000).build());
     c.enable_fallback(0);
     assert_eq!(c.groups[0].phase, Phase::Fallback);
     let _ = c.credit_batch(0, vec!["1".into(), "2".into()]);
@@ -556,10 +557,47 @@ fn nobody_can_change_the_asset_plan() {
 }
 
 #[test]
-fn unwrap_is_open_to_anyone() {
+
+#[test]
+fn only_the_dao_can_unwrap_wnear() {
     let mut c = new_contract();
     let mut b = ctx("anyone.near", T0);
     b.attached_deposit(NearToken::from_yoctonear(1));
     testing_env!(b.build());
+    assert!(panics(std::panic::AssertUnwindSafe(|| { let _ = c.unwrap_wnear(U128(5)); })).contains("Only the DAO"));
+    let mut b = ctx(DAO, T0);
+    b.attached_deposit(NearToken::from_yoctonear(1));
+    testing_env!(b.build());
     let _ = c.unwrap_wnear(U128(5));
+}
+
+#[test]
+fn a_dust_donation_below_min_out_does_not_count_as_a_swap() {
+    let mut c = closed_collection();
+    c.groups[0].phase = Phase::Swapping;
+    with(ctx(NFT, CLOSED), vec![]);
+    // 1 unit arrived (a donation), but holders approved at least 400.
+    c.on_after(Ok(U128(5_000_001)), 0, U128(5_000_000), U128(400));
+    assert_eq!(c.groups[0].phase, Phase::Pending);
+    assert_eq!(c.groups[0].out_total.0, 0);
+}
+
+#[test]
+fn a_stuck_swap_can_be_aborted_only_after_the_timeout() {
+    let mut c = closed_collection();
+    testing_env!(ctx(DAO, CLOSED).build());
+    let _ = c.settle_group(0, vec![hop(1, "usdc.near")], U128(5));
+    testing_env!(ctx("anyone.near", CLOSED + 1_000).build());
+    assert!(panics(std::panic::AssertUnwindSafe(|| c.abort_swap(0))).contains("may still be in flight"));
+    testing_env!(ctx("anyone.near", CLOSED + crate::settle::SWAP_TIMEOUT_MS).build());
+    c.abort_swap(0);
+    assert_eq!(c.groups[0].phase, Phase::Pending);
+    assert!(panics(std::panic::AssertUnwindSafe(|| c.abort_swap(0))).contains("No swap in progress"));
+}
+
+#[test]
+fn settlement_grace_below_one_hour_is_refused() {
+    let mut cfg = config();
+    cfg.settle_grace_ms = U64(10_000);
+    assert!(panics(std::panic::AssertUnwindSafe(|| validate_config(&cfg))).contains("at least one hour"));
 }

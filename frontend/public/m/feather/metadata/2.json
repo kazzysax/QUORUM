@@ -1,0 +1,15 @@
+{
+  "name": "Feather Protocol #2",
+  "description": "Weightless plumage, anchored on-chain. Each Feather Protocol NFT owns a keyless vault account and one vote in its own collection DAO.",
+  "image": "https://quorumio.vercel.app/media/feather/2",
+  "attributes": [
+    {
+      "trait_type": "Collection",
+      "value": "Feather Protocol"
+    },
+    {
+      "trait_type": "Vault",
+      "value": "v2.<collection contract>"
+    }
+  ]
+}

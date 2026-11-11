@@ -1,4 +1,4 @@
-export type Page = 'marketplace' | 'landing' | 'mint' | 'portfolio' | 'governance' | 'launch' | 'sells' | 'offers';
+export type Page = 'marketplace' | 'landing' | 'mint' | 'portfolio' | 'governance' | 'launch' | 'sells';
 
 export interface TokenItem {
   id: string;
@@ -14,6 +14,7 @@ export interface TokenItem {
   votes_cast?: number;
   unclaimed_distribution?: string;
   vault_account?: string;
+  price_yocto?: string; // exact listed price, for buy transactions
   approval_id?: number;
   nft_contract?: string;
   is_on_chain?: boolean;
@@ -107,6 +108,15 @@ export interface ProposalItem {
   amount_near?: string;
   end_date?: string;
   proposer?: string;
+  // Filled from the DAO contract:
+  chain_id?: number;
+  dao?: string;
+  nft_contract?: string;
+  executed?: boolean;
+  can_execute?: boolean;
+  my_tokens?: number;
+  my_voted?: number;
+  votable_tokens?: string[];
 }
 
 export interface ActiveListing {

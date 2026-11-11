@@ -1,0 +1,15 @@
+{
+  "name": "Tidewater #13",
+  "description": "Teal tides and gold flecks. Each Tidewater NFT owns a keyless vault account and one vote in its own collection DAO.",
+  "image": "https://quorumio.vercel.app/media/tide/13",
+  "attributes": [
+    {
+      "trait_type": "Collection",
+      "value": "Tidewater"
+    },
+    {
+      "trait_type": "Vault",
+      "value": "v13.<collection contract>"
+    }
+  ]
+}

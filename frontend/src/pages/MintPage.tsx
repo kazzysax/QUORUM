@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import type { Page, CollectionItem } from '../types';
+import type { Page } from '../types';
+import type { LiveCollection } from '../chain';
+import { fmtNear } from '../chain';
 import { ArrowLeft, ShieldCheck, Sparkles, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { fetchLiveDaoBalances, getCollectionDaoAccounts, type DaoBalances } from '../near';
 
 interface MintPageProps {
-  collection: CollectionItem;
-  collections?: CollectionItem[];
+  collection: LiveCollection;
+  collections?: LiveCollection[];
   selectedCollectionId?: string | null;
   onSelectCollection?: (collectionId: string) => void;
   onNavigate: (page: Page) => void;
@@ -29,24 +31,27 @@ export const MintPage: React.FC<MintPageProps> = ({
     let mounted = true;
     fetchLiveDaoBalances(collection.id).then((res) => {
       if (mounted) setDaoBalances(res);
-    });
+    }).catch(() => { if (mounted) setDaoBalances(null); });
     return () => {
       mounted = false;
     };
   }, [collection.id]);
 
   const isPre = stage === 'pre';
-  const price = parseFloat(collection.price_near || '1.00') || 1.00;
+  const price = parseFloat(collection.price_near);
   const vaultBacking = +(price * 0.5).toFixed(2);
   const treasuryDeposit = +(price * 0.5).toFixed(2);
-  const storage = 0.03;
+  const storage = parseFloat(fmtNear(collection.config.mint_storage_cost, 4));
   const total = +(price + storage).toFixed(2);
-  const isSoldOut = collection.minted >= collection.supply;
+  const isSoldOut = collection.minted >= collection.supply || collection.closed;
+  const activeStageName = collection.activeStage === null ? null : collection.config.stages[collection.activeStage].name;
   const stageStatus = isSoldOut
     ? 'Mint Concluded · 100% Minted'
     : isPre
       ? 'Allowlist only · ended'
-      : 'Open to everyone · Live';
+      : activeStageName
+        ? `${activeStageName} stage · open now`
+        : 'Mint is not open yet';
   const mintedPercent = Math.min(100, Math.round((collection.minted / collection.supply) * 100));
 
   const handleMintClick = async () => {
