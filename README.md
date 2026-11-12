@@ -258,14 +258,6 @@ code/contracts/
 8. **Double crediting:** `credited = true` is set before the transfer and reset if the transfer fails, so the credit can be retried.
 9. **Off-market sales:** allowed. The vault travels with the token anyway.
 
----|---|---|
-| Vaults (`v<id>.<collection>`) | **None.** Keyless since creation | Stay keyless forever |
-| NFT, DAO, treasury and market contracts | **1 deployer key each (not deleted yet)** | **To be deleted** once the testnet deployment is final |
-
-- **Why the keys are still there:** the live testnet tests found real bugs (see the [Test Suite](#-test-suite)). Keeping the deployer key let us fix them and upgrade the market and DAO in place without losing listings, sales history or votes.
-- **When they go:** the keys will be deleted once the collections are relaunched in their final form (larger supply), and on mainnet before the public mint (step 6 of the runbook below). Deletion is permanent. After it, code and funds can only change through the contracts' own rules: DAO votes, burns and sales.
-- **Verify the current state yourself:** `near account list-keys qrmx-molten-tre.testnet network-config testnet now` lists one key today. On a vault the same command returns an empty list.
-
 ---
 
 ## 🧪 Test Suite
