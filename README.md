@@ -260,8 +260,14 @@ code/contracts/
 
 ### Key status (stated honestly)
 
-- **Vaults:** keyless today (verify with `near account list-keys`).
-- **NFT, DAO, treasury and market accounts:** on testnet they still hold the deployer key. We kept it so we could patch the bugs the live tests found, and the market and DAO were upgraded in place. Before mainnet these keys are deleted, so code and funds can only change through the contracts' own rules. That is step 6 of the runbook below.
+| Accounts | Keys today | Plan |
+|---|---|---|
+| Vaults (`v<id>.<collection>`) | **None.** Keyless since creation | Stay keyless forever |
+| NFT, DAO, treasury and market contracts | **1 deployer key each (not deleted yet)** | **To be deleted** once the testnet deployment is final |
+
+- **Why the keys are still there:** the live testnet tests found real bugs (see the [Test Suite](#-test-suite)). Keeping the deployer key let us fix them and upgrade the market and DAO in place without losing listings, sales history or votes.
+- **When they go:** the keys will be deleted once the collections are relaunched in their final form (larger supply), and on mainnet before the public mint (step 6 of the runbook below). Deletion is permanent. After it, code and funds can only change through the contracts' own rules: DAO votes, burns and sales.
+- **Verify the current state yourself:** `near account list-keys qrmx-molten-tre.testnet network-config testnet now` lists one key today. On a vault the same command returns an empty list.
 
 ---
 
@@ -309,7 +315,7 @@ The contracts are the same on both networks. What changes is configuration, plus
 | Settlement asset route | `wrap.testnet` (no DEX liquidity on testnet) | **Rhea Finance** pools with enforced `min_out` |
 | Asset plan | `wrap.testnet:1` | e.g. `USDC:2, wrap.near:1` |
 | DAO voting period | 10 minutes (demo) | 3–5 days |
-| Contract access keys | Deployer key kept for live patching | **Deleted**, so the contracts are fully trustless |
+| Contract access keys | Deployer key still present (not deleted yet), kept for live fixes | **Deleted**, so the contracts are fully trustless |
 | Accounts | `qrmx-*.testnet`, `*.qrmx-founder1.testnet` | `<collection>.near`, `dao-<collection>.near`, `tre-<collection>.near` |
 | Market | `market.qrmx-founder1.testnet` | one shared mainnet market account |
 | RPC | dRPC / FastNear testnet | mainnet RPC providers |
