@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://quorumio.vercel.app"><img src="https://img.shields.io/badge/Live%20on-NEAR%20testnet-F5A524?style=for-the-badge&logo=near" alt="Live on NEAR testnet" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/near--sdk-5.30.1-orange?style=for-the-badge&logo=rust" alt="near-sdk 5.30.1" /></a>
-  <a href="#-test-suite"><img src="https://img.shields.io/badge/Tests-145%20unit%20%2B%20live%20testnet%20e2e-brightgreen?style=for-the-badge" alt="Tests" /></a>
+  <a href="#-test-suite"><img src="https://img.shields.io/badge/Tests-154%20unit%20%2B%20live%20testnet%20e2e-brightgreen?style=for-the-badge" alt="Tests" /></a>
   <a href="#-no-mocks-every-number-comes-from-the-chain"><img src="https://img.shields.io/badge/Data-100%25%20on--chain-success?style=for-the-badge" alt="100% on-chain data" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" /></a>
 </p>
@@ -159,7 +159,8 @@ The live collections, launched 12 Nov 2026 with 20 pieces each. All figures in t
 
 | Shared | Account |
 |---|---|
-| Market | [`market.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/market.qrmx-founder1.testnet): only registered collections can list, and the owner cannot move anyone's funds |
+| Market | [`market.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/market.qrmx-founder1.testnet): only registered collections can list (registered by the owner or by the factory), and the owner cannot move anyone's funds |
+| Collection factory | [`launch.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/launch.qrmx-founder1.testnet): the Launch page calls it; every collection it creates (`<name>.launch.qrmx-founder1.testnet`, `-dao`, `-tre`) has **zero access keys** |
 | Vault code | NEP-591 global contract, hash `DQALgt8fazwvRPFKdz2j5Eek9kacchwFm2vCucLDPCn8` |
 | Vaults | `v<id>.<nft contract>`, **zero access keys** (e.g. [`v1.molten.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/v1.molten.qrmx-founder1.testnet)) |
 
@@ -199,7 +200,8 @@ code/contracts/
 ├── nft/            # NEP-171/177/178/181 collection, escrow, settlement, burn, vote gate
 ├── treasury/       # Collection treasury: spends, distributions, reward index, donations
 ├── dao/            # Proposals, 1-token-1-vote tally, 50% turnout, bounds, timelock, expiry
-└── market/         # Listings, offers (escrowed), fee split, on-chain sale log and stats
+├── market/         # Listings, offers (escrowed), fee split, on-chain sale log and stats
+└── factory/        # Self-serve launches: creates a collection's NFT, DAO and treasury as keyless accounts
 ```
 
 | Contract | Highlights |
@@ -209,6 +211,7 @@ code/contracts/
 | `quorum-nft` | NEP-171/177/178/181/297. Staged Merkle allowlists, wallet quotas and a supply cap. Settlement checks the balance before and after and requires `min_out`. A wNEAR group can be settled by anyone once the mint is over; a DEX group only by the DAO. The vote gate checks `last_transfer_block < proposal.start_block`. |
 | `quorum-treasury` | Pays out only through executed DAO proposals, with a 50% single-spend cap. The reward index is scaled by 10⁹ with `mul_div`, which fixed an overflow the live tests found. Anyone can `donate`. |
 | `quorum-dao` | Proposal kinds: `Spend`, `Distribute`, `ParameterChange`, `Settle`, `Swap`, `Text`. The 50% turnout floor is hard-coded. Multi-token votes are all-or-nothing (`record_votes`). Execution is permissionless after the timelock and can be retried if it fails. |
+| `quorum-factory` | Self-serve launches. One call creates a collection's NFT, DAO and treasury as sub-accounts, loads the Quorum contract code embedded in the factory (so only the real contracts can ever run), initialises them and registers the collection on the market, **without adding any access key**. The creator pays the storage and becomes the founder and resale-fee recipient. It has no owner and no admin method, and it keeps a public list of every collection it created, which the app reads. |
 | `quorum-market` | Listings and offers on the same contract. Buyers must supply the `approval_id`, which defeats front-running. Offers escrow NEAR, can be withdrawn by the buyer, and are refunded on expiry. Sales are recorded on chain (`recent_sales`, `get_stats`), and the state migrated in place with no data lost. |
 
 ---
@@ -280,7 +283,7 @@ Mint timing comes only from the stage times fixed at launch, and a collection ca
 
 Two layers. The second exists because unit tests alone missed real bugs.
 
-1. **145 Rust unit tests** across the six crates (`cargo test --workspace`): common 14, DAO 23, market 27, NFT 43, treasury 21, vault 17.
+1. **154 Rust unit tests** across the seven crates (`cargo test --workspace`): common 14, DAO 23, factory 8, market 28, NFT 43, treasury 21, vault 17. The factory's generated settings are checked against the real NFT, DAO and treasury constructors.
 2. **Live NEAR testnet end-to-end tests** in `code/scripts/e2e/`. They send real transactions to the deployed contracts and assert on the resulting chain state, down to the yocto where the contract is exact. Coverage includes the mint split, vault keylessness, transfers, listings, offers and sales, proposals and votes, execution and settlement, crediting, distributions, claims and burns. There is also a negative test for every access rule.
 
 **Bugs only the live tests found** (all fixed and redeployed; details in [code/docs/TESTING.md](code/docs/TESTING.md)):
@@ -309,6 +312,7 @@ node scripts/e2e/dao-standards.mjs  # list_proposals, 30-day cap, 50% spend cap
 node scripts/e2e/verify-votes.mjs   # every tally matches the per-NFT vote records
 node scripts/e2e/settle-open.mjs    # a wNEAR collection settles with no vote; anyone fills the vaults
 node scripts/e2e/founder-locked.mjs # the founder cannot pause a mint or change the vault code
+node scripts/e2e/factory-check.mjs   # a plain wallet launches a collection in one call: keyless, bound, registered, mintable
 node scripts/e2e/acceptance-1.mjs && node scripts/e2e/acceptance-1b.mjs && node scripts/e2e/acceptance-2.mjs   # sales, offers, DAO rules, distributions, burns on the live collections
 ```
 
@@ -376,7 +380,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The landing page is at `/` and the app is at `/app`. The app has Market, Mints, Portfolio, Launch, Votings, Offers and Sales. Collections are listed in `frontend/src/deployments.ts`.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The landing page is at `/` and the app is at `/app`. The app has Market, Mints, Portfolio, Launch, Votings, Offers and Sales. The three launch collections are in `frontend/src/deployments.ts`; every collection launched through the factory is read from the factory contract and appears by itself.
 
 ### 4. Optional: indexer and REST API
 ```bash
@@ -412,7 +416,7 @@ GET   /gated/members                   # Token-gated member directory
 ## 🗺️ Roadmap
 
 - [x] **Phase 1: Core protocol (NEAR Hackathon 2026)**
-  - 6 Rust contracts on `near-sdk 5.30.1`, 145 unit tests and a live testnet e2e suite
+  - 7 Rust contracts on `near-sdk 5.30.1`, 154 unit tests and a live testnet e2e suite
   - Keyless per-NFT vaults on a NEP-591 global contract
   - Per-collection DAO and treasury: 50% turnout, 50% spend cap, timelock and expiry
   - Market with listings, escrowed offers and an on-chain sale log
@@ -420,7 +424,7 @@ GET   /gated/members                   # Token-gated member directory
   - Web app reading 100% from chain, plus an optional Neardata indexer and NEP-413 API
 - [ ] **Phase 2: Mainnet & self-serve**
   - Mainnet launch with keys removed and Rhea settlement
-  - A self-serve collection factory from the Launch page
+  - Collection factory is live: anyone can launch from the Launch page with one wallet transaction (testnet)
   - Keeper bots for permissionless vault crediting
   - Dutch and English auctions, delayed reveals with provenance
 - [ ] **Phase 3: Privacy & advanced liquidity**

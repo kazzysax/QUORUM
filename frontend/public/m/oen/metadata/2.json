@@ -1,0 +1,31 @@
+{
+  "name": "OEN #2",
+  "description": "A world of its own: one OEN planet, its orbits and moons. Every OEN piece holds half of its mint price in its own keyless vault and one vote in the OEN DAO.",
+  "image": "https://quorumio.vercel.app/media/oen/2",
+  "attributes": [
+    {
+      "trait_type": "Palette",
+      "value": "Magenta"
+    },
+    {
+      "trait_type": "Core",
+      "value": "Sphere"
+    },
+    {
+      "trait_type": "Orbits",
+      "value": 4
+    },
+    {
+      "trait_type": "Pattern",
+      "value": "Waves"
+    },
+    {
+      "trait_type": "Aura",
+      "value": "None"
+    },
+    {
+      "trait_type": "Moons",
+      "value": 2
+    }
+  ]
+}

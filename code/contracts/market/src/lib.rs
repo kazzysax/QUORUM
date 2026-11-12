@@ -52,6 +52,8 @@ pub struct SaleStats {
     pub volume: U128,
 }
 
+fn registrar_key(account: &AccountId) -> String { format!("__registrar:{account}") }
+
 const MAX_RECENT_SALES: usize = 100;
 /// Offers live between one hour and 30 days.
 const MIN_OFFER_MS: u64 = 3_600_000;
@@ -133,8 +135,23 @@ impl Market {
         Self { listings: old.listings, stats: old.stats, recent: old.recent, owner: old.owner, collections: old.collections, offers: IterableMap::new(Key::Offers) }
     }
 
-    pub fn register_collection(&mut self, nft: AccountId) {
+    /// Owner only: lets another contract (the collection factory) register collections. Stored under its own
+    /// raw keys, outside the contract's normal state, so adding this changes no stored data.
+    pub fn add_registrar(&mut self, account: AccountId) {
         require!(env::predecessor_account_id() == self.owner, "Only the owner");
+        env::storage_write(registrar_key(&account).as_bytes(), &[1]);
+        emit("registrar_added", json!({ "account": account }));
+    }
+
+    pub fn is_registrar(&self, account: AccountId) -> bool {
+        env::storage_has_key(registrar_key(&account).as_bytes())
+    }
+
+    /// The owner or a registrar (the factory, right after it created a real Quorum collection) registers a
+    /// collection so it can list. Registering moves no funds and touches no listing.
+    pub fn register_collection(&mut self, nft: AccountId) {
+        let who = env::predecessor_account_id();
+        require!(who == self.owner || env::storage_has_key(registrar_key(&who).as_bytes()), "Only the owner or a registrar");
         self.collections.insert(nft.clone());
         emit("collection_registered", json!({ "nft": nft }));
     }

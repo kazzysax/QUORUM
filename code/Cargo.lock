@@ -1809,6 +1809,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "quorum-factory"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+ "quorum-common",
+ "quorum-dao",
+ "quorum-nft",
+ "quorum-treasury",
+]
+
+[[package]]
 name = "quorum-market"
 version = "0.1.0"
 dependencies = [

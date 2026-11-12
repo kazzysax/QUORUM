@@ -5,7 +5,7 @@ import { Header } from './components/Header';
 import { WalletModal } from './components/WalletModal';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
-import { DEPLOYMENTS, EXPLORER, MARKET } from './deployments';
+import { DEPLOYMENTS, EXPLORER, FACTORY, MARKET } from './deployments';
 import {
   GAS,
   assertTxSucceeded,
@@ -13,6 +13,7 @@ import {
   loadBounds,
   loadCollection,
   holdersOf,
+  syncFactoryCollections,
   loadMarketListings,
   loadOffers,
   loadOwnedTokens,
@@ -101,6 +102,8 @@ export function App() {
     if (busy.current) { rerun.current = true; return; }
     busy.current = true;
     try {
+      // Collections launched through the factory join the list before anything is loaded (one cached view call).
+      await syncFactoryCollections().catch(() => { /* the three built-in collections still load */ });
       const loaded: (LiveCollection | undefined)[] = DEPLOYMENTS.map(() => undefined);
       await Promise.all(DEPLOYMENTS.map(async (d, i) => {
         loaded[i] = await loadCollection(d);
@@ -324,6 +327,18 @@ export function App() {
     await run(`Add ${amount} NEAR to vault`, token.vault_account, [fn('deposit_near', {}, nearToYocto(amount), GAS.call)]);
   };
 
+  /**
+   * Launches a collection: ONE transaction to the factory, which creates the NFT, DAO and treasury (keyless),
+   * registers the collection on the market and lists it. The creator's NEAR pays for the three accounts' storage.
+   */
+  const handleLaunch = async (args: Record<string, unknown>, depositYocto: string): Promise<boolean> => {
+    const hash = await run(`Launch ${String(args.name)}`, FACTORY, [fn('create_collection', { args }, depositYocto, GAS.launch)]);
+    if (!hash) return false;
+    setSelectedCollectionId(String(args.slug));
+    setCurrentPage('marketplace');
+    return true;
+  };
+
   /** Credits every uncredited vault of a settled (or fallback) group, 3 per transaction. */
   const handleCredit = async (collectionId: string, group: number) => {
     const col = collections.find((c) => c.id === collectionId);
@@ -521,7 +536,7 @@ export function App() {
           />
         )}
 
-        {currentPage === 'launch' && <LaunchPage onNavigate={setCurrentPage} collections={collections} onOpenCollection={setSelectedCollectionId} />}
+        {currentPage === 'launch' && <LaunchPage onNavigate={setCurrentPage} collections={collections} onOpenCollection={setSelectedCollectionId} account={wallet.accountId || null} onConnect={handleOpenOfficialConnect} onLaunch={handleLaunch} />}
 
         {currentPage === 'offers' && (
           <OffersPage

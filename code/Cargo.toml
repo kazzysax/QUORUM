@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["contracts/common", "contracts/vault", "contracts/nft", "contracts/treasury", "contracts/dao", "contracts/market"]
+members = ["contracts/common", "contracts/vault", "contracts/nft", "contracts/treasury", "contracts/dao", "contracts/market", "contracts/factory"]
 
 [workspace.package]
 version = "0.1.0"

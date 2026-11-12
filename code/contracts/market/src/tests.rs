@@ -154,6 +154,25 @@ fn only_the_owner_registers_collections() {
 }
 
 #[test]
+fn a_registrar_can_register_collections_but_only_the_owner_appoints_one() {
+    let mut m = market();
+    // A stranger cannot appoint a registrar, and a non-registrar cannot register.
+    testing_env!(ctx("mallory.near", 0).build());
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| m.add_registrar(acc("mallory.near")))).is_err());
+    assert!(!m.is_registrar(acc("mallory.near")));
+    // The owner appoints the factory; now the factory (and only it) can register.
+    testing_env!(ctx("owner.near", 0).build());
+    m.add_registrar(acc("factory.near"));
+    assert!(m.is_registrar(acc("factory.near")));
+    testing_env!(ctx("factory.near", 0).build());
+    m.register_collection(acc("oen.factory.near"));
+    assert!(m.collections.contains(&acc("oen.factory.near")));
+    testing_env!(ctx("mallory.near", 0).build());
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| m.register_collection(acc("fake.near")))).is_err());
+    assert!(!m.collections.contains(&acc("fake.near")));
+}
+
+#[test]
 fn get_listings_filters_by_collection_and_stats_count_completed_sales() {
     let mut m = listed();
     let l = m.get_listings(acc("nft.near"), 0, 10);

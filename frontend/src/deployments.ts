@@ -14,6 +14,16 @@ export const RPC_ENDPOINTS = [
 /** Shared secondary market. Only registered Quorum collections can list here. */
 export const MARKET = 'market.qrmx-founder1.testnet';
 
+/**
+ * The collection factory. Anyone can launch a collection with one call to it; it creates the NFT, DAO and
+ * treasury as keyless accounts and lists the result, which the app reads (see `syncFactoryCollections`).
+ */
+export const FACTORY = 'launch.qrmx-founder1.testnet';
+/** Where launched collections' art lives by default (this site), when the creator gives no links of their own. */
+export const SITE = 'https://quorumio.vercel.app';
+/** Factory test launches that are not shown in the app. */
+export const HIDDEN_SLUGS: string[] = ['launchcheck'];
+
 export interface Deployment {
   id: string;
   slug: string;
@@ -23,6 +33,8 @@ export interface Deployment {
   description: string;
   cover: string;
   avatar: string;
+  /** When set, piece N shows `${pieceImageBase}/N` (each piece has its own picture) instead of the collection avatar. */
+  pieceImageBase?: string;
 }
 
 // Relaunched 12 Nov 2026 with 20 pieces each. The first test editions (qrmx-molten, qrmx-tide,

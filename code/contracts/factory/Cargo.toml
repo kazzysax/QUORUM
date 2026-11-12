@@ -1,0 +1,20 @@
+[package]
+name = "quorum-factory"
+description = "Quorum collection factory: one call creates a collection's NFT, DAO and treasury as keyless accounts running the audited code embedded here."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+quorum-common = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }
+# The factory's generated settings are checked against the real constructors.
+quorum-nft = { path = "../nft" }
+quorum-dao = { path = "../dao" }
+quorum-treasury = { path = "../treasury" }

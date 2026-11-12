@@ -2,7 +2,7 @@
 // contract view fails, the error propagates and the UI shows it. Every figure in the app is
 // the result of a `call_function` view on the contracts listed in deployments.ts.
 
-import { DEPLOYMENTS, MARKET, RPC_ENDPOINTS } from './deployments';
+import { DEPLOYMENTS, FACTORY, HIDDEN_SLUGS, MARKET, RPC_ENDPOINTS } from './deployments';
 import type { Deployment } from './deployments';
 import type { CollectionHolder, CollectionItem, OfferItem, ProposalItem, SaleRecord, TokenItem } from './types';
 
@@ -324,7 +324,7 @@ export async function buildToken(dep: Deployment, col: Pick<LiveCollection, 'nam
     backing_status: traits.credited ? 'credited' : 'escrow',
     price: listing ? fmtNear(listing.price) : undefined,
     price_yocto: listing?.price,
-    image: dep.avatar,
+    image: dep.pieceImageBase ? `${dep.pieceImageBase}/${tokenId}` : dep.avatar,
     unclaimed_distribution: `${fmtNear(owed, 4)} NEAR`,
     vault_account: traits.vault,
     approval_id: listing?.approval_id,
@@ -464,7 +464,43 @@ export const GAS = {
   claim: '120000000000000',
   burn: '300000000000000',
   call: '100000000000000',
+  launch: '300000000000000',
 };
+
+interface FactoryRecord {
+  slug: string; name: string; symbol: string; description: string; creator: string;
+  nft: string; dao: string; treasury: string;
+  metadata_base_url: string; media_base_url: string; cover_url: string; avatar_url: string;
+  supply: number; price_near: string;
+}
+
+/**
+ * Adds every collection the factory has created to DEPLOYMENTS, so a new launch shows up in the app on its own.
+ * The list is read from the factory contract; nothing about a launched collection is stored in the app.
+ */
+export async function syncFactoryCollections(): Promise<void> {
+  const total = Number(await view<string | number>(FACTORY, 'collection_count'));
+  if (!total) return;
+  const records = await view<FactoryRecord[]>(FACTORY, 'list_collections', { from_index: 0, limit: 100 });
+  const showHidden = typeof location !== 'undefined' && /[?&]showhidden\b/.test(location.search); // lets the factory's test launch be inspected
+  for (const r of records) {
+    if ((HIDDEN_SLUGS.includes(r.slug) && !showHidden) || DEPLOYMENTS.some((d) => d.nft === r.nft)) continue;
+    DEPLOYMENTS.push({
+      id: r.slug, slug: r.slug, nft: r.nft, dao: r.dao, treasury: r.treasury,
+      description: r.description, cover: r.cover_url, avatar: r.avatar_url, pieceImageBase: r.media_base_url,
+    });
+  }
+}
+
+/** What a creator pays to launch (it pays for the three accounts' storage): the same formula as the factory. */
+export async function launchDeposit(supply: number): Promise<bigint> {
+  return BigInt(await view<string>(FACTORY, 'required_deposit', { supply }));
+}
+
+/** Is this address name still free? */
+export async function slugTaken(slug: string): Promise<boolean> {
+  return view<boolean>(FACTORY, 'slug_taken', { slug });
+}
 
 export function fn(methodName: string, args: Record<string, unknown>, depositYocto: string, gas: string) {
   return { type: 'FunctionCall', params: { methodName, args, gas, deposit: depositYocto } };
@@ -526,7 +562,7 @@ function toOfferItem(o: RawOffer, col: Pick<LiveCollection, 'dep' | 'name'>, typ
     id: `${o.nft}|${o.token_id}|${o.buyer}`,
     nft_id: `${col.dep.slug}-${o.token_id}`,
     nft_title: `${col.name} #${o.token_id}`,
-    image: col.dep.avatar,
+    image: col.dep.pieceImageBase ? `${col.dep.pieceImageBase}/${o.token_id}` : col.dep.avatar,
     from: o.buyer,
     to: owner,
     collection: col.name,
