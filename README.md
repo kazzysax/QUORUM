@@ -320,7 +320,7 @@ node scripts/e2e/acceptance-1.mjs && node scripts/e2e/acceptance-1b.mjs && node 
 
 ## 🧑‍🎨 Launch Your Own Collection (testnet, no help needed)
 
-Anyone can launch a collection from the **Launch** page, with their own art, on NEAR testnet:
+Anyone can launch a collection from the **Launch** page, with their own art, on NEAR testnet. The page walks through four stages (**Basics, Art, Sale, Launch**) with a progress bar and Back and Next buttons; Next stays disabled, with the reason shown, until a stage is complete, and the last stage is a review of everything before anything is sent:
 
 1. **Drop everything in one go**: your pictures (PNG, JPG, WEBP, GIF, up to 100), your traits files, or a whole folder. The page reads it and lines it up: pictures become numbered pieces in file-name order, a picture named cover or vatar becomes the cover or avatar, and traits files are matched to their pictures by file name or number. Traits can be a CSV (first column 	oken, optional 
 ame, every other column a trait), one JSON file per piece (7.json with ttributes, the usual OpenSea shape), or one JSON file holding a list or an object of pieces. 0-based and 1-based numbering both work, files can be dropped in any order and in several drops, and anything it can't use is listed instead of silently ignored.

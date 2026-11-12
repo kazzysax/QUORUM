@@ -71,6 +71,9 @@ export function App() {
   const [pieces, setPieces] = useState<TokenItem[]>([]);
   const [payouts, setPayouts] = useState<PendingPayout[]>([]);
   const [sync, setSync] = useState<{ loading: boolean; error: string | null; at: number | null }>({ loading: true, error: null, at: null });
+  // How many refreshes in a row ended with an error. One bad refresh (the free RPC rate-limiting) is normal and is
+  // retried quietly; only a repeated failure is worth telling the user about.
+  const [failStreak, setFailStreak] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const busy = useRef(false);
   const rerun = useRef(false);
@@ -85,6 +88,8 @@ export function App() {
   // ---------------------------------------------------------------- chain sync
   const accountRef = useRef('');
   accountRef.current = wallet.accountId;
+  const collectionsRef = useRef<LiveCollection[]>([]);
+  collectionsRef.current = collections;
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selectedCollectionId;
 
@@ -104,13 +109,23 @@ export function App() {
     try {
       // Collections launched through the factory join the list before anything is loaded (one cached view call).
       await syncFactoryCollections().catch(() => { /* the three built-in collections still load */ });
-      const loaded: (LiveCollection | undefined)[] = DEPLOYMENTS.map(() => undefined);
+      // A refresh starts from what is already on screen and swaps each collection in as its fresh data arrives, so
+      // nothing disappears and reappears (that is what made the page jump every 30 seconds). Only the very first load
+      // waits for every collection and shows them together, instead of growing one card at a time.
+      const shown = new Map(collectionsRef.current.map((c) => [c.id, c]));
+      const loaded: (LiveCollection | undefined)[] = DEPLOYMENTS.map((d) => shown.get(d.id));
+      const firstLoad = shown.size === 0;
+      const publish = () => {
+        const ready = loaded.filter((x): x is LiveCollection => !!x);
+        setCollections(ready);
+        setHolders(Object.fromEntries(ready.map((x) => [x.id, holdersOf(x)])));
+        setSync({ loading: false, error: null, at: Date.now() });
+      };
       await Promise.all(DEPLOYMENTS.map(async (d, i) => {
         loaded[i] = await loadCollection(d);
-        setCollections(loaded.filter((x): x is LiveCollection => !!x));
-        setHolders(Object.fromEntries(loaded.filter((x): x is LiveCollection => !!x).map((x) => [x.id, holdersOf(x)])));
-        setSync({ loading: false, error: null, at: Date.now() });
+        if (!firstLoad) publish();
       }));
+      if (firstLoad) publish();
       const cols = loaded as LiveCollection[];
       const account = accountRef.current;
       const page = pageRef.current;
@@ -133,8 +148,10 @@ export function App() {
       const results = await Promise.allSettled(jobs);
       const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
       setSync({ loading: false, error: failed ? String(failed.reason?.message || failed.reason) : null, at: Date.now() });
+      setFailStreak((n) => (failed ? n + 1 : 0));
     } catch (e: any) {
       setSync((s) => ({ ...s, loading: false, error: e?.message || String(e) }));
+      setFailStreak((n) => n + 1);
     } finally {
       busy.current = false;
       if (rerun.current) { rerun.current = false; refresh(); }
@@ -438,9 +455,11 @@ export function App() {
 
   const handleNavigate = (page: Page) => setCurrentPage(page);
 
-  const syncBanner = sync.error ? (
-    <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5', padding: '10px 14px', borderRadius: 12, fontSize: 13 }}>
-      Could not reach the NEAR testnet right now. Retrying automatically…
+  // A floating notice (never part of the page layout, so showing or hiding it cannot move anything), and only
+  // after the data has failed to load twice in a row.
+  const syncBanner = sync.error && failStreak >= 2 ? (
+    <div role="status" style={{ position: 'fixed', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 60, maxWidth: 'calc(100vw - 32px)', background: 'rgba(40,12,12,0.96)', border: '1px solid rgba(239,68,68,0.45)', color: '#FCA5A5', padding: '10px 16px', borderRadius: 12, fontSize: 13, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>
+      Having trouble reaching the NEAR testnet. Showing the last data and retrying automatically…
     </div>
   ) : null;
 

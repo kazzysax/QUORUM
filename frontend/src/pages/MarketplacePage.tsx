@@ -83,7 +83,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   const [copiedContract, setCopiedContract] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
-  const [itemSort, setItemSort] = useState<'id-asc' | 'id-desc' | 'price-asc' | 'price-desc'>('id-asc');
+  // Cheapest first by default, so the lowest price is always at the top.
+  const [itemSort, setItemSort] = useState<'id-asc' | 'id-desc' | 'price-asc' | 'price-desc'>('price-asc');
   const [activityFilter, setActivityFilter] = useState<'all' | 'Sale' | 'Mint' | 'Burn & Redeem' | 'List'>('all');
   const [daoVoteFilter, setDaoVoteFilter] = useState<'active' | 'past'>('active');
   const [daoBalances, setDaoBalances] = useState<DaoBalances | null>(null);
@@ -147,7 +148,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   const floorWorth = floorPiece ? worth(floorPiece) : null;
 
   // Every NFT of the selected collection (listed or not), filtered and sorted for the Items tab
-  const itemCards = (pieces ?? [])
+  // The marketplace shows only what is for sale. A piece that is not listed is not on the market (its owner is
+  // still visible under Holders, and it still counts in the collection's totals).
+  // Taken from the market's own listings (already loaded, verified on chain), not from the slower full piece list.
+  const listedPieces = rawCollectionListings.filter((t) => !!t.price);
+  const itemCards = listedPieces
     .filter((token) => {
       if (!itemSearch.trim()) return true;
       const q = itemSearch.toLowerCase();
@@ -155,11 +160,15 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     })
     .sort((a, b) => {
       const idA = parseInt(a.token_id || '0', 10), idB = parseInt(b.token_id || '0', 10);
-      const priceA = parseFloat(a.price || '1e9'), priceB = parseFloat(b.price || '1e9');
       if (itemSort === 'id-asc') return idA - idB;
       if (itemSort === 'id-desc') return idB - idA;
-      if (itemSort === 'price-asc') return priceA - priceB;
-      return priceB - priceA;
+      // Pieces that are not for sale always go last, whichever way the prices are sorted. Equal prices keep piece order.
+      const forSale = (t: TokenItem) => (t.price ? parseFloat(t.price) : null);
+      const pa = forSale(a), pb = forSale(b);
+      if (pa === null && pb === null) return idA - idB;
+      if (pa === null) return 1;
+      if (pb === null) return -1;
+      return (itemSort === 'price-asc' ? pa - pb : pb - pa) || idA - idB;
     });
 
   // Filtered and sorted listings for items tab
@@ -181,8 +190,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
 
       if (itemSort === 'id-asc') return idA - idB;
       if (itemSort === 'id-desc') return idB - idA;
-      if (itemSort === 'price-asc') return priceA - priceB;
-      if (itemSort === 'price-desc') return priceB - priceA;
+      if (itemSort === 'price-asc') return (priceA - priceB) || (idA - idB);
+      if (itemSort === 'price-desc') return (priceB - priceA) || (idA - idB);
       return 0;
     });
 
@@ -697,7 +706,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           }}
         >
           {[
-            { id: 'items', label: `Items (${(pieces ?? []).length})`, icon: Layers },
+            { id: 'items', label: `For sale (${listedPieces.length})`, icon: Layers },
             { id: 'offers', label: `Offers (${activeCollection.offerItems.length})`, icon: Tag },
             { id: 'holders', label: `Holders (${holders.length})`, icon: Users },
             { id: 'activity', label: 'Activity', icon: Activity },
@@ -804,7 +813,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             {/* Grid */}
             {itemCards.length === 0 ? (
               <div style={{ padding: '48px 24px', textAlign: 'center', color: '#A1A1AA', background: '#1D1D25', borderRadius: '18px', border: '1px solid #2A2A33' }}>
-                {(pieces ?? []).length === 0 ? 'Loading pieces…' : 'No pieces match your search.'}
+                {listedPieces.length === 0 ? `Nothing in ${activeCollection.name} is for sale right now.` : 'No pieces match your search.'}
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
@@ -1928,7 +1937,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
           {collections.map((col) => {
             const countForSale = listings.filter(
               (l) => l.collection.toLowerCase() === col.name.toLowerCase() || l.collection === col.symbol
