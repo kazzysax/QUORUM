@@ -137,7 +137,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     });
 
   // What a listed NFT is worth: the listing price covers the art AND the assets in its vault (the vault travels with the NFT).
-  const nearIn = (s: string) => [...s.matchAll(/([d.]+)s*NEAR/gi)].reduce((a, x) => a + parseFloat(x[1]), 0);
+  const nearIn = (s: string) => [...s.matchAll(/([\d.]+)\s*NEAR/gi)].reduce((a, x) => a + parseFloat(x[1]), 0);
   const worth = (t: TokenItem) => {
     const price = parseFloat(t.price || '0');
     const vault = Math.min(price, nearIn(t.backing));
@@ -654,7 +654,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             </strong>
             {floorWorth && (
               <span style={{ display: 'block', fontSize: '11px', color: '#A1A1AA', marginTop: '2px' }}>
-                {floorWorth.vault.toFixed(2)} in vault + {floorWorth.art.toFixed(2)} art
+                {floorWorth.art.toFixed(2)} art + {floorWorth.vault.toFixed(2)} {floorPiece?.backing_status === 'escrow' ? 'in escrow' : 'in vault'}
               </span>
             )}
           </div>
@@ -859,7 +859,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       </div>
                       {token.price && (
                         <div style={{ fontSize: '11px', color: '#71717A' }}>
-                          {worth(token).art.toFixed(2)} art + {worth(token).vault.toFixed(2)} in vault
+                          {worth(token).art.toFixed(2)} art + {worth(token).vault.toFixed(2)} {token.backing_status === 'escrow' ? 'in escrow' : 'in vault'}
                         </div>
                       )}
                       <div style={{ fontSize: '12px', color: '#A1A1AA' }}>

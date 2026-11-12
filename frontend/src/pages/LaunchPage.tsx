@@ -25,6 +25,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
   const [supply, setSupply] = useState('20');
   const [price, setPrice] = useState('1');
   const [royalty, setRoyalty] = useState('5');
+  const [description, setDescription] = useState('');
   const [created, setCreated] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -36,9 +37,11 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
   const settings = JSON.stringify({
     name: name.trim(),
     symbol: symbol.trim().toUpperCase(),
+    description: description.trim(),
     supply: supplyN,
     mint_price_near: priceN,
     creator_fee_percent: Number(royalty) || 0,
+    art_files: `${supplyN} images (1.png to ${supplyN}.png), ${supplyN} metadata files (1.json to ${supplyN}.json), cover.jpg and avatar.png`,
   }, null, 2);
 
   const copy = async () => {
@@ -79,6 +82,10 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
           <div>
             <label style={label} htmlFor="l-name">Name</label>
             <input id="l-name" style={input} value={name} onChange={(e) => { setName(e.target.value); setCreated(false); }} placeholder="e.g. Amber Tides" maxLength={40} />
+          </div>
+          <div>
+            <label style={label} htmlFor="l-desc">What is it about? (shown on the collection page)</label>
+            <textarea id="l-desc" style={{ ...input, minHeight: 78, resize: 'vertical' }} value={description} onChange={(e) => { setDescription(e.target.value); setCreated(false); }} placeholder="A short story or description of your collection" maxLength={300} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
@@ -125,8 +132,9 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
         <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 12, borderColor: 'rgba(245,165,36,0.4)' }}>
           <strong style={{ fontSize: 18 }}>Your launch sheet</strong>
           <span style={{ fontSize: 14, lineHeight: 1.6, color: '#A1A1AA' }}>
-            A launch creates three contracts from a NEAR account you control, so it can&apos;t be done with one click from this page yet.
-            Copy these settings and send them to the Quorum team, or use the launch tool from the project&apos;s repository.
+            A launch creates three contracts (the NFTs, the DAO and the treasury) from a NEAR account, so it can&apos;t be done with one click from this page yet.
+            Copy these settings and send them to the Quorum team together with your art folder: one image per piece, one metadata file per piece (with its traits), a cover and an avatar.
+            We deploy the three contracts, upload your art, and your collection appears on the market with its mint open.
           </span>
           <pre style={{ margin: 0, background: '#0E0E11', border: '1px solid #2A2A33', borderRadius: 12, padding: 14, fontSize: 13, color: '#FCD34D', overflowX: 'auto' }}>{settings}</pre>
           <button type="button" className="btn-secondary" style={{ alignSelf: 'flex-start', minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={copy}>
