@@ -370,7 +370,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           </div>
 
           {/* Quick Switch to any other collection */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="hscroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             {collections
               .filter((c) => c.id !== activeCollection.id)
               .map((col) => (
@@ -696,6 +696,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         {/* OpenSea-Style Collection Navigation Tabs */}
         <div
           role="tablist"
+          className="hscroll"
           style={{
             display: 'flex',
             gap: '8px',
@@ -1066,7 +1067,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
               </div>
 
               {/* Event Filter Buttons */}
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div className="hscroll" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {(['all', 'Sale', 'Mint', 'Burn & Redeem', 'List'] as const).map((filter) => (
                   <button
                     key={filter}
@@ -1937,7 +1938,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+        <div className="hscroll-cards">
           {collections.map((col) => {
             const countForSale = listings.filter(
               (l) => l.collection.toLowerCase() === col.name.toLowerCase() || l.collection === col.symbol
@@ -2049,7 +2050,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         </div>
 
         {/* Collection Filter Buttons */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="hscroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setCollectionFilter('all')}

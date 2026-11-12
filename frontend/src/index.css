@@ -301,3 +301,40 @@ input:focus, select:focus, textarea:focus {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Rows that scroll sideways instead of wrapping or squeezing their items -------------------------------- */
+/* Tabs and pills: every item keeps its natural size; extra items scroll. */
+.hscroll {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 8px;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #3A3A45 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.hscroll > * { flex: 0 0 auto !important; white-space: nowrap; scroll-snap-align: start; }
+/* The same, but the items share the row while they fit (the stages of a wizard). */
+.hscroll.hscroll-fill > * { flex: 1 0 200px !important; }
+/* A row of cards: every card keeps a fixed width, more cards scroll. */
+.hscroll-cards {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 16px;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  padding-bottom: 10px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: #3A3A45 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.hscroll-cards > * { flex: 0 0 340px !important; max-width: 100%; scroll-snap-align: start; }
+.hscroll-cards.hscroll-cards-sm > * { flex-basis: 240px !important; }
+.hscroll::-webkit-scrollbar, .hscroll-cards::-webkit-scrollbar { height: 6px; }
+.hscroll::-webkit-scrollbar-thumb, .hscroll-cards::-webkit-scrollbar-thumb { background: #3A3A45; border-radius: 999px; }
+.hscroll::-webkit-scrollbar-track, .hscroll-cards::-webkit-scrollbar-track { background: transparent; }

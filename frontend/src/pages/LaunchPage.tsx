@@ -181,7 +181,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
       </div>
 
       {/* Progress */}
-      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+      <ol className="hscroll hscroll-fill" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {STAGES.map((s) => {
           const done = s.n < stage || (s.n <= reached && s.n !== stage && okFor(s.n)), active = s.n === stage, open = s.n <= reached;
           return (
@@ -443,7 +443,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
       {stage === 1 && collections.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <strong style={{ fontSize: 18 }}>Already live</strong>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+          <div className="hscroll-cards hscroll-cards-sm">
             {collections.map((c) => (
               <button
                 key={c.id}

@@ -36,6 +36,8 @@ Every Quorum NFT is three things at once:
 
 > **One collection, one DAO, one treasury.** There is no shared DAO and no pooled treasury. Each collection deploys its own NFT contract, DAO and treasury, and they are bound to each other when they are initialised: the DAO and treasury reject calls from any other collection. Votes and money never cross between collections.
 
+> **Anyone can launch their own collection.** From the app's Launch page, with their own pictures and traits and one wallet approval, a creator gets their own keyless NFT, DAO and treasury, live on the market. See [Launch Your Own Collection](#-launch-your-own-collection-testnet-no-help-needed).
+
 ```
    ┌────────────────────────────────────────────────────────────────────────┐
    │                           QUORUM TRI-PRONG                             │
@@ -52,18 +54,21 @@ Every Quorum NFT is three things at once:
 
 ## 🟢 Live Usage: Proof the Platform Works
 
-Quorum is not a mock-up. Three collections of 20 pieces each are live on NEAR testnet, launched on 12 Nov 2026 and minted through the normal public mint by real wallets. Snapshot read from the contracts on launch day (the app always shows the current values):
+Quorum is not a mock-up. Four collections are live on NEAR testnet: three of 20 pieces launched by the team on 12 Nov 2026, and **OAN, launched by a user from the app's Launch page with their own art**. Every piece was minted through the normal public mint by real wallets, and real outside users have bought pieces. Snapshot read from the contracts on 13 Nov 2026 (the app always shows the current values):
 
-| | Molten Hours | Tidewater | Feather Protocol | **Total** |
-|---|---|---|---|---|
-| Minted (public mint, 1 NEAR) | **20 / 20, sold out** | 13 / 20, mint open | 12 / 20, mint open | **45 / 60** |
-| Unique holders | 7 | 7 | 7 | |
-| Listed for sale | 2 | 2 | 2 | **6** |
-| Treasury (50% of every mint, live balance) | 12.5 NEAR | 9.0 NEAR | 8.5 NEAR | **30.0 NEAR** |
-| Vault backing (the other 50%) | **10 wNEAR in 20 vaults** (settled, no vote) | 6.5 NEAR in escrow until the mint ends | 6 NEAR in escrow until the mint ends | **22.5 NEAR** |
+| | Molten Hours | Tidewater | Feather Protocol | OAN (user-launched) | **Total** |
+|---|---|---|---|---|---|
+| Minted by the public mint | **20 / 20, sold out** | 15 / 20, mint open | 14 / 20, mint open | 2 / 20, mint open (2.1 NEAR each) | **51 / 80** |
+| Burned and redeemed from their vaults | 1 | 1 | 2 | 0 | **4** |
+| Unique holders | 8 | 8 | 7 | 1 | |
+| For sale (cheapest first) | 13 (1.30 to 4.15 NEAR) | 9 (1.50 to 3.90) | 9 (1.50 to 3.95) | 0 | **31** |
+| Top offer, NEAR escrowed on chain | 1.10 | 1.20 | 1.40 | none | |
+| Market sales (5% to the DAO, 5% royalty, 90% seller) | 5 (8.0 NEAR) | 0 | 0 | 0 | **5 sales, 8.0 NEAR** |
+| DAO proposals | 6: 2 executed, 3 failed, 1 passed but held back by the 50% spend cap | 0 | 0 | 0 | **6** |
+| Treasury (live balance) | 11.81 NEAR + 0.05 wNEAR | 10.05 NEAR | 9.70 NEAR | 4.40 NEAR | **36.0 NEAR** |
+| Vault backing | 10 wNEAR, settled with no vote | 7 NEAR in escrow until the mint ends | 6 NEAR in escrow until the mint ends | 2.1 NEAR in escrow until the mint ends | |
 
-Each treasury also holds the 2.5 NEAR its account was opened with. After Molten Hours sold out, an ordinary holder (not the DAO) converted its 10 NEAR escrow into exactly 10 wNEAR and filled all 20 vaults, with no vote. Tidewater and Feather Protocol still have 8 pieces each open to mint, and anyone with a testnet wallet can mint one in the app's **Mints** tab.
-
+Treasuries are live account balances, so they include the 2.3 to 2.5 NEAR each account was opened with, the 50% of every mint, 5% of every sale and any donations (OAN's 4.40 is its 2.30 opening funds plus 2.10 from two mints). After Molten Hours sold out, an ordinary holder (not the DAO) converted its 10 NEAR escrow into exactly 10 wNEAR and filled the vaults, with no vote. Tidewater, Feather Protocol and OAN are still minting, so anyone with a testnet wallet can mint one in the app's **Mints** tab.
 ### Test editions: the full lifecycle
 
 Before the launch, three smaller test editions of the same collections ran the whole lifecycle with real transactions: minting, trading, governing, settling and burning. They are still on chain and verifiable, but no longer shown in the app.
@@ -84,31 +89,39 @@ Test-edition contracts: `qrmx-molten.testnet` / `qrmx-molten-dao.testnet` / `qrm
 ### What has been done on chain
 
 - ✅ **Mint:** staged mints. 50% of each price went to the collection treasury and 50% was locked in a new keyless vault.
-- ✅ **Trade:** listings via NEP-178 approvals, purchases, and **on-chain offers** with NEAR escrowed by the market. Accepting an offer is one `nft_approve` transaction.
-- ✅ **Govern:** spend, distribute, settle and text proposals were voted on with 1 NFT = 1 vote and executed after the timelock. Proposals below the 50% turnout rule were refused or failed.
+- ✅ **Launch from the app:** a user's wallet created OAN with one transaction: three keyless accounts (NFTs, DAO, treasury), registered on the market, art uploaded by the user, mint open. Verify with `near account list-keys oan.launch.qrmx-founder1.testnet`: no keys.
+- ✅ **Trade:** listings via NEP-178 approvals, purchases, and **on-chain offers** with NEAR escrowed by the market. Accepting an offer is one `nft_approve` transaction. A sale paid the seller exactly 1.35 NEAR, the DAO 0.075 and the creator 0.075 on a 1.5 NEAR price (checked in the receipts).
+- ✅ **Govern:** spend, distribute, settle and text proposals were voted on with 1 NFT = 1 vote and executed after the timelock. A proposal with 85% turnout passed; one with 15% turnout failed even though every vote was yes; one with a majority of no failed; every tally matched the per-NFT vote records.
+- ✅ **Spend cap:** a passed vote for 8 NEAR out of a 15 NEAR treasury was refused by the treasury (50% cap), the balance did not move, and the proposal stays retryable. A 1 NEAR vote paid exactly 1 NEAR.
 - ✅ **Settle:** escrowed NEAR was converted to wNEAR, first by a DAO vote (test editions) and now, for wNEAR collections, by any account with no vote (live Molten Hours). Each vault was credited pro-rata by anyone, with no special permission. The no-DEX fallback was also exercised.
-- ✅ **Distribute and claim:** treasury payouts to holders were reserved, could not be spent elsewhere, and each was claimable exactly once.
-- ✅ **Burn:** burning paid 90% of the backing to the holder and 10% to the treasury, both before and after settlement.
+- ✅ **Distribute and claim:** 1 NEAR split equally (0.05 per NFT), reserved so it could not be spent elsewhere, and each claim worked exactly once.
+- ✅ **Burn:** burning paid 90% of the backing to the holder and 10% to the treasury, both before and after settlement, plus the holder's unclaimed distribution.
 - ✅ **Rejections:** every privileged method rejected the wrong caller, with a readable reason. See the [Test Suite](#-test-suite).
 
 ### Screens (live, testnet data)
 
-| Marketplace | Collection DAO and treasury | Past votes, each verifiable |
+| Marketplace | A collection's For sale tab, cheapest first | Collection DAO and treasury |
 |---|---|---|
-| <img src="assets/screenshots/live-market.jpg" alt="Marketplace" width="100%"/> | <img src="assets/screenshots/live-dao.jpg" alt="DAO treasury" width="100%"/> | <img src="assets/screenshots/live-votings.jpg" alt="Votings" width="100%"/> |
+| <img src="assets/screenshots/live-market.jpg" alt="Marketplace" width="100%"/> | <img src="assets/screenshots/live-forsale.jpg" alt="For sale, cheapest first" width="100%"/> | <img src="assets/screenshots/live-dao.jpg" alt="DAO treasury" width="100%"/> |
 
+| Past votes, each verifiable | Launch: drop your art, it lines up | Launch: review before anything is sent |
+|---|---|---|
+| <img src="assets/screenshots/live-votings.jpg" alt="Votings" width="100%"/> | <img src="assets/screenshots/live-launch-art.jpg" alt="Launch page, art stage" width="100%"/> | <img src="assets/screenshots/live-launch-review.jpg" alt="Launch page, review stage" width="100%"/> |
 ---
 
 ## 🔍 No Mocks: Every Number Comes from the Chain
 
-The web app has **no backend and no database**. Every figure is read from the contracts over NEAR RPC: supply, owners, listings, offers, floor price, volume, sales, proposals, vote tallies, treasury and vault balances. If an RPC read fails, the app shows an error instead of a placeholder. Every transaction is signed in the user's wallet, and the app re-reads the chain afterwards to confirm it.
+The web app has **no backend and no database**. Every figure is read from the contracts over NEAR RPC: supply, owners, listings, offers, floor price, volume, sales, proposals, vote tallies, treasury and vault balances. If the chain cannot be read, the app keeps showing the last data it read and says so after two failed refreshes in a row; it never invents a figure. Every transaction is signed in the user's wallet, and the app re-reads the chain afterwards to confirm it.
 
-- **Floor price** shows both parts of an NFT's value: *art* (the listing price above the backing) and *vault* (the assets it can be burned for).
+- **The marketplace shows only what is for sale**, cheapest first. A piece that is not listed is not on the market (its owner is still visible under Holders).
+- **Floor price** shows both parts of an NFT's value: *art* (the listing price above the backing) and *backing* (the assets it can be burned for), labelled "in escrow" until the mint ends and "in vault" afterwards.
 - **Treasury** figures are live account balances (NEAR + wNEAR), so donations appear immediately.
 - **Mints** (the sidebar tab, and the strip on the Market page) are computed from each collection's on-chain mint stages. A new collection or stage appears on its own and nothing is listed by hand.
-- **Past votes** link to the DAO contract on NearBlocks, and the tallies match the per-NFT `has_voted` records (checked by `verify-votes.mjs`: 14/14).
+- **Collections launched from the app** are read from the factory contract's public list (`list_collections`), not from anything in the app's code.
+- **Past votes** link to the DAO contract on NearBlocks, and the tallies match the per-NFT `has_voted` records (checked by `verify-votes.mjs` and `acceptance-2.mjs`).
+- **The page does not twitch:** a refresh swaps data in place instead of rebuilding the page (measured on the live site: layout-shift score 0.002 over 75 seconds, page height constant).
 
-What is off-chain: images and the static NEP-177 metadata JSON (hosted with the app), and the optional indexer and API in `code/services/api`.
+What is off-chain: pictures and metadata files. The three launch collections' art is hosted with the app. Art for collections launched from the Launch page is uploaded to public Vercel Blob storage (a centralised host, fine for testnet; IPFS is the plan for mainnet) and is closed once the collection is launched. Also the optional indexer and API in `code/services/api`.
 
 ---
 
@@ -136,6 +149,13 @@ near contract call-function as-read-only market.qrmx-founder1.testnet recent_sal
 
 # Live treasury balance
 near account view-account-summary molten-tre.qrmx-founder1.testnet network-config testnet now
+
+# Collections launched from the app, straight from the factory
+near contract call-function as-read-only launch.qrmx-founder1.testnet list_collections \
+  json-args '{"from_index":0,"limit":20}' network-config testnet now
+
+# A collection made by the factory has no access keys at all (OAN, launched by a user)
+near account list-keys oan.launch.qrmx-founder1.testnet network-config testnet now
 ```
 
 **Without any tools:**
@@ -149,13 +169,14 @@ curl -s https://rpc.testnet.near.org -H 'content-type: application/json' -d '{"j
 
 ## 💎 Live Testnet Deployments
 
-The live collections, launched 12 Nov 2026 with 20 pieces each. All figures in the app are read from these contracts.
+The live collections: three launched by the team on 12 Nov 2026 with 20 pieces each, and every collection launched from the app (listed in the factory registry, for example OAN below). All figures in the app are read from these contracts.
 
 | Collection | NFT contract | DAO | Treasury |
 |---|---|---|---|
 | Molten Hours | [`molten.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/molten.qrmx-founder1.testnet) | [`molten-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/molten-dao.qrmx-founder1.testnet) | [`molten-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/molten-tre.qrmx-founder1.testnet) |
 | Tidewater | [`tidewater.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tidewater.qrmx-founder1.testnet) | [`tidewater-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tidewater-dao.qrmx-founder1.testnet) | [`tidewater-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tidewater-tre.qrmx-founder1.testnet) |
 | Feather Protocol | [`feather-protocol.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-protocol.qrmx-founder1.testnet) | [`feather-protocol-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-protocol-dao.qrmx-founder1.testnet) | [`feather-protocol-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-protocol-tre.qrmx-founder1.testnet) |
+| OAN (launched from the app) | [`oan.launch.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/oan.launch.qrmx-founder1.testnet) | [`oan-dao.launch.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/oan-dao.launch.qrmx-founder1.testnet) | [`oan-tre.launch.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/oan-tre.launch.qrmx-founder1.testnet) |
 
 | Shared | Account |
 |---|---|
@@ -220,7 +241,7 @@ code/contracts/
 
 | NEAR Tool / Standard | Role in Quorum |
 |---|---|
-| **`near-sdk` (Rust 5.30.1)** | All six contracts. Cross-contract promises are written so that no callback returns a joint promise (a NEAR runtime rule the live tests surfaced). |
+| **`near-sdk` (Rust 5.30.1)** | All seven contracts. Cross-contract promises are written so that no callback returns a joint promise (a NEAR runtime rule the live tests surfaced). |
 | **Keyless accounts** | Each per-NFT vault is created without any access key, so its assets can only leave through a burn executed by the collection contract. |
 | **NEP-591 (global contract by hash)** | The vault bytecode is published once. Each new vault references it by hash instead of paying for its own copy. |
 | **NEP-171 / 177 / 178 / 181** | Tokens, metadata, approvals (market listings *and* one-click offer acceptance), and enumeration (the app lists every piece from the chain). |
@@ -231,6 +252,8 @@ code/contracts/
 | **`near-api-js`** | The live end-to-end test suite (`code/scripts/e2e/`) signs and checks real transactions. |
 | **NEAR Connect** (`@hot-labs/near-connect`) | Wallet connection (Meteor, HOT, MyNearWallet and others) with testnet signing. |
 | **Multi-provider RPC** | dRPC → FastNear → rpc.testnet.near.org, with a short view cache, a concurrency limit and automatic fallback on rate limits. |
+| **Sub-accounts and embedded code** | The collection factory creates each collection's three accounts, loads the Quorum contract code that is embedded in the factory itself (so only the real contracts can ever run) and initialises them in one batch, with no access key added. |
+| **Vercel Blob (off-chain, for art only)** | Public storage for the pictures and metadata creators upload on the Launch page, behind an endpoint that allows only pictures and metadata in the right place and closes a collection name once it is launched. |
 
 ---
 
@@ -242,7 +265,7 @@ code/contracts/
 | **Sharding** | Each vault is its own account, so deposits and redemptions spread across shards instead of queueing on one contract. |
 | **Distributions** | A per-asset accumulator index means each NFT computes its share on claim: O(1) gas, not O(holders). |
 | **Bounded execution** | At most 9 asset types, 15 votes per vote transaction, and 3 vault credits per call. There are no unbounded loops. |
-| **Front-end load** | The app shows each collection as soon as its own reads finish, loads per-page data only when that page opens, and splits code by page. First content appears in about 3 seconds from a cold start. |
+| **Front-end load** | The first load shows all collections together, every later refresh swaps data in place (nothing disappears and reappears), per-page data loads only when that page opens, and code is split by page. First content appears in about 3 seconds from a cold start. Rows of collections and tabs scroll sideways instead of squeezing when more are added. |
 
 ---
 
@@ -277,6 +300,13 @@ Mint timing comes only from the stage times fixed at launch, and a collection ca
 8. **Double crediting:** `credited = true` is set before the transfer and reset if the transfer fails, so the credit can be retried.
 9. **Off-market sales:** allowed. The vault travels with the token anyway.
 
+### Launching and uploads
+
+- **The factory has no owner and no admin method.** Its settings (market, vault code, DEX, wNEAR) are fixed when it is created, and the contract code it deploys is embedded in it, so a launched collection can only run the real Quorum contracts.
+- **A launched collection has no access keys.** Nobody, including the creator and the team, can change its code or take its funds outside its rules. The creator is its founder and fee recipient, and the founder can only lower the royalty.
+- **A launch is checked before it is sent:** name, address name, supply (1 to 500), price, fee (at most 90%), mint days and https art links are validated by the contract, and the generated settings are unit-tested against the real NFT, DAO and treasury constructors. A refused launch costs only gas, and a failed creation returns the funding of any account that did not come up.
+- **Uploads are narrow.** The upload endpoint accepts only pictures (3 MB, PNG, JPG, WEBP, GIF) and metadata JSON (20 KB) at fixed paths for pieces 1 to 100, refuses reserved names and any name already launched (so art can never be replaced), and the storage token never leaves the server.
+
 ---
 
 ## 🧪 Test Suite
@@ -296,6 +326,9 @@ Two layers. The second exists because unit tests alone missed real bugs.
 | wNEAR registration fee | The last vault credit came up short |
 | Burn before settlement | Owner deposits in the vault were locked forever |
 | Settlement accepted any balance increase | A dust donation could fake a swap |
+| A regular expression lost its backslashes in the UI | The floor price always showed "0.00 in vault" (found by a manual check, then fixed) |
+| The drop reader fell back to list position | A JSON entry whose own token matched no picture was attached to piece 1 (found by its test, then fixed) |
+| A background refresh emptied the collection list | The page jumped every 30 seconds (found by measuring layout shift, then fixed) |
 
 ```bash
 # Rust contract unit tests
@@ -314,20 +347,34 @@ node scripts/e2e/settle-open.mjs    # a wNEAR collection settles with no vote; a
 node scripts/e2e/founder-locked.mjs # the founder cannot pause a mint or change the vault code
 node scripts/e2e/factory-check.mjs   # a plain wallet launches a collection in one call: keyless, bound, registered, mintable
 node scripts/e2e/acceptance-1.mjs && node scripts/e2e/acceptance-1b.mjs && node scripts/e2e/acceptance-2.mjs   # sales, offers, DAO rules, distributions, burns on the live collections
+
+# The Launch page: art upload rules, the drop-everything reader, and the page's own upload code (live)
+cd ../frontend
+node scripts/upload-check.mjs                            # allowed files go through, everything else is refused
+node scripts/ingest-check.ts                             # a whole folder, 0- and 1-based JSON, CSV, traits before pictures
+node --env-file=.env.local scripts/art-flow-check.ts     # the exact links the NFT contract fetches
 ```
 
 ---
 
 ## 🧑‍🎨 Launch Your Own Collection (testnet, no help needed)
 
-Anyone can launch a collection from the **Launch** page, with their own art, on NEAR testnet. The page walks through four stages (**Basics, Art, Sale, Launch**) with a progress bar and Back and Next buttons; Next stays disabled, with the reason shown, until a stage is complete, and the last stage is a review of everything before anything is sent:
+Anyone can launch a collection from the **Launch** page, with their own art, on NEAR testnet. The page walks through four stages (**Basics, Art, Sale, Launch**) with a progress bar and Back and Next buttons. Next stays disabled, with the reason shown, until a stage is complete, and the last stage is a review of everything before anything is sent.
 
-1. **Drop everything in one go**: your pictures (PNG, JPG, WEBP, GIF, up to 100), your traits files, or a whole folder. The page reads it and lines it up: pictures become numbered pieces in file-name order, a picture named cover or vatar becomes the cover or avatar, and traits files are matched to their pictures by file name or number. Traits can be a CSV (first column 	oken, optional 
-ame, every other column a trait), one JSON file per piece (7.json with ttributes, the usual OpenSea shape), or one JSON file holding a list or an object of pieces. 0-based and 1-based numbering both work, files can be dropped in any order and in several drops, and anything it can't use is listed instead of silently ignored.
-2. **Check and edit**: rename pieces, add or remove traits by hand, or add a trait to every piece at once.
-3. Set the **name, price, creator fee and how long the mint stays open**, then press **Launch** and approve **one** transaction in your wallet.
+1. **Basics:** name, short name, address name (checked live for availability) and a description.
+2. **Art, in one drop:** drop your pictures (PNG, JPG, WEBP, GIF, up to 100), your traits files, or a whole folder. The page reads it and lines it up:
+   - pictures become numbered pieces in file-name order;
+   - a picture named `cover` or `avatar` becomes the cover or avatar;
+   - traits files are matched to their pictures by file name, then by number (0-based and 1-based both work). Traits can be a CSV (first column `token`, an optional `name` column, every other column a trait), one JSON file per piece (`7.json` with `attributes`, the usual OpenSea shape), or one JSON file holding a list or an object of pieces;
+   - files can come in any order and in several drops (traits dropped before the pictures are remembered), and anything it cannot use is listed instead of silently ignored.
 
-What happens: the app uploads the pictures and metadata to public storage, then the wallet calls the collection factory once. It creates the NFT, DAO and treasury as **keyless** accounts (nobody can change them), registers the collection on the market and opens the mint. The collection then appears in the app for everyone, with each piece's own picture and traits. A launch costs the creator NEAR's storage rent for the three accounts (about 9.4 NEAR for 20 pieces, locked inside them; it is not a fee to Quorum). Once a collection name is launched its art is closed and can never be replaced.
+   You can then rename pieces, add or remove traits by hand, or add a trait to every piece at once.
+3. **Sale:** price, your resale fee, how long the mint stays open, and whether votes are short (testing) or standard.
+4. **Launch:** review, press Launch and approve **one** transaction in your wallet.
+
+What happens: the app uploads the pictures and metadata to public storage, then the wallet calls the collection factory once. It creates the NFT, DAO and treasury as **keyless** accounts (nobody can change them), registers the collection on the market and opens the mint. The collection then appears in the app for everyone, with each piece's own picture and traits. The creator becomes the founder and receives the resale fee. Once a collection name is launched its art is closed and can never be replaced.
+
+**What it costs the creator:** NEAR's storage rent for the three accounts, about 9.4 NEAR for 20 pieces, paid once and locked inside them (NEAR charges 1 NEAR per 100 KB of stored code). It is not a fee to Quorum. On mainnet this drops to under 1 NEAR by publishing the NFT, DAO and treasury code once as NEP-591 global contracts, the way the vault already works (a one-time publish of roughly 80 NEAR for the platform).
 
 ---
 ## 🚀 From Testnet to Mainnet
@@ -341,6 +388,8 @@ The contracts are the same on both networks. What changes is configuration.
 | DAO voting period | 10 minutes (demo) | 3–5 days |
 | Accounts | `qrmx-*.testnet`, `*.qrmx-founder1.testnet` | `<collection>.near`, `dao-<collection>.near`, `tre-<collection>.near` |
 | Market | `market.qrmx-founder1.testnet` | one shared mainnet market account |
+| Launching a collection | factory, creator pays about 9.4 NEAR of storage rent for 20 pieces | factory with the NFT, DAO and treasury code published once as NEP-591 global contracts, so a launch costs the creator under 1 NEAR |
+| Art hosting | Vercel Blob (public storage) | IPFS or another content-addressed store |
 | RPC | dRPC / FastNear testnet | mainnet RPC providers |
 
 ### Mainnet Runbook
@@ -348,7 +397,7 @@ The contracts are the same on both networks. What changes is configuration.
 1. **Build and optimise:** `cargo build --target wasm32-unknown-unknown --release`, then `wasm-opt -Oz`.
 2. **Fund the founder account** on mainnet (`you.near`).
 3. **Publish the vault code once** as a NEP-591 global contract and note its hash.
-4. **Deploy each collection** (NFT, DAO, treasury) with `code/scripts/deploy-collection.sh`, and register it on the market.
+4. **Deploy the collection factory** (and appoint it a registrar on the market), so creators can launch their own keyless collections. The team's own collections can be deployed the same way, or with `code/scripts/deploy-collection.sh`.
 5. **Configure settlement** for Rhea Finance routes, with `min_out` slippage limits on every `SETTLE` proposal.
 6. **Delete the access keys** of the NFT, DAO, treasury and market accounts, then verify with `near account list-keys`.
 7. **Rehearse on the live deployment:** credit vaults (`credit_batch`), burn one token, and confirm the 90 / 10 split.
@@ -394,6 +443,8 @@ npm run dev
 ```
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The landing page is at `/` and the app is at `/app`. The app has Market, Mints, Portfolio, Launch, Votings, Offers and Sales. The three launch collections are in `frontend/src/deployments.ts`; every collection launched through the factory is read from the factory contract and appears by itself.
 
+The Launch page uploads art through `frontend/api/blob.js`, which needs a Vercel Blob store (`vercel blob create-store quorum-art --access public`, which sets `BLOB_READ_WRITE_TOKEN`; it is git-ignored in `frontend/.env.local`). `npm run dev` serves the app but not `/api`, so use `vercel dev` locally, or deploy with `vercel --prod`.
+
 ### 4. Optional: indexer and REST API
 ```bash
 cd code/services/api
@@ -427,17 +478,20 @@ GET   /gated/members                   # Token-gated member directory
 
 ## 🗺️ Roadmap
 
-- [x] **Phase 1: Core protocol (NEAR Hackathon 2026)**
-  - 7 Rust contracts on `near-sdk 5.30.1`, 154 unit tests and a live testnet e2e suite
+- [x] **Phase 1: Core protocol and self-serve launches (NEAR Hackathon 2026)**
+  - 7 Rust contracts on `near-sdk 5.30.1`, 154 unit tests, live testnet end-to-end and browser checks
   - Keyless per-NFT vaults on a NEP-591 global contract
   - Per-collection DAO and treasury: 50% turnout, 50% spend cap, timelock and expiry
+  - wNEAR collections settle with no vote; DEX assets settle by holder vote with a minimum price
   - Market with listings, escrowed offers and an on-chain sale log
-  - Three live 20-piece collections (Molten Hours sold out), after test editions ran the full lifecycle: minted, traded, governed, settled and burned
+  - Collection factory live: anyone launches their own keyless collection from the Launch page, with their own art and traits, in one wallet transaction
+  - Four live collections, one launched by a user from the app, after test editions ran the full lifecycle: minted, traded, governed, settled and burned
   - Web app reading 100% from chain, plus an optional Neardata indexer and NEP-413 API
-- [ ] **Phase 2: Mainnet & self-serve**
-  - Mainnet launch with keys removed and Rhea settlement
-  - Collection factory is live: anyone can launch their own collection, with their own art and traits, from the Launch page with one wallet transaction (testnet)
-  - Keeper bots for permissionless vault crediting
+- [ ] **Phase 2: Mainnet and cheaper launches**
+  - Mainnet launch with Rhea settlement
+  - NFT, DAO and treasury code as NEP-591 global contracts, cutting a launch from about 9.4 NEAR to under 1 NEAR
+  - Code upgrades for keyless collections by holder vote only (the DAO approves a code hash, anyone submits the matching code)
+  - IPFS for art, keeper bots for permissionless vault crediting
   - Dutch and English auctions, delayed reveals with provenance
 - [ ] **Phase 3: Privacy & advanced liquidity**
   - Sealed-bid auctions and private OTC transfers
@@ -445,7 +499,6 @@ GET   /gated/members                   # Token-gated member directory
   - TEE-managed keeper keys via Shade Agents
 
 ---
-
 ## 📄 License
 
 Licensed under the [MIT License](LICENSE).

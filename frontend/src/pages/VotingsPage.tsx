@@ -59,7 +59,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({ proposals, userNfts, c
         </p>
       </div>
 
-      <div role="tablist" aria-label="Collections" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div role="tablist" aria-label="Collections" className="hscroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {['all', ...collections.map((c) => c.name)].map((name) => {
           const open = proposals.filter((p) => (name === 'all' || p.collection === name) && p.status === 'Voting open').length;
           const active = filter === name;
