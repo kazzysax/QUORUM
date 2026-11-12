@@ -4,6 +4,7 @@ import {
   PieChart,
   Rocket,
   CheckSquare,
+  Sparkles,
   Tag,
   ArrowUpRight,
   LayoutGrid,
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { page: 'marketplace' as Page, label: 'Market', icon: LayoutGrid },
+    { page: 'mints' as Page, label: 'Mints', icon: Sparkles },
     { page: 'portfolio' as Page, label: 'Portfolio', icon: PieChart },
     { page: 'launch' as Page, label: 'Launch', icon: Rocket },
     { page: 'governance' as Page, label: 'Votings', icon: CheckSquare },
@@ -111,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             />
           )}
-          <img src="/logo.png" alt="" aria-hidden="true" width={collapsed ? 30 : 36} height={collapsed ? 30 : 36} style={{ display: 'block' }} />
+          <img src="/logo-96.png" alt="" aria-hidden="true" width={collapsed ? 30 : 36} height={collapsed ? 30 : 36} style={{ display: 'block' }} />
         </button>
 
         {/* Collapse / Expand Toggle Button */}

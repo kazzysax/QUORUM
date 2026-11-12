@@ -1,4 +1,4 @@
-export type Page = 'marketplace' | 'landing' | 'portfolio' | 'governance' | 'launch' | 'offers' | 'sells';
+export type Page = 'marketplace' | 'landing' | 'mints' | 'portfolio' | 'governance' | 'launch' | 'offers' | 'sells';
 
 export interface TokenItem {
   id: string;

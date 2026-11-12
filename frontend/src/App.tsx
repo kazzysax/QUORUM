@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Page, TokenItem, ProposalItem, UserWallet, SaleRecord, CollectionHolder, OfferItem } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -12,7 +12,7 @@ import {
   fn,
   loadBounds,
   loadCollection,
-  loadHolders,
+  holdersOf,
   loadMarketListings,
   loadOffers,
   loadOwnedTokens,
@@ -36,12 +36,14 @@ import {
 } from './nearConnect';
 
 import { MarketplacePage } from './pages/MarketplacePage';
-import { OffersPage } from './pages/OffersPage';
-import { PortfolioPage } from './pages/PortfolioPage';
-import { VotingsPage } from './pages/VotingsPage';
-import { LaunchPage } from './pages/LaunchPage';
-import { SellsPage } from './pages/SellsPage';
-import { LandingPage } from './pages/LandingPage';
+// The home (market) page loads with the app; every other page is fetched only when opened.
+const MintsPage = lazy(() => import('./pages/MintsPage').then((m) => ({ default: m.MintsPage })));
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then((m) => ({ default: m.PortfolioPage })));
+const VotingsPage = lazy(() => import('./pages/VotingsPage').then((m) => ({ default: m.VotingsPage })));
+const LaunchPage = lazy(() => import('./pages/LaunchPage').then((m) => ({ default: m.LaunchPage })));
+const SellsPage = lazy(() => import('./pages/SellsPage').then((m) => ({ default: m.SellsPage })));
+const OffersPage = lazy(() => import('./pages/OffersPage').then((m) => ({ default: m.OffersPage })));
+const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 
 const REFRESH_MS = 30000;
 const NO_WALLET: UserWallet = { connected: false, accountId: '', balanceNear: 0, network: 'testnet', connector: undefined };
@@ -85,40 +87,49 @@ export function App() {
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selectedCollectionId;
 
+  const pageRef = useRef<Page>('marketplace');
+  pageRef.current = currentPage;
+
+  /**
+   * Loads in stages so the screen fills in quickly:
+   *  1. each collection appears the moment its own contract reads finish;
+   *  2. then only the data the current screen needs, in parallel, each piece shown as it arrives
+   *     (proposals only for Votings or a collection page, payouts only for Portfolio, and so on).
+   */
   const refresh = useCallback(async () => {
     // A request for fresh data that arrives mid-refresh (e.g. picking a collection) is run right after, not dropped.
     if (busy.current) { rerun.current = true; return; }
     busy.current = true;
     try {
-      const cols = await Promise.all(DEPLOYMENTS.map(loadCollection));
+      const loaded: (LiveCollection | undefined)[] = DEPLOYMENTS.map(() => undefined);
+      await Promise.all(DEPLOYMENTS.map(async (d, i) => {
+        loaded[i] = await loadCollection(d);
+        setCollections(loaded.filter((x): x is LiveCollection => !!x));
+        setHolders(Object.fromEntries(loaded.filter((x): x is LiveCollection => !!x).map((x) => [x.id, holdersOf(x)])));
+        setSync({ loading: false, error: null, at: Date.now() });
+      }));
+      const cols = loaded as LiveCollection[];
       const account = accountRef.current;
-      const [listings, sales, owned, holderLists] = await Promise.all([
-        loadMarketListings(cols),
-        loadSales(cols),
-        account ? loadOwnedTokens(account, cols) : Promise.resolve([] as TokenItem[]),
-        Promise.all(cols.map((c) => loadHolders(c.dep))),
-      ]);
-      const props = (await Promise.all(cols.map((c) =>
-        loadProposals(c.dep, c.name, owned.filter((t) => t.nft_contract === c.dep.nft).map((t) => t.token_id))))).flat();
-      const selected = cols.find((c) => c.id === selectedRef.current);
-      const [offerList, pieceList] = await Promise.all([
-        loadOffers(cols, account),
-        selected ? loadPieces(selected) : Promise.resolve([] as TokenItem[]),
-      ]);
-      setOffers(offerList);
-      setPayouts(account ? await loadPendingPayouts(cols, account) : []);
-      setPieces(pieceList);
-      setCollections(cols);
-      setMarketListings(listings);
-      setSalesHistory(sales);
-      setUserNfts(owned);
-      setProposals(props);
-      setHolders(Object.fromEntries(cols.map((c, i) => [c.id, holderLists[i]])));
-      if (account) {
-        const bal = await fetchNearAccountBalance(account);
-        setWallet((w) => (w.accountId === account ? { ...w, balanceNear: bal } : w));
+      const page = pageRef.current;
+      const selected = cols.find((x) => x.id === selectedRef.current);
+
+      const owned = account ? loadOwnedTokens(account, cols) : Promise.resolve([] as TokenItem[]);
+      const jobs: Promise<unknown>[] = [
+        loadMarketListings(cols).then(setMarketListings),
+        loadSales(cols).then(setSalesHistory),
+        owned.then(setUserNfts),
+      ];
+      if (selected) jobs.push(loadPieces(selected).then(setPieces));
+      if (page === 'governance' || selected) {
+        jobs.push(owned.then((o) => Promise.all(cols.map((x) =>
+          loadProposals(x.dep, x.name, o.filter((t) => t.nft_contract === x.dep.nft).map((t) => t.token_id))))).then((p) => setProposals(p.flat())));
       }
-      setSync({ loading: false, error: null, at: Date.now() });
+      if (account && (page === 'offers' || selected)) jobs.push(loadOffers(cols, account).then(setOffers));
+      if (account && page === 'portfolio') jobs.push(loadPendingPayouts(cols, account).then(setPayouts));
+      if (account) jobs.push(fetchNearAccountBalance(account).then((bal) => setWallet((w) => (w.accountId === account ? { ...w, balanceNear: bal } : w))));
+      const results = await Promise.allSettled(jobs);
+      const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+      setSync({ loading: false, error: failed ? String(failed.reason?.message || failed.reason) : null, at: Date.now() });
     } catch (e: any) {
       setSync((s) => ({ ...s, loading: false, error: e?.message || String(e) }));
     } finally {
@@ -132,7 +143,7 @@ export function App() {
     const t = setInterval(refresh, REFRESH_MS);
     return () => clearInterval(t);
   }, [refresh]);
-  useEffect(() => { refresh(); }, [wallet.accountId, selectedCollectionId, refresh]);
+  useEffect(() => { refresh(); }, [wallet.accountId, selectedCollectionId, currentPage, refresh]);
 
   // ----------------------------------------------------------------- wallet
   useEffect(() => {
@@ -433,6 +444,7 @@ export function App() {
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         {syncBanner}
 
+        <Suspense fallback={<div style={{ padding: '40px 8px', color: '#71717A', fontSize: 14 }}>Loading…</div>}>
         <div key={currentPage} className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {currentPage === 'marketplace' && (
           <MarketplacePage
@@ -464,6 +476,14 @@ export function App() {
           <LandingPage
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => { setSelectedCollectionId(colId); setCurrentPage('marketplace'); }}
+          />
+        )}
+
+        {currentPage === 'mints' && (
+          <MintsPage
+            collections={collections}
+            onMint={handleMint}
+            onOpenCollection={(id) => { setSelectedCollectionId(id); setCurrentPage('marketplace'); }}
           />
         )}
 
@@ -524,6 +544,7 @@ export function App() {
           />
         )}
         </div>
+        </Suspense>
       </main>
 
       <WalletModal

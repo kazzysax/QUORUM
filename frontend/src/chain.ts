@@ -13,7 +13,7 @@ const YOCTO = 10n ** 24n;
 // ------------------------------------------------------------------ rpc
 
 // At most a few requests in flight, so a page refresh does not trip the public RPC rate limits.
-const MAX_IN_FLIGHT = 5;
+const MAX_IN_FLIGHT = 10;
 let inFlight = 0;
 const waiting: (() => void)[] = [];
 async function slot<T>(fn: () => Promise<T>): Promise<T> {
@@ -149,6 +149,11 @@ export interface LiveCollection extends CollectionItem {
   liveSupply: number;
   closed: boolean;
   activeStage: number | null;
+  nextStage: number | null; // first stage that has not started yet
+  mintStartMs: number | null; // when the next stage opens (upcoming mints)
+  mintEndMs: number | null; // when the running stage ends (live mints)
+  stageName: string | null;
+  paused: boolean;
   groups: GroupView[];
   treasuryNear: string; // everything actually in the treasury account, formatted
   treasuryYocto: bigint;
@@ -203,7 +208,9 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     view<string>(dep.treasury, 'native_balance'),
     view<string>(config.wrap_account, 'ft_balance_of', { account_id: dep.treasury }).catch(() => '0'),
   ]);
-  const stage = config.stages[activeStage ?? config.stages.length - 1];
+  const nowMs = Date.now();
+  const nextStage = activeStage !== null ? null : (() => { const i = config.stages.findIndex((s) => Number(s.start_ms) > nowMs); return i < 0 ? null : i; })();
+  const stage = config.stages[activeStage ?? nextStage ?? config.stages.length - 1];
   const mintedN = Number(minted);
   const live = Number(liveSupply);
   const owners = new Set(tokens.map((t) => t.owner_id)).size;
@@ -231,7 +238,8 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     royalty_percent: config.royalty_bps / 100,
     change_24h: '—',
     change_positive: true,
-    status: mintedN >= config.max_supply || closed ? 'soldout' : activeStage === null ? 'upcoming' : 'live',
+    // live = a stage is running and minting is not paused; upcoming = a stage has not started yet (or minting is paused)
+    status: mintedN >= config.max_supply || closed ? 'soldout' : activeStage !== null && !config.paused ? 'live' : (nextStage !== null || config.paused) ? 'upcoming' : 'soldout',
     asset_weights: config.asset_plan.map((p) => ({
       asset: p.token === config.wrap_account ? 'wNEAR' : p.token,
       weight: p.weight,
@@ -254,6 +262,11 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     liveSupply: live,
     closed,
     activeStage,
+    nextStage,
+    mintStartMs: nextStage !== null ? Number(config.stages[nextStage].start_ms) : activeStage !== null && config.paused ? Number(config.stages[activeStage].start_ms) : null,
+    mintEndMs: activeStage !== null ? Number(config.stages[activeStage].end_ms) : null,
+    stageName: activeStage !== null ? config.stages[activeStage].name : nextStage !== null ? config.stages[nextStage].name : null,
+    paused: config.paused,
     groups,
     treasuryNear: fmtNear(tre, 4),
     treasuryYocto: BigInt(tre),
@@ -586,4 +599,22 @@ export async function unregisteredTokens(assets: string[], account: string): Pro
     need.push({ token, deposit: bounds.min });
   }
   return need;
+}
+
+/** Holders of a collection, derived from the pieces already loaded (no extra reads). */
+export function holdersOf(col: LiveCollection): CollectionHolder[] {
+  const by = new Map<string, string[]>();
+  for (const p of col.pieces) by.set(p.owner_id, [...(by.get(p.owner_id) ?? []), p.token_id]);
+  const total = col.pieces.length;
+  return [...by.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([accountId, ids], i) => ({
+      rank: i + 1,
+      accountId,
+      tokensHeld: ids,
+      count: ids.length,
+      percent: total ? Math.round((ids.length / total) * 1000) / 10 : 0,
+      votingPower: ids.length,
+      vaultValueNear: '',
+    }));
 }

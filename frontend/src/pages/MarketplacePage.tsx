@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { LiveCollection } from '../chain';
 import { fmtNear } from '../chain';
+import { MintsPanel } from '../components/MintsPanel';
 import type { TokenItem, Page, ProposalItem, CollectionHolder, SaleRecord, CollectionActivity, OfferItem } from '../types';
 import { fetchLiveDaoBalances, getCollectionDaoAccounts, type DaoBalances } from '../near';
 import {
@@ -1993,6 +1994,18 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             );
           })}
         </div>
+      </section>
+
+      {/* Live and upcoming mints */}
+      <section
+        aria-label="Mints"
+        style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '24px', padding: '24px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '16px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>Mints</h2>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>Open now and opening soon</span>
+        </div>
+        <MintsPanel compact collections={collections} onMint={onMint} onOpenCollection={(id) => onSelectCollection(id)} />
       </section>
 
       {/* Live Secondary Market Listings Across All Collections */}
