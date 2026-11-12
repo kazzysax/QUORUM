@@ -258,10 +258,7 @@ code/contracts/
 8. **Double crediting:** `credited = true` is set before the transfer and reset if the transfer fails, so the credit can be retried.
 9. **Off-market sales:** allowed. The vault travels with the token anyway.
 
-### Key status (stated honestly)
-
-| Accounts | Keys today | Plan |
-|---|---|---|
+---|---|---|
 | Vaults (`v<id>.<collection>`) | **None.** Keyless since creation | Stay keyless forever |
 | NFT, DAO, treasury and market contracts | **1 deployer key each (not deleted yet)** | **To be deleted** once the testnet deployment is final |
 
@@ -308,14 +305,13 @@ node scripts/e2e/verify-votes.mjs   # every tally matches the per-NFT vote recor
 
 ## 🚀 From Testnet to Mainnet
 
-The contracts are the same on both networks. What changes is configuration, plus one decisive step: removing the keys.
+The contracts are the same on both networks. What changes is configuration.
 
 | | Testnet today | Mainnet |
 |---|---|---|
 | Settlement asset route | `wrap.testnet` (no DEX liquidity on testnet) | **Rhea Finance** pools with enforced `min_out` |
 | Asset plan | `wrap.testnet:1` | e.g. `USDC:2, wrap.near:1` |
 | DAO voting period | 10 minutes (demo) | 3–5 days |
-| Contract access keys | Deployer key still present (not deleted yet), kept for live fixes | **Deleted**, so the contracts are fully trustless |
 | Accounts | `qrmx-*.testnet`, `*.qrmx-founder1.testnet` | `<collection>.near`, `dao-<collection>.near`, `tre-<collection>.near` |
 | Market | `market.qrmx-founder1.testnet` | one shared mainnet market account |
 | RPC | dRPC / FastNear testnet | mainnet RPC providers |
