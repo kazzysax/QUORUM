@@ -16,6 +16,8 @@ import {
   loadMarketListings,
   loadOffers,
   loadOwnedTokens,
+  loadPendingPayouts,
+  unregisteredTokens,
   loadPieces,
   loadProposals,
   loadSales,
@@ -23,7 +25,7 @@ import {
   uncreditedTokens,
   view,
 } from './chain';
-import type { LiveCollection, LiveProposal } from './chain';
+import type { LiveCollection, LiveProposal, PendingPayout } from './chain';
 import { fetchNearAccountBalance } from './near';
 import {
   getNearConnector,
@@ -64,6 +66,7 @@ export function App() {
   const [holders, setHolders] = useState<Record<string, CollectionHolder[]>>({});
   const [offers, setOffers] = useState<OfferItem[]>([]);
   const [pieces, setPieces] = useState<TokenItem[]>([]);
+  const [payouts, setPayouts] = useState<PendingPayout[]>([]);
   const [sync, setSync] = useState<{ loading: boolean; error: string | null; at: number | null }>({ loading: true, error: null, at: null });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const busy = useRef(false);
@@ -103,6 +106,7 @@ export function App() {
         selected ? loadPieces(selected) : Promise.resolve([] as TokenItem[]),
       ]);
       setOffers(offerList);
+      setPayouts(account ? await loadPendingPayouts(cols, account) : []);
       setPieces(pieceList);
       setCollections(cols);
       setMarketListings(listings);
@@ -188,7 +192,13 @@ export function App() {
       await refresh();
       return tx.hash;
     } catch (e: any) {
-      addToast('error', `${title} failed`, e?.message || String(e));
+      const msg = String(e?.message || e);
+      if (/is not registered/.test(msg)) {
+        addToast('info', `${title}: done, payout waiting`, 'Your NFT was burned but the payout is waiting because your wallet is not set up to receive that token. Open Portfolio, then Payouts waiting, and press Claim.');
+        await refresh();
+      } else {
+        addToast('error', `${title} failed`, msg);
+      }
       return null;
     }
   };
@@ -264,9 +274,38 @@ export function App() {
     }
   };
 
+  /** Registers the signed-in wallet on a token it must be able to receive (one small refundable-style storage fee). */
+  const ensureRegistered = async (assets: string[]): Promise<boolean> => {
+    const me = wallet.accountId;
+    const need = await unregisteredTokens(assets, me);
+    for (const n of need) {
+      const ok = await run(`Set up your wallet for ${n.token}`, n.token, [fn('storage_deposit', { account_id: me, registration_only: true }, n.deposit, GAS.call)]);
+      if (!ok) return false;
+    }
+    return true;
+  };
+
   const handleBurnToken = async (token: TokenItem) => {
     const dep = depFor(token);
+    if (!requireWallet()) return;
+    try {
+      // The payout is paid from the vault; if it holds a token (not plain NEAR) the wallet must be registered on it first.
+      const vault = await view<{ balances: [string, string][] }>(token.vault_account!, 'vault_info');
+      const traits = await view<{ asset: string; credited: boolean } | null>(dep.nft, 'nft_traits', { token_id: token.token_id });
+      const assets = [...vault.balances.map((b) => b[0]), ...(traits && traits.credited ? [] : [])];
+      if (!(await ensureRegistered(assets))) return;
+    } catch (e: any) {
+      addToast('error', 'Could not prepare the burn', e?.message || String(e));
+      return;
+    }
     await run(`Burn ${token.title}`, dep.nft, [fn('burn_and_redeem', { token_id: token.token_id }, '1', GAS.burn)]);
+  };
+
+  /** Claims a payout parked in a vault: register on the token if needed, then retry (anyone may; it can only go to the holder). */
+  const handleClaimPayout = async (p: PendingPayout) => {
+    if (!requireWallet()) return;
+    if (!(await ensureRegistered(p.items.map((i) => i.asset)))) return;
+    await run(`Claim payout from ${p.collection} #${p.tokenId}`, p.vault, [fn('retry_pending', {}, '0', GAS.execute)]);
   };
 
   const handleAddToVault = async (token: TokenItem, amount: string) => {
@@ -294,6 +333,13 @@ export function App() {
   const handleAbortSwap = async (collectionId: string, group: number) => {
     const col = collections.find((c) => c.id === collectionId);
     if (col) await run('Abort stuck swap', col.dep.nft, [fn('abort_swap', { group }, '0', GAS.call)]);
+  };
+
+  /** Anyone can add NEAR to a collection's treasury; the DAO's holders decide how it is spent. */
+  const handleDonate = async (collectionId: string, amountNear: string) => {
+    const col = collections.find((c) => c.id === collectionId);
+    if (!col) return;
+    await run(`Donate ${amountNear} NEAR to the ${col.name} DAO`, col.dep.treasury, [fn('donate', { memo: null }, nearToYocto(amountNear), GAS.call)]);
   };
 
   // -------------------------------------------------------------- governance
@@ -402,6 +448,7 @@ export function App() {
             onAcceptOffer={handleAcceptOffer}
             onCancelOffer={handleCancelOffer}
             onMint={handleMint}
+            onDonate={handleDonate}
             onCredit={handleCredit}
             onEnableFallback={handleEnableFallback}
             onAbortSwap={handleAbortSwap}
@@ -429,6 +476,8 @@ export function App() {
             onClaimAll={handleClaimAll}
             onClaimSingle={handleClaimSingle}
             onBurnToken={handleBurnToken}
+            payouts={payouts}
+            onClaimPayout={handleClaimPayout}
             onAddToVault={handleAddToVault}
           />
         )}

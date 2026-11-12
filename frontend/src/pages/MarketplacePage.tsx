@@ -42,6 +42,7 @@ interface MarketplacePageProps {
   onAcceptOffer?: (offer: OfferItem) => void;
   onCancelOffer?: (offer: OfferItem) => void;
   onMint?: (collectionId: string) => void;
+  onDonate?: (collectionId: string, amountNear: string) => void;
   onCredit?: (collectionId: string, group: number) => void;
   onEnableFallback?: (collectionId: string, group: number) => void;
   onAbortSwap?: (collectionId: string, group: number) => void;
@@ -66,6 +67,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   onAcceptOffer,
   onCancelOffer,
   onMint,
+  onDonate,
   onCredit,
   onEnableFallback,
   onAbortSwap,
@@ -86,6 +88,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   // Quick Offer Modal State
   const [offerModalToken, setOfferModalToken] = useState<TokenItem | null>(null);
   const [offerInputAmount, setOfferInputAmount] = useState('1.00');
+  const [donateAmount, setDonateAmount] = useState('1');
 
 
   // Active collection if one is selected
@@ -1384,7 +1387,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             {activeCollection.name} Treasury
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>
-                            {(daoBalances?.treasuryBalance ?? 1.50).toFixed(4)} NEAR
+                            {activeCollection.treasuryNear} NEAR
                           </td>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
  testnet NEAR
@@ -1400,6 +1403,15 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                             </a>
                           </td>
                         </tr>
+                        {activeCollection.treasuryWrapped > 0n && (
+                          <tr>
+                            <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}><strong>{activeTreasuryAccount}</strong></td>
+                            <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', color: '#A1A1AA' }}>Also holds wrapped NEAR</td>
+                            <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33', fontWeight: 700, color: '#F5A524', fontFamily: 'Space Grotesk' }}>{fmtNear(activeCollection.treasuryWrapped, 4)} wNEAR</td>
+                            <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>1 wNEAR = 1 NEAR</td>
+                            <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}></td>
+                          </tr>
+                        )}
                         <tr>
                           <td style={{ padding: '10px 8px', borderTop: '1px solid #2A2A33' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1730,6 +1742,19 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   </div>
                 )}
               </section>
+
+              {onDonate && (
+                <section style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '24px', padding: '20px 24px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ maxWidth: '560px' }}>
+                    <strong style={{ fontSize: '16px' }}>Support this DAO</strong>
+                    <p style={{ margin: '6px 0 0', fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>Anyone can add NEAR to the treasury. It shows up in the balance above straight away, and only holder votes can spend it.</p>
+                  </div>
+                  <form style={{ display: 'flex', gap: '8px' }} onSubmit={(e) => { e.preventDefault(); const n = parseFloat(donateAmount); if (n > 0) onDonate(activeCollection.id, donateAmount); }}>
+                    <input type="number" min="0" step="0.1" value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} style={{ width: 110, background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: 12, padding: '0 12px', color: '#F4F4F5', fontSize: 14, minHeight: 40 }} aria-label="Amount in NEAR" />
+                    <button type="submit" className="btn-primary" style={{ minHeight: 40, padding: '0 18px', fontSize: 13 }}>Donate NEAR</button>
+                  </form>
+                </section>
+              )}
 
               {activeCollection.closed && activeCollection.groups.map((g) => (
                 <section key={g.index} style={{ background: '#15151B', border: '1px solid #2A2A33', borderRadius: '24px', padding: '20px 24px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', justifyContent: 'space-between' }}>

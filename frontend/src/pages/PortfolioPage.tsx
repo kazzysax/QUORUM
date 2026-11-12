@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Page, TokenItem } from '../types';
+import type { PendingPayout } from '../chain';
 import { Flame, ArrowUpRight, Plus, AlertTriangle, X, ShieldCheck } from 'lucide-react';
 
 interface PortfolioPageProps {
@@ -12,6 +13,8 @@ interface PortfolioPageProps {
   onClaimSingle: (token: TokenItem) => void;
   onBurnToken: (token: TokenItem) => void;
   onAddToVault: (token: TokenItem, amount: string) => void;
+  payouts?: PendingPayout[];
+  onClaimPayout?: (p: PendingPayout) => void;
 }
 
 export const PortfolioPage: React.FC<PortfolioPageProps> = ({
@@ -24,6 +27,8 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
   onClaimSingle,
   onBurnToken,
   onAddToVault,
+  payouts = [],
+  onClaimPayout,
 }) => {
   const [selectedTokenId, setSelectedTokenId] = useState<string>(nfts[0]?.id || '');
   const [showBurnModal, setShowBurnModal] = useState(false);
@@ -144,6 +149,19 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({
           Claim all ({unclaimedTotal.toFixed(2)} NEAR)
         </button>
       </div>
+
+      {payouts.length > 0 && (
+        <div style={{ background: 'rgba(245,165,36,0.08)', border: '1px solid rgba(245,165,36,0.4)', borderRadius: '20px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <strong style={{ fontSize: '16px' }}>Payouts waiting for you</strong>
+          <span style={{ fontSize: '13px', color: '#A1A1AA' }}>You burned these NFTs. The money is safe in their vaults and is released when you press Claim.</span>
+          {payouts.map((x) => (
+            <div key={x.vault} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '14px' }}><strong>{x.collection} #{x.tokenId}</strong> · {x.items.map((i) => `${i.amountNear} NEAR`).join(' + ')}</span>
+              {onClaimPayout && <button type="button" className="btn-primary" style={{ minHeight: 38, padding: '0 18px', fontSize: 13 }} onClick={() => onClaimPayout(x)}>Claim</button>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 4 Stat Metric Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>

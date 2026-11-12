@@ -150,8 +150,10 @@ export interface LiveCollection extends CollectionItem {
   closed: boolean;
   activeStage: number | null;
   groups: GroupView[];
-  treasuryNear: string; // formatted
+  treasuryNear: string; // everything actually in the treasury account, formatted
   treasuryYocto: bigint;
+  treasurySpendableNear: string; // what a spend proposal can use (balance minus the storage reserve and holder claims)
+  treasuryWrapped: bigint; // wNEAR held by the treasury (from burns)
   escrowYocto: bigint;  // sum of settlement-group escrow still held by the NFT contract
   mintCostYocto: string | null;
   saleCount: number;
@@ -189,7 +191,7 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     view<boolean>(dep.nft, 'mint_closed'),
     view<number | null>(dep.nft, 'active_stage'),
     view<GroupView[]>(dep.nft, 'settlement_status'),
-    view<string>(dep.treasury, 'native_balance'),
+    accountBalanceYocto(dep.treasury),
     verifiedListings(dep),
     view<{ sales: number; volume: string }>(MARKET, 'get_stats', { nft: dep.nft }),
     allTokens(dep),
@@ -197,6 +199,10 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
   ]);
   const liveOffers = collOffers.filter((o) => o.expires_ms > Date.now());
   const topOffer = liveOffers.reduce<bigint>((m, o) => (BigInt(o.amount) > m ? BigInt(o.amount) : m), 0n);
+  const [spendable, wrapped] = await Promise.all([
+    view<string>(dep.treasury, 'native_balance'),
+    view<string>(config.wrap_account, 'ft_balance_of', { account_id: dep.treasury }).catch(() => '0'),
+  ]);
   const stage = config.stages[activeStage ?? config.stages.length - 1];
   const mintedN = Number(minted);
   const live = Number(liveSupply);
@@ -251,6 +257,8 @@ export async function loadCollection(dep: Deployment): Promise<LiveCollection> {
     groups,
     treasuryNear: fmtNear(tre, 4),
     treasuryYocto: BigInt(tre),
+    treasurySpendableNear: fmtNear(spendable, 4),
+    treasuryWrapped: BigInt(wrapped),
     escrowYocto: escrow,
     mintCostYocto: mintCost,
     saleCount: stats.sales,
@@ -533,4 +541,48 @@ export async function loadOffers(cols: LiveCollection[], account: string): Promi
     for (const o of all) if (mine.has(o.token_id) && o.buyer !== account) received.push(toOfferItem(o, col, 'received', account));
   }
   return [...received, ...made];
+}
+
+// ------------------------------------------------------------------ payouts waiting after a burn
+
+export interface PendingPayout {
+  collection: string;
+  tokenId: string;
+  vault: string;
+  items: { asset: string; amount: string; amountNear: string }[];
+}
+
+/**
+ * A burn pays the holder from the vault. If the holder was not registered on the payout token the
+ * transfer is refused and parked in the vault ("pending") until someone retries it.
+ */
+export async function loadPendingPayouts(cols: LiveCollection[], account: string): Promise<PendingPayout[]> {
+  if (!account) return [];
+  const out: PendingPayout[] = [];
+  for (const col of cols) {
+    const ids = Array.from({ length: col.minted }, (_, i) => String(i + 1));
+    const states = await Promise.all(ids.map((id) => view<{ burned: boolean } | null>(col.dep.nft, 'token_state', { token_id: id })));
+    const burned = ids.filter((_, i) => states[i]?.burned);
+    const vaults = await Promise.all(burned.map((id) => view<{ status: any; pending: { asset: string; payee: string; amount: string }[] }>(`v${id}.${col.dep.nft}`, 'vault_info')));
+    vaults.forEach((v, i) => {
+      if (v.status?.Redeemed?.holder !== account) return;
+      const mine = v.pending.filter((p) => p.payee === 'Holder');
+      if (!mine.length) return;
+      out.push({ collection: col.name, tokenId: burned[i], vault: `v${burned[i]}.${col.dep.nft}`, items: mine.map((p) => ({ asset: p.asset, amount: p.amount, amountNear: fmtNear(p.amount) })) });
+    });
+  }
+  return out;
+}
+
+/** Token accounts (not native NEAR) in which `account` is not yet registered, with the fee to register. */
+export async function unregisteredTokens(assets: string[], account: string): Promise<{ token: string; deposit: string }[]> {
+  const tokens = [...new Set(assets.filter((a) => a.startsWith('nep141:')).map((a) => a.slice(7)))];
+  const need: { token: string; deposit: string }[] = [];
+  for (const token of tokens) {
+    const bal = await view<unknown>(token, 'storage_balance_of', { account_id: account });
+    if (bal) continue;
+    const bounds = await view<{ min: string }>(token, 'storage_balance_bounds');
+    need.push({ token, deposit: bounds.min });
+  }
+  return need;
 }
