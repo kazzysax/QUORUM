@@ -1,8 +1,9 @@
 //! Settlement: turning each asset group's escrowed NEAR into the asset its NFTs carry.
 //!
-//! * `settle_group` is callable only by the DAO (an executed SETTLE proposal that
-//!   carries the route and the minimum output holders approved). The contract builds
-//!   the Rhea/Ref swap message itself, so the minimum cannot be dropped.
+//! * `settle_group` runs once the mint is over. For a wNEAR group (a 1:1 wrap, no price)
+//!   anyone may call it: no vote. A group that needs a DEX swap is DAO only (an executed
+//!   SETTLE proposal that carries the route and the minimum output holders approved). The
+//!   contract builds the Rhea/Ref swap message itself, so the minimum cannot be dropped.
 //! * Group phases: Pending -> Swapping -> Swapped, or Pending -> Fallback.
 //! * `credit_batch` is permissionless: it pushes each NFT's pro-rata share into its
 //!   vault. Shares are by escrow amount, so NFTs minted at different prices are
@@ -76,19 +77,21 @@ pub struct GroupView {
 
 #[near]
 impl Contract {
-    /// DAO only. Swaps the group's entire NEAR escrow into its asset through Rhea.
+    /// Converts the group's entire NEAR escrow into its planned asset once the mint is over.
+    /// A wNEAR group is a fixed 1:1 wrap with no price to protect, so ANYONE may settle it: no vote.
+    /// A group that needs a DEX swap is DAO only, because holders set the minimum output.
     pub fn settle_group(&mut self, group: u8, hops: Vec<Hop>, min_out: U128) -> PromiseOrValue<()> {
-        require!(env::predecessor_account_id() == self.config.dao, "Only the DAO");
         require!(self.mint_closed(), "The mint is still open");
         require!(self.pending_mints == 0, "Mints are still being created");
         let idx = group as usize;
         require!(idx < self.groups.len(), "Unknown group");
+        let token = self.config.asset_plan[idx].token.clone();
+        let is_wnear = token == self.config.wrap_account;
+        require!(is_wnear || env::predecessor_account_id() == self.config.dao, "Only the DAO");
         let g = &self.groups[idx];
         require!(g.phase == Phase::Pending, "This group is not waiting for a swap");
         require!(g.total_share.0 > 0, "Nothing to settle");
-        let token = self.config.asset_plan[idx].token.clone();
         let amount = g.total_share.0;
-        let is_wnear = token == self.config.wrap_account;
 
         if is_wnear {
             require!(hops.is_empty(), "A wNEAR group needs no route");

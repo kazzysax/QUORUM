@@ -302,12 +302,31 @@ fn closed_collection() -> Contract {
 }
 
 #[test]
-fn settle_is_dao_only_and_only_after_the_mint_closes() {
+fn a_dex_settle_is_dao_only_and_only_after_the_mint_closes() {
     let mut c = closed_collection();
     testing_env!(ctx("founder.near", CLOSED).build());
     assert!(panics(std::panic::AssertUnwindSafe(|| { let _ = c.settle_group(0, vec![hop(1, "usdc.near")], U128(1)); })).contains("Only the DAO"));
     testing_env!(ctx(DAO, T0 + 4_000).build());
     assert!(panics(std::panic::AssertUnwindSafe(|| { let _ = c.settle_group(0, vec![hop(1, "usdc.near")], U128(1)); })).contains("still open"));
+}
+
+#[test]
+fn anyone_settles_a_wnear_group_without_a_vote_once_the_mint_closes() {
+    let mut c = closed_collection();
+    // Not while the mint is open, not even the DAO.
+    testing_env!(ctx("stranger.near", T0 + 4_000).build());
+    assert!(panics(std::panic::AssertUnwindSafe(|| { let _ = c.settle_group(1, vec![], U128(0)); })).contains("still open"));
+    // After it closes, any account may wrap the wNEAR group's escrow...
+    testing_env!(ctx("stranger.near", CLOSED).build());
+    let _ = c.settle_group(1, vec![], U128(0));
+    assert_eq!(c.groups[1].phase, Phase::Swapping);
+    // ...and the result is still only what really arrived, 1:1.
+    with(ctx(NFT, CLOSED), created_ok());
+    let _ = c.on_before_wrap(Ok(U128(0)), 1, U128(NEAR));
+    c.on_after(Ok(U128(NEAR)), 1, U128(0), U128(NEAR));
+    assert_eq!((c.groups[1].phase.clone(), c.groups[1].out_total.0), (Phase::Swapped, NEAR));
+    // A DEX group in the same collection still needs the DAO.
+    assert!(panics(std::panic::AssertUnwindSafe(|| { let _ = c.settle_group(0, vec![hop(1, "usdc.near")], U128(5)); })).contains("Only the DAO"));
 }
 
 #[test]

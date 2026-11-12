@@ -2,13 +2,13 @@
 
 Two layers. The second one exists because the first one is not enough.
 
-## 1. Unit tests (142)
+## 1. Unit tests (144)
 
 ```bash
 cd code && cargo test --workspace
 ```
 
-Rust tests with a mocked chain, per crate: common 14, dao 22, market 27, nft 41, treasury 21, vault 17.
+Rust tests with a mocked chain, per crate: common 14, dao 23, market 27, nft 42, treasury 21, vault 17.
 
 ## 2. Live testnet end-to-end (`code/scripts/e2e/`)
 
@@ -24,6 +24,8 @@ resulting chain state (balances to the yocto where the contract is exact). Keys 
 | `feather.mjs` | Permissionless fallback: after the grace period anyone can switch the group to plain NEAR, credit the vaults, and holders can burn for 90%. Needs ~72 minutes. |
 | `dao-standards.mjs` | `list_proposals`, the 30-day voting cap, and the treasury's 50% single-spend cap (the vote passes, execution is refused, funds untouched, the proposal stays retryable). |
 | `offers.mjs` | On-chain offers: escrow held by the market, replace and withdraw refund the buyer, only the buyer can withdraw, the owner accepts with ONE transaction (`nft_approve` with `accept_offer`) and the sale pays 5% pool / 5% royalty / 90% seller. |
+| `settle-open.mjs` | Upgrades the live collection contracts in place, then proves a wNEAR collection settles with no vote: an open mint is refused, a plain holder converts the sold-out Molten Hours escrow 1:1 into wNEAR, anyone fills all 20 vaults, and a second credit is refused. |
+| `relaunch.mjs`, `relaunch-mint.mjs`, `mint-out.mjs` | The 20-piece relaunch: each account created, funded, deployed and initialised in one transaction; real public mints with the 50/50 split checked. |
 | `upgrade-market.mjs` | Upgrades the live market in place and runs its migration; listings, stats and sale history survive. |
 | `gift-and-list.mjs` | Gives a tester wallet 3 NFTs of each collection and lists the rest on the market. |
 | `rotate-keys.mjs`, `mkusers.mjs`, `fund.mjs`, `deploy-code.mjs` | Test-account housekeeping and code redeploys with the rotated keys. |

@@ -46,6 +46,7 @@ interface MarketplacePageProps {
   onDonate?: (collectionId: string, amountNear: string) => void;
   onCredit?: (collectionId: string, group: number) => void;
   onEnableFallback?: (collectionId: string, group: number) => void;
+  onSettleWnear?: (collectionId: string, group: number) => void;
   onAbortSwap?: (collectionId: string, group: number) => void;
   sales?: SaleRecord[];
   onCastVote?: (proposalId: number, choice: 'yes' | 'no' | 'abstain') => void;
@@ -71,6 +72,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
   onDonate,
   onCredit,
   onEnableFallback,
+  onSettleWnear,
   onAbortSwap,
 }) => {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -1667,13 +1669,15 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                   <div style={{ maxWidth: '640px' }}>
                     <strong style={{ fontSize: '16px' }}>Settlement</strong>
                     <p style={{ margin: '6px 0 0', fontSize: '13px', lineHeight: 1.6, color: '#A1A1AA' }}>
-                      {g.phase === 'Pending' && 'The mint is over and the money raised is waiting in escrow. Holders can vote to convert it, or once the waiting period ends anyone can switch the payout to plain NEAR.'}
+                      {g.phase === 'Pending' && g.asset === activeCollection.config.wrap_account && 'The mint is over. The escrow converts 1:1 into wNEAR, the asset this collection launched with, so no vote is needed: anyone can convert it, then fill the vaults.'}
+                      {g.phase === 'Pending' && g.asset !== activeCollection.config.wrap_account && 'The mint is over and the money raised is waiting in escrow. Holders vote to swap it into the planned asset at a safe minimum price, or once the waiting period ends anyone can switch the payout to plain NEAR.'}
                       {g.phase === 'Swapping' && 'A conversion is running. If it never finishes, anyone can cancel it after an hour.'}
                       {(g.phase === 'Swapped' || g.phase === 'Fallback') && 'The escrow has been settled. Press the button to move each piece\'s share into its own vault (anyone can do this).'}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    {g.phase === 'Pending' && onEnableFallback && <button type="button" className="btn-secondary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onEnableFallback(activeCollection.id, g.index)}>Switch to NEAR payout</button>}
+                    {g.phase === 'Pending' && g.asset === activeCollection.config.wrap_account && onSettleWnear && <button type="button" className="btn-primary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onSettleWnear(activeCollection.id, g.index)}>Convert to wNEAR</button>}
+                    {g.phase === 'Pending' && g.asset !== activeCollection.config.wrap_account && onEnableFallback && <button type="button" className="btn-secondary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onEnableFallback(activeCollection.id, g.index)}>Switch to NEAR payout</button>}
                     {g.phase === 'Swapping' && onAbortSwap && <button type="button" className="btn-secondary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onAbortSwap(activeCollection.id, g.index)}>Cancel conversion</button>}
                     {(g.phase === 'Swapped' || g.phase === 'Fallback') && onCredit && <button type="button" className="btn-primary" style={{ minHeight: 40, padding: '0 16px', fontSize: 13 }} onClick={() => onCredit(activeCollection.id, g.index)}>Fill vaults</button>}
                   </div>

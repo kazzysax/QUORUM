@@ -336,6 +336,12 @@ export function App() {
     }
   };
 
+  /** A wNEAR group settles without a vote: anyone wraps the escrow 1:1 once the mint is over. */
+  const handleSettleWnear = async (collectionId: string, group: number) => {
+    const col = collections.find((c) => c.id === collectionId);
+    if (col) await run('Convert the escrow to wNEAR', col.dep.nft, [fn('settle_group', { group, hops: [], min_out: '0' }, '0', GAS.execute)]);
+  };
+
   const handleEnableFallback = async (collectionId: string, group: number) => {
     const col = collections.find((c) => c.id === collectionId);
     if (col) await run('Enable NEAR fallback settlement', col.dep.nft, [fn('enable_fallback', { group }, '0', GAS.call)]);
@@ -464,6 +470,7 @@ export function App() {
             onDonate={handleDonate}
             onCredit={handleCredit}
             onEnableFallback={handleEnableFallback}
+            onSettleWnear={handleSettleWnear}
             onAbortSwap={handleAbortSwap}
             onNavigate={setCurrentPage}
             onSelectCollection={(colId) => setSelectedCollectionId(colId)}

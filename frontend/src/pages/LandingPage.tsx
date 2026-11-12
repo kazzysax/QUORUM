@@ -167,7 +167,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectCo
             </span>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Settlement through Rhea</h3>
             <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: '#A1A1AA' }}>
-              You mint in NEAR. Once the mint closes, holders vote to execute the DEX swap route for each asset group with enforced minimum output limits.
+              You mint in NEAR. Once the mint closes, the escrow converts into the asset fixed at launch. wNEAR converts 1:1 with no vote; a DEX swap needs a holder vote with an enforced minimum output.
             </p>
           </article>
         </div>
