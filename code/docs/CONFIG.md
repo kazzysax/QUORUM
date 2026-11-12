@@ -21,7 +21,7 @@ Generate with `scripts/make-init.mjs` (it takes env vars and prints this JSON).
     "royalty_recipient": "you.near",
     "metadata_base_url": "https://api.example.com",
     "media_base_url": "https://media.example.com",
-    "paused": true,
+    "paused": false,
     "provenance_hash": null,
     "asset_plan": [
       { "token": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", "weight": 2 },

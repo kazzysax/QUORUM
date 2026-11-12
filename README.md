@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://quorumio.vercel.app"><img src="https://img.shields.io/badge/Live%20on-NEAR%20testnet-F5A524?style=for-the-badge&logo=near" alt="Live on NEAR testnet" /></a>
   <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/near--sdk-5.30.1-orange?style=for-the-badge&logo=rust" alt="near-sdk 5.30.1" /></a>
-  <a href="#-test-suite"><img src="https://img.shields.io/badge/Tests-144%20unit%20%2B%20live%20testnet%20e2e-brightgreen?style=for-the-badge" alt="Tests" /></a>
+  <a href="#-test-suite"><img src="https://img.shields.io/badge/Tests-145%20unit%20%2B%20live%20testnet%20e2e-brightgreen?style=for-the-badge" alt="Tests" /></a>
   <a href="#-no-mocks-every-number-comes-from-the-chain"><img src="https://img.shields.io/badge/Data-100%25%20on--chain-success?style=for-the-badge" alt="100% on-chain data" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" /></a>
 </p>
@@ -56,11 +56,11 @@ Quorum is not a mock-up. Three collections of 20 pieces each are live on NEAR te
 
 | | Molten Hours | Tidewater | Feather Protocol | **Total** |
 |---|---|---|---|---|
-| Minted (public mint, 1 NEAR) | **20 / 20, sold out** | 12 / 20, mint open | 12 / 20, mint open | **44 / 60** |
+| Minted (public mint, 1 NEAR) | **20 / 20, sold out** | 13 / 20, mint open | 12 / 20, mint open | **45 / 60** |
 | Unique holders | 7 | 7 | 7 | |
 | Listed for sale | 2 | 2 | 2 | **6** |
-| Treasury (50% of every mint, live balance) | 12.5 NEAR | 8.5 NEAR | 8.5 NEAR | **29.5 NEAR** |
-| Vault backing (the other 50%) | **10 wNEAR in 20 vaults** (settled, no vote) | 6 NEAR in escrow until the mint ends | 6 NEAR in escrow until the mint ends | **22 NEAR** |
+| Treasury (50% of every mint, live balance) | 12.5 NEAR | 9.0 NEAR | 8.5 NEAR | **30.0 NEAR** |
+| Vault backing (the other 50%) | **10 wNEAR in 20 vaults** (settled, no vote) | 6.5 NEAR in escrow until the mint ends | 6 NEAR in escrow until the mint ends | **22.5 NEAR** |
 
 Each treasury also holds the 2.5 NEAR its account was opened with. After Molten Hours sold out, an ordinary holder (not the DAO) converted its 10 NEAR escrow into exactly 10 wNEAR and filled all 20 vaults, with no vote. Tidewater and Feather Protocol still have 8 pieces each open to mint, and anyone with a testnet wallet can mint one in the app's **Mints** tab.
 
@@ -253,11 +253,13 @@ code/contracts/
 ├───────────┼───────────────────────────────────┼────────────────────────────────────────┤
 │ Vault     │ Receive assets, execute burn-out  │ Move funds without collection burning  │
 │ Treasury  │ Execute passed DAO proposals      │ Move funds without DAO authorization   │
-│ Founder   │ Pause, lower royalty, set hash*   │ Alter asset plan, touch vaults/funds   │
+│ Founder   │ Lower the royalty (only lower)    │ Pause a mint, change vault code,       │
+│           │                                   │ alter asset plan, touch vaults/funds   │
 │ DAO       │ Parameter updates, spends, swaps  │ Override fee splits or asset plan      │
 │ Market    │ Settle sales and offers           │ Move escrow except to buyer or seller  │
 └───────────┴───────────────────────────────────┴────────────────────────────────────────┘
-* Vault code hash may only be altered prior to the very first mint.
+Mint timing comes only from the stage times fixed at launch, and a collection cannot launch paused. Only a holder vote
+(through the DAO) can pause a mint, as an emergency brake.
 ```
 
 ### 9-Point Transfer Threat Model
@@ -278,7 +280,7 @@ code/contracts/
 
 Two layers. The second exists because unit tests alone missed real bugs.
 
-1. **144 Rust unit tests** across the six crates (`cargo test --workspace`): common 14, DAO 23, market 27, NFT 42, treasury 21, vault 17.
+1. **145 Rust unit tests** across the six crates (`cargo test --workspace`): common 14, DAO 23, market 27, NFT 43, treasury 21, vault 17.
 2. **Live NEAR testnet end-to-end tests** in `code/scripts/e2e/`. They send real transactions to the deployed contracts and assert on the resulting chain state, down to the yocto where the contract is exact. Coverage includes the mint split, vault keylessness, transfers, listings, offers and sales, proposals and votes, execution and settlement, crediting, distributions, claims and burns. There is also a negative test for every access rule.
 
 **Bugs only the live tests found** (all fixed and redeployed; details in [code/docs/TESTING.md](code/docs/TESTING.md)):
@@ -306,6 +308,7 @@ node scripts/e2e/offers.mjs         # escrowed offers, withdraw, one-transaction
 node scripts/e2e/dao-standards.mjs  # list_proposals, 30-day cap, 50% spend cap
 node scripts/e2e/verify-votes.mjs   # every tally matches the per-NFT vote records
 node scripts/e2e/settle-open.mjs    # a wNEAR collection settles with no vote; anyone fills the vaults
+node scripts/e2e/founder-locked.mjs # the founder cannot pause a mint or change the vault code
 ```
 
 ---
@@ -408,7 +411,7 @@ GET   /gated/members                   # Token-gated member directory
 ## 🗺️ Roadmap
 
 - [x] **Phase 1: Core protocol (NEAR Hackathon 2026)**
-  - 6 Rust contracts on `near-sdk 5.30.1`, 144 unit tests and a live testnet e2e suite
+  - 6 Rust contracts on `near-sdk 5.30.1`, 145 unit tests and a live testnet e2e suite
   - Keyless per-NFT vaults on a NEP-591 global contract
   - Per-collection DAO and treasury: 50% turnout, 50% spend cap, timelock and expiry
   - Market with listings, escrowed offers and an on-chain sale log

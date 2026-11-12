@@ -42,7 +42,7 @@ near contract deploy $DAO use-file $W/quorum_dao.wasm with-init-call new json-ar
 near contract deploy $TRE use-file $W/quorum_treasury.wasm with-init-call new json-args "{\"dao\":\"$DAO\",\"nft\":\"$NFT\",\"dex\":\"$DEX\",\"wrap\":\"$WRAP\"}" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
 near contract deploy $MKT use-file $W/quorum_market.wasm with-init-call new json-args "{\"owner\":\"$FOUNDER\"}" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
 
-echo "== 4. initialise the collection (mainnet starts PAUSED with a small supply cap) =="
+echo "== 4. initialise the collection (minting opens at the first stage start; set START_IN_MIN to delay it) =="
 INIT=$(FOUNDER=$FOUNDER TREASURY=$TRE DAO=$DAO VAULT_CODE_HASH=$HASH node scripts/make-init.mjs)
 near contract deploy $NFT use-file $W/quorum_nft.wasm with-init-call new json-args "$INIT" prepaid-gas '30 Tgas' attached-deposit '0 NEAR' $NET
 
@@ -54,8 +54,9 @@ cat <<MSG
 Deployed to $NETWORK. Contracts: $NFT  $DAO  $TRE  $MKT
 Next, in order (docs/MAINNET.md has the full staged plan):
   a. Fill services/api/.env (COLLECTION=$NFT DAO=$DAO TREASURY=$TRE MARKET=$MKT), then: docker compose up --build
-  b. Smoke-test with YOUR OWN tiny mint BEFORE unpausing for anyone else:
-     near contract call-function as-transaction $NFT set_paused json-args '{"paused":false}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR' sign-as $FOUNDER $NET
-  c. After the mint closes, settlement is a DAO vote (SETTLE proposal per asset group); see docs/MAINNET.md.
+  b. Nobody can pause or unpause this mint: it opens and closes on its stage times. Smoke-test on a
+     throwaway collection first (docs/MAINNET.md stage 1), not on this one.
+  c. After the mint closes, a wNEAR group can be settled by anyone (no vote); a DEX group needs a SETTLE
+     proposal with a minimum output; see docs/MAINNET.md.
   d. Keep the full-access keys until the smoke test and the first week are clean.
 MSG

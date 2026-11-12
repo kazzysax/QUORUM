@@ -556,17 +556,22 @@ fn only_the_dao_sets_params() {
 fn founder_powers_are_narrow() {
     let mut c = new_contract();
     testing_env!(ctx("founder.near", T0).build());
+    // The founder may only LOWER the royalty.
     c.lower_royalty(100);
     assert!(panics(std::panic::AssertUnwindSafe(|| c.lower_royalty(900))).contains("Can only lower"));
-    c.set_paused(true);
-    c.set_vault_code_hash("11111111111111111111111111111112".parse().unwrap());
-    testing_env!(ctx("mallory.near", T0).build());
-    assert!(panics(std::panic::AssertUnwindSafe(|| c.set_paused(false))).contains("founder or the DAO"));
-    testing_env!(ctx("founder.near", T0).build());
-    c.set_paused(false);
+    // The founder cannot pause the mint (only a holder vote, through the DAO, can).
+    assert!(panics(std::panic::AssertUnwindSafe(|| c.set_param("paused".into(), "true".into()))).contains("Only the DAO"));
+    assert!(!c.get_config().paused);
     mint_public(&mut c, "alice.near", T0 + 1_500);
+}
+
+#[test]
+fn a_collection_cannot_launch_paused() {
     testing_env!(ctx("founder.near", T0).build());
-    assert!(panics(std::panic::AssertUnwindSafe(|| c.set_vault_code_hash("11111111111111111111111111111113".parse().unwrap()))).contains("Locked"));
+    let mut cfg = config();
+    cfg.paused = true;
+    let meta = NFTContractMetadata { spec: NFT_METADATA_SPEC.to_string(), name: "Quorum".into(), symbol: "QRM".into(), icon: None, base_uri: None, reference: None, reference_hash: None };
+    assert!(panics(std::panic::AssertUnwindSafe(|| { Contract::new(InitArgs { metadata: meta.clone(), config: cfg.clone() }); })).contains("cannot launch paused"));
 }
 
 #[test]

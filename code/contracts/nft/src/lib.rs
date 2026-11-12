@@ -142,6 +142,9 @@ impl Contract {
             if !config.vault_allowlist.contains(&a) { config.vault_allowlist.push(a); }
         }
         validate_config(&config);
+        // No founder can pause or resume a mint, so a collection may not start frozen either:
+        // when minting opens and closes comes only from its stages, fixed here at launch.
+        require!(!config.paused, "A collection cannot launch paused: its stages set when minting opens");
         let groups = config.asset_plan.iter().map(|_| Group::default()).collect();
         Self {
             tokens: NonFungibleToken::new(

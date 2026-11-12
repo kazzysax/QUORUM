@@ -1,6 +1,7 @@
 //! Parameter changes (F5): only the DAO can change collection rules, and only by an
-//! executed proposal. The founder can pause, lower the royalty, and (before the
-//! first mint only) replace the vault code hash.
+//! executed proposal (that includes an emergency pause of the mint, by holder vote).
+//! The founder cannot pause or resume a mint and cannot change the vault code: the
+//! only founder action left is lowering the royalty, which can only help holders.
 
 use crate::*;
 use near_sdk::serde_json::json;
@@ -42,23 +43,6 @@ impl Contract {
             _ => quorum_common::fail("Unknown parameter"),
         }
         emit("param_changed", json!({ "key": key, "value": value }));
-    }
-
-    /// Launch-time fix for the vault code. Allowed ONLY before the first mint:
-    /// vaults already created keep the code they were made with.
-    pub fn set_vault_code_hash(&mut self, hash: near_sdk::json_types::Base58CryptoHash) {
-        require!(env::predecessor_account_id() == self.config.founder, "Only the founder");
-        require!(self.minted_total == 0, "Locked: a vault has already been minted");
-        self.config.vault_code_hash = hash;
-        emit("vault_code_hash_set", json!({ "hash": hash }));
-    }
-
-    /// Mints can be halted (not funds moved) by the founder or the DAO.
-    pub fn set_paused(&mut self, paused: bool) {
-        let who = env::predecessor_account_id();
-        require!(who == self.config.founder || who == self.config.dao, "Only the founder or the DAO");
-        self.config.paused = paused;
-        emit("param_changed", json!({ "key": "paused", "value": paused.to_string() }));
     }
 
     /// The founder can lower the royalty at any time; raising needs a DAO vote.

@@ -12,7 +12,8 @@ first bugs with real money on the table. This runbook keeps that survivable. Do 
 | The asset plan (which NFT carries which asset) | **No.** Fixed at init. A wrong token here cannot be corrected for that collection. |
 | `quorum-nft`, `-dao`, `-treasury`, `-market` code | Yes while you hold their full-access keys. Removing the keys makes them unfixable too. |
 | Stage prices and supply | Fixed at init. |
-| Pause, DEX address, royalty (up), allow-list | DAO. Founder can pause, lower royalty, and (before the first mint only) replace the vault code hash. |
+| Pause, DEX address, royalty (up), allow-list | DAO only, by an executed holder vote. The founder cannot pause or resume a mint and cannot change the vault code; the only founder action is lowering the royalty. |
+| When minting opens and closes | Fixed at init by the stage times. A collection cannot launch paused. |
 
 ## New risks in this design (read these)
 
@@ -47,27 +48,28 @@ NETWORK=mainnet CONFIRM_MAINNET=yes FOUNDER=you.near PREFIX=smoke1 \
 ```
 
 Short DAO bounds (5-minute votes) exist **only** on this throwaway so a vote takes minutes, not days. Never use them for the real collection.
-Needs about 40 NEAR (4 accounts x 8 NEAR plus the one-time global-contract publish). The collection starts paused.
+Needs about 40 NEAR (4 accounts x 8 NEAR plus the one-time global-contract publish). Minting opens at the first stage start; nobody can pause it.
 
 ## Stage 2: smoke test with your own money
 
-1. `set_paused false`. Mint **2** NFTs from two accounts at 0.1 NEAR. Confirm on an explorer: the NFTs exist; `v1.<collection>` exists, has **no access keys**;
+1. Mint **2** NFTs from two accounts at 0.1 NEAR. Confirm on an explorer: the NFTs exist; `v1.<collection>` exists, has **no access keys**;
    the treasury received half of each price immediately; the collection contract holds the other half; `GET /nfts/1` matches.
 2. Add NEAR to a vault from the owner (works) and from another account (refunded).
 3. Transfer an NFT; confirm the old owner can no longer deposit and the new one can.
 4. **Burn before settlement** (a third mint): holder gets 90% of its escrow in NEAR, treasury 10%.
-5. **Settlement & DEX Routing:** Since there is no active DEX liquidity on testnet, testnet settlement operates with native NEAR/wNEAR backing. On mainnet, propose and pass a SETTLE proposal with a real Rhea route and a sensible `min_out` for automated multi-token settlement, then `credit_batch`. Confirm the vault now shows the credited assets.
+5. **Settlement & DEX Routing:** A wNEAR group is settled by anyone once the mint is over (no vote). For a DEX asset, propose and pass a SETTLE proposal with a real Rhea route and a sensible `min_out` for automated multi-token settlement, then `credit_batch`. Confirm the vault now shows the credited assets.
 6. `credit_batch` the token group. Confirm vault balances match `out_total` split by escrow share.
 7. Burn a credited NFT: holder gets 90% of the asset, treasury 10%.
 8. Sign in with the NEP-413 flow; confirm gated pages open for holders and close on the next request after a sale or burn.
 
-If **any** step is wrong: `set_paused true`, stop, fix. Non-vault contracts can be redeployed while you hold keys.
+If **any** step is wrong: stop, fix, and redeploy. Non-vault contracts can be redeployed while you hold keys; this throwaway collection is never shown to buyers.
 If the **vault** is wrong, nothing minted can be repaired: burn what you can, publish a corrected vault, and use a fresh collection.
 
 ## Stage 3: the real collection
 
-Deploy with default DAO bounds (3-5 day votes), your real asset plan, a small `MAX_SUPPLY`, `PROVENANCE_HASH_B64`, paused.
-Smoke-mint one NFT yourself, then unpause. The first settlement takes at least ~5 days of voting + timelock; announce that.
+Deploy with default DAO bounds (3-5 day votes), your real asset plan, a small `MAX_SUPPLY`, `PROVENANCE_HASH_B64`, and `START_IN_MIN`
+set to the announced opening time. Nobody can pause or unpause it afterwards. A wNEAR group settles as soon as the mint is over (anyone can
+trigger it); a DEX group needs a SETTLE vote, at least ~5 days of voting + timelock; announce that.
 
 ## Stage 4: removing keys
 
