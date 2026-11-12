@@ -2054,40 +2054,27 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           >
             All Collections ({listings.length})
           </button>
-          <button
-            type="button"
-            onClick={() => setCollectionFilter('Molten Hours')}
-            style={{
-              minHeight: '34px',
-              padding: '0 14px',
-              borderRadius: '999px',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              background: collectionFilter === 'Molten Hours' ? '#F5A524' : '#1D1D25',
-              color: collectionFilter === 'Molten Hours' ? '#111113' : '#D4D4D8',
-              border: collectionFilter === 'Molten Hours' ? '1px solid #F5A524' : '1px solid #2A2A33',
-            }}
-          >
-            Molten Hours ({listings.filter((l) => l.collection === 'Molten Hours' || l.collection === 'MOLT').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setCollectionFilter('Tidewater')}
-            style={{
-              minHeight: '34px',
-              padding: '0 14px',
-              borderRadius: '999px',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              background: collectionFilter === 'Tidewater' ? '#F5A524' : '#1D1D25',
-              color: collectionFilter === 'Tidewater' ? '#111113' : '#D4D4D8',
-              border: collectionFilter === 'Tidewater' ? '1px solid #F5A524' : '1px solid #2A2A33',
-            }}
-          >
-            Tidewater ({listings.filter((l) => l.collection === 'Tidewater' || l.collection === 'TIDE').length})
-          </button>
+          {/* One button per live collection, so a new collection gets its filter automatically */}
+          {collections.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCollectionFilter(c.name)}
+              style={{
+                minHeight: '34px',
+                padding: '0 14px',
+                borderRadius: '999px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: collectionFilter === c.name ? '#F5A524' : '#1D1D25',
+                color: collectionFilter === c.name ? '#111113' : '#D4D4D8',
+                border: collectionFilter === c.name ? '1px solid #F5A524' : '1px solid #2A2A33',
+              }}
+            >
+              {c.name} ({listings.filter((l) => l.collection === c.name).length})
+            </button>
+          ))}
         </div>
 
         {/* Listings Grid */}

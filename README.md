@@ -52,9 +52,23 @@ Every Quorum NFT is three things at once:
 
 ## 🟢 Live Usage: Proof the Platform Works
 
-Quorum is not a mock-up. Three collections are deployed on NEAR testnet and have been minted, traded, governed, settled and burned with real transactions. Snapshot read from the contracts on **12 Nov 2026** (the app always shows the current values):
+Quorum is not a mock-up. Three collections of 20 pieces each are live on NEAR testnet, launched on 12 Nov 2026 and minted through the normal public mint by real wallets. Snapshot read from the contracts on launch day (the app always shows the current values):
 
 | | Molten Hours | Tidewater | Feather Protocol | **Total** |
+|---|---|---|---|---|
+| Minted (public mint, 1 NEAR) | **20 / 20, sold out** | 12 / 20, mint open | 12 / 20, mint open | **44 / 60** |
+| Unique holders | 7 | 7 | 7 | |
+| Listed for sale | 2 | 2 | 2 | **6** |
+| Treasury (50% of every mint, live balance) | 12.5 NEAR | 8.5 NEAR | 8.5 NEAR | **29.5 NEAR** |
+| Escrow waiting to back the vaults (the other 50%) | 10 NEAR | 6 NEAR | 6 NEAR | **22 NEAR** |
+
+Each treasury also holds the 2.5 NEAR its account was opened with. Tidewater and Feather Protocol still have 8 pieces each open to mint, and anyone with a testnet wallet can mint one in the app's **Mints** tab.
+
+### Test editions: the full lifecycle
+
+Before the launch, three smaller test editions of the same collections ran the whole lifecycle with real transactions: minting, trading, governing, settling and burning. They are still on chain and verifiable, but no longer shown in the app.
+
+| | Molten Hours (test) | Tidewater (test) | Feather Protocol (test) | **Total** |
 |---|---|---|---|---|
 | NFTs minted (sold out) | 8 | 6 | 6 | **20** |
 | Burned and redeemed from their vaults | 3 | 1 | 1 | **5** |
@@ -65,7 +79,7 @@ Quorum is not a mock-up. Three collections are deployed on NEAR testnet and have
 | Treasury balance | 9.09 NEAR + 0.08 wNEAR | 3.25 NEAR | 3.29 NEAR | **15.6 NEAR** |
 | Settlement path exercised | DAO vote → wNEAR | escrow burn before settlement | permissionless NEAR fallback | |
 
-Treasury balances are the real account balances, so they include test donations made with the treasury's `donate` method as well as the 50% mint share. Anyone can donate, and the app shows whatever the account actually holds.
+Test-edition contracts: `qrmx-molten.testnet` / `qrmx-molten-dao.testnet` / `qrmx-molten-tre.testnet`, `qrmx-tide.testnet` / `tide-dao.qrmx-founder1.testnet` / `tide-tre.qrmx-founder1.testnet`, `feather.qrmx-founder1.testnet` / `feather-dao.qrmx-founder1.testnet` / `feather-tre.qrmx-founder1.testnet`. Their treasury balances are the real account balances, so they include test donations made with the treasury's `donate` method as well as the 50% mint share. Anyone can donate, and the app shows whatever the account actually holds.
 
 ### What has been done on chain
 
@@ -110,9 +124,9 @@ What is off-chain: images and the static NEP-177 metadata JSON (hosted with the 
 
 ```bash
 # A vault has no access keys at all: nobody can move its assets except the burn path
-near account list-keys v1.qrmx-molten.testnet network-config testnet now
+near account list-keys v1.molten.qrmx-founder1.testnet network-config testnet now
 
-# Every proposal of the Molten Hours DAO, with tallies
+# Every proposal of the Molten Hours test-edition DAO, with tallies (the full voting history)
 near contract call-function as-read-only qrmx-molten-dao.testnet list_proposals \
   json-args '{"from_id":0,"limit":20}' network-config testnet now
 
@@ -121,13 +135,13 @@ near contract call-function as-read-only market.qrmx-founder1.testnet recent_sal
   json-args '{"nft":null,"limit":20}' network-config testnet now
 
 # Live treasury balance
-near account view-account-summary qrmx-molten-tre.testnet network-config testnet now
+near account view-account-summary molten-tre.qrmx-founder1.testnet network-config testnet now
 ```
 
 **Without any tools:**
 
 ```bash
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"v1.qrmx-molten.testnet"}}'
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"v1.molten.qrmx-founder1.testnet"}}'
 # → "keys": []
 ```
 
@@ -135,19 +149,19 @@ curl -s https://rpc.testnet.near.org -H 'content-type: application/json' -d '{"j
 
 ## 💎 Live Testnet Deployments
 
-All figures in the app are read from these contracts.
+The live collections, launched 12 Nov 2026 with 20 pieces each. All figures in the app are read from these contracts.
 
 | Collection | NFT contract | DAO | Treasury |
 |---|---|---|---|
-| Molten Hours | [`qrmx-molten.testnet`](https://testnet.nearblocks.io/address/qrmx-molten.testnet) | [`qrmx-molten-dao.testnet`](https://testnet.nearblocks.io/address/qrmx-molten-dao.testnet) | [`qrmx-molten-tre.testnet`](https://testnet.nearblocks.io/address/qrmx-molten-tre.testnet) |
-| Tidewater | [`qrmx-tide.testnet`](https://testnet.nearblocks.io/address/qrmx-tide.testnet) | [`tide-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tide-dao.qrmx-founder1.testnet) | [`tide-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tide-tre.qrmx-founder1.testnet) |
-| Feather Protocol | [`feather.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather.qrmx-founder1.testnet) | [`feather-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-dao.qrmx-founder1.testnet) | [`feather-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-tre.qrmx-founder1.testnet) |
+| Molten Hours | [`molten.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/molten.qrmx-founder1.testnet) | [`molten-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/molten-dao.qrmx-founder1.testnet) | [`molten-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/molten-tre.qrmx-founder1.testnet) |
+| Tidewater | [`tidewater.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tidewater.qrmx-founder1.testnet) | [`tidewater-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tidewater-dao.qrmx-founder1.testnet) | [`tidewater-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/tidewater-tre.qrmx-founder1.testnet) |
+| Feather Protocol | [`feather-protocol.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-protocol.qrmx-founder1.testnet) | [`feather-protocol-dao.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-protocol-dao.qrmx-founder1.testnet) | [`feather-protocol-tre.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/feather-protocol-tre.qrmx-founder1.testnet) |
 
 | Shared | Account |
 |---|---|
 | Market | [`market.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/market.qrmx-founder1.testnet): only registered collections can list, and the owner cannot move anyone's funds |
 | Vault code | NEP-591 global contract, hash `DQALgt8fazwvRPFKdz2j5Eek9kacchwFm2vCucLDPCn8` |
-| Vaults | `v<id>.<nft contract>`, **zero access keys** (e.g. [`v1.qrmx-molten.testnet`](https://testnet.nearblocks.io/address/v1.qrmx-molten.testnet)) |
+| Vaults | `v<id>.<nft contract>`, **zero access keys** (e.g. [`v1.molten.qrmx-founder1.testnet`](https://testnet.nearblocks.io/address/v1.molten.qrmx-founder1.testnet)) |
 
 **DAO rules enforced by the contract** (not by the UI):
 - **Turnout:** at least **50% of all NFTs** must vote, and **more than half** of the votes must be yes. The 50% turnout floor is hard-coded in the DAO, so no founder setting can lower it.
@@ -397,11 +411,11 @@ GET   /gated/members                   # Token-gated member directory
   - Keyless per-NFT vaults on a NEP-591 global contract
   - Per-collection DAO and treasury: 50% turnout, 50% spend cap, timelock and expiry
   - Market with listings, escrowed offers and an on-chain sale log
-  - Three live collections, minted, traded, governed, settled and burned on testnet
+  - Three live 20-piece collections (Molten Hours sold out), after test editions ran the full lifecycle: minted, traded, governed, settled and burned
   - Web app reading 100% from chain, plus an optional Neardata indexer and NEP-413 API
 - [ ] **Phase 2: Mainnet & self-serve**
   - Mainnet launch with keys removed and Rhea settlement
-  - Larger collections (20+ pieces each) and a self-serve collection factory from the Launch page
+  - A self-serve collection factory from the Launch page
   - Keeper bots for permissionless vault crediting
   - Dutch and English auctions, delayed reveals with provenance
 - [ ] **Phase 3: Privacy & advanced liquidity**

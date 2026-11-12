@@ -25,13 +25,15 @@ export interface Deployment {
   avatar: string;
 }
 
+// Relaunched 12 Nov 2026 with 20 pieces each. The first test editions (qrmx-molten, qrmx-tide,
+// feather.qrmx-founder1) stay on chain with their full test history but are not shown in the app.
 export const DEPLOYMENTS: Deployment[] = [
   {
     id: 'molten-hours',
     slug: 'molten',
-    nft: 'qrmx-molten.testnet',
-    dao: 'qrmx-molten-dao.testnet',
-    treasury: 'qrmx-molten-tre.testnet',
+    nft: 'molten.qrmx-founder1.testnet',
+    dao: 'molten-dao.qrmx-founder1.testnet',
+    treasury: 'molten-tre.qrmx-founder1.testnet',
     description: 'Amber currents caught mid-pour. Every piece holds half of its mint price in its own keyless vault and one vote in the Molten Hours DAO.',
     cover: '/images/banner-molten.jpg',
     avatar: '/images/molten-0.jpg',
@@ -39,9 +41,9 @@ export const DEPLOYMENTS: Deployment[] = [
   {
     id: 'tidewater',
     slug: 'tide',
-    nft: 'qrmx-tide.testnet',
-    dao: 'tide-dao.qrmx-founder1.testnet',
-    treasury: 'tide-tre.qrmx-founder1.testnet',
+    nft: 'tidewater.qrmx-founder1.testnet',
+    dao: 'tidewater-dao.qrmx-founder1.testnet',
+    treasury: 'tidewater-tre.qrmx-founder1.testnet',
     description: 'Teal tides and gold flecks. Every piece holds half of its mint price in its own keyless vault and one vote in the Tidewater DAO.',
     cover: '/images/banner-tidewater.jpg',
     avatar: '/images/tidewater-0.jpg',
@@ -49,9 +51,9 @@ export const DEPLOYMENTS: Deployment[] = [
   {
     id: 'feather-protocol',
     slug: 'feather',
-    nft: 'feather.qrmx-founder1.testnet',
-    dao: 'feather-dao.qrmx-founder1.testnet',
-    treasury: 'feather-tre.qrmx-founder1.testnet',
+    nft: 'feather-protocol.qrmx-founder1.testnet',
+    dao: 'feather-protocol-dao.qrmx-founder1.testnet',
+    treasury: 'feather-protocol-tre.qrmx-founder1.testnet',
     description: 'Weightless plumage, anchored on-chain. Every piece holds half of its mint price in its own keyless vault and one vote in the Feather Protocol DAO.',
     cover: '/images/feather-banner.jpg',
     avatar: '/images/feather-avatar.jpg',
