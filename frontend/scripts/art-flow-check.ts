@@ -3,21 +3,22 @@
 //   node --env-file=.env.local scripts/art-flow-check.ts
 import fs from 'node:fs';
 import { list, del } from '@vercel/blob';
-import { applyTraitsCsv, uploadArt } from '../src/launchArt.ts';
-import type { Piece } from '../src/launchArt.ts';
+import { ingest, uploadArt } from '../src/launchArt.ts';
 
 const OEN = 'C:/Users/HP/Desktop/OEN-Collection';
 const SLUG = 'zz-art-test';
 let pass = 0, fail = 0;
 const check = (name: string, ok: boolean, detail = '') => { (ok ? pass++ : fail++); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  ' + detail : ''}`); };
 
-const pieces: Piece[] = [1, 2, 3].map((n) => ({ key: n, file: new File([fs.readFileSync(`${OEN}/images/${n}.png`)], `${n}.png`, { type: 'image/png' }), preview: '', name: '', traits: [] }));
-const { next, matched } = applyTraitsCsv(fs.readFileSync(`${OEN}/TRAITS.csv`, 'utf8'), pieces);
-check('the OEN traits CSV matches the pieces by number', matched === 3 && next[0].traits.length === 6, `${matched} matched, ${next[0].traits.length} traits on #1`);
+const dropped = [1, 2, 3].map((n) => ({ path: `${n}.png`, file: new File([fs.readFileSync(`${OEN}/images/${n}.png`)], `${n}.png`, { type: 'image/png' }) }));
+dropped.push({ path: 'TRAITS.csv', file: new File([fs.readFileSync(`${OEN}/TRAITS.csv`)], 'TRAITS.csv', { type: 'text/csv' }) });
+const got = await ingest(dropped, [], []);
+const next = got.pieces;
+check('the dropped pictures and the traits CSV line up by number', next.length === 3 && next[0].traits.length === 6, `${next.length} pieces, ${next[0].traits.length} traits on #1`);
 next[1].name = 'Magenta world';
 
 let last = '';
-const links = await uploadArt(SLUG, 'OEN', 'Small worlds', next, null, null, (d, t) => { last = `${d}/${t}`; });
+const links = await uploadArt(SLUG, 'OEN', 'Small worlds', next, got.cover, got.avatar, (d, t) => { last = `${d}/${t}`; });
 check('every file uploaded (3 pictures + 3 metadata + cover + avatar)', last === '8/8', last);
 check('links are on public https storage', Object.values(links).every((u) => u.startsWith('https://')), links.metadata_base_url);
 

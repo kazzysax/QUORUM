@@ -322,8 +322,9 @@ node scripts/e2e/acceptance-1.mjs && node scripts/e2e/acceptance-1b.mjs && node 
 
 Anyone can launch a collection from the **Launch** page, with their own art, on NEAR testnet:
 
-1. **Add your pictures** (PNG, JPG, WEBP or GIF, up to 100). They are numbered in file-name order, and the collection size is the number of pictures.
-2. **Name them and give them traits**: type them in, add a trait to every piece at once, or import a CSV (first column `token`, optional `name`, every other column becomes a trait).
+1. **Drop everything in one go**: your pictures (PNG, JPG, WEBP, GIF, up to 100), your traits files, or a whole folder. The page reads it and lines it up: pictures become numbered pieces in file-name order, a picture named cover or vatar becomes the cover or avatar, and traits files are matched to their pictures by file name or number. Traits can be a CSV (first column 	oken, optional 
+ame, every other column a trait), one JSON file per piece (7.json with ttributes, the usual OpenSea shape), or one JSON file holding a list or an object of pieces. 0-based and 1-based numbering both work, files can be dropped in any order and in several drops, and anything it can't use is listed instead of silently ignored.
+2. **Check and edit**: rename pieces, add or remove traits by hand, or add a trait to every piece at once.
 3. Set the **name, price, creator fee and how long the mint stays open**, then press **Launch** and approve **one** transaction in your wallet.
 
 What happens: the app uploads the pictures and metadata to public storage, then the wallet calls the collection factory once. It creates the NFT, DAO and treasury as **keyless** accounts (nobody can change them), registers the collection on the market and opens the mint. The collection then appears in the app for everyone, with each piece's own picture and traits. A launch costs the creator NEAR's storage rent for the three accounts (about 9.4 NEAR for 20 pieces, locked inside them; it is not a fee to Quorum). Once a collection name is launched its art is closed and can never be replaced.

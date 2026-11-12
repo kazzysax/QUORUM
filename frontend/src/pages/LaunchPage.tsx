@@ -3,8 +3,8 @@ import { Rocket, PenLine, Layers, Sparkles, ArrowRight, Wallet, ImagePlus, FileS
 import type { Page } from '../types';
 import type { LiveCollection } from '../chain';
 import { launchDeposit, nearToYocto, slugTaken } from '../chain';
-import { MAX_PIECES, MAX_TRAITS, applyTraitsCsv, makePieces, uploadArt } from '../launchArt';
-import type { Piece } from '../launchArt';
+import { MAX_PIECES, MAX_TRAITS, collectDropped, fromFileList, ingest, uploadArt } from '../launchArt';
+import type { Dropped, Piece, Source } from '../launchArt';
 
 interface LaunchPageProps {
   onNavigate: (page: Page) => void;
@@ -47,13 +47,16 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
   const [avatar, setAvatar] = useState<File | null>(null);
   const [bulkType, setBulkType] = useState('');
   const [bulkValue, setBulkValue] = useState('');
-  const [note, setNote] = useState<string | null>(null);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [report, setReport] = useState<string[]>([]);
+  const [warns, setWarns] = useState<string[]>([]);
   const [deposit, setDeposit] = useState<bigint | null>(null);
   const [taken, setTaken] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
+  const [reading, setReading] = useState(false);
   const piecesRef = useRef<Piece[]>([]);
   piecesRef.current = pieces;
 
@@ -83,24 +86,23 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
     return () => { alive = false; clearTimeout(t); };
   }, [slug, slugOk]);
 
-  const addFiles = async (list: FileList | File[]) => {
-    setNote(null);
-    const { pieces: added, skipped } = await makePieces(Array.from(list), pieces.length);
-    setPieces((cur) => [...cur, ...added]);
-    if (skipped.length) setNote(`Skipped: ${skipped.slice(0, 4).join('; ')}${skipped.length > 4 ? ` and ${skipped.length - 4} more` : ''}`);
+  /** Whatever was dropped or chosen (pictures, traits files, folders) is read and lined up in one go. */
+  const addDropped = async (dropped: Dropped[]) => {
+    if (!dropped.length) return;
+    setReading(true);
+    try {
+      const res = await ingest(dropped, pieces, sources);
+      setPieces(res.pieces);
+      setSources(res.sources);
+      if (res.cover) setCover(res.cover);
+      if (res.avatar) setAvatar(res.avatar);
+      setReport(res.report);
+      setWarns(res.warnings);
+    } catch (e: any) { setWarns([String(e?.message || e)]); } finally { setReading(false); }
   };
   const removePiece = (key: number) => setPieces((cur) => { const p = cur.find((x) => x.key === key); if (p) URL.revokeObjectURL(p.preview); return cur.filter((x) => x.key !== key); });
-  const clearAll = () => { pieces.forEach((p) => URL.revokeObjectURL(p.preview)); setPieces([]); setNote(null); };
+  const clearAll = () => { pieces.forEach((p) => URL.revokeObjectURL(p.preview)); setPieces([]); setSources([]); setCover(null); setAvatar(null); setReport([]); setWarns([]); };
   const patch = (key: number, f: (p: Piece) => Piece) => setPieces((cur) => cur.map((p) => (p.key === key ? f(p) : p)));
-
-  const importCsv = async (file: File) => {
-    setNote(null);
-    try {
-      const { next, matched } = applyTraitsCsv(await file.text(), pieces);
-      setPieces(next);
-      setNote(`Imported traits for ${matched} of ${pieces.length} pieces from ${file.name}.`);
-    } catch (e: any) { setNote(String(e?.message || e)); }
-  };
   const addToAll = () => {
     if (!bulkType.trim() || !bulkValue.trim()) return;
     setPieces((cur) => cur.map((p) => (p.traits.length >= MAX_TRAITS ? p : { ...p, traits: [...p.traits.filter((t) => t.type !== bulkType.trim()), { type: bulkType.trim().slice(0, 40), value: bulkValue.trim().slice(0, 40) }] })));
@@ -239,21 +241,33 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
             htmlFor="l-files"
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files?.length) void addFiles(e.dataTransfer.files); }}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); void collectDropped(e.dataTransfer).then(addDropped); }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '28px 16px', textAlign: 'center', borderRadius: 16, cursor: 'pointer', border: `2px dashed ${drag ? '#F5A524' : '#3A3A45'}`, background: drag ? 'rgba(245,165,36,0.06)' : '#0E0E11' }}
           >
             <ImagePlus size={26} color="#F5A524" />
-            <strong style={{ fontSize: 15 }}>Drop your pictures here, or click to choose them</strong>
-            <span style={{ fontSize: 12, color: '#71717A', lineHeight: 1.6 }}>PNG, JPG, WEBP or GIF, up to 3 MB each (bigger ones are shrunk for you). They are numbered in file-name order: 1.png, 2.png, 10.png.</span>
-            <input id="l-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.length) void addFiles(e.target.files); e.target.value = ''; }} />
+            <strong style={{ fontSize: 15 }}>{reading ? 'Reading your files…' : 'Drop everything here: pictures, traits files, or a whole folder'}</strong>
+            <span style={{ fontSize: 12, color: '#71717A', lineHeight: 1.6 }}>
+              Pictures (PNG, JPG, WEBP, GIF) become numbered pieces in file-name order. A traits file, CSV or JSON (one per piece like 7.json, or one file for all), is matched to its pictures by file name or number. A picture named cover or avatar is used as the cover or avatar. You can drop in any order, and more than once.
+            </span>
+            <input id="l-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif,.csv,.json,text/csv,application/json" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.length) void addDropped(fromFileList(e.target.files)); e.target.value = ''; }} />
           </label>
+          <label htmlFor="l-folder" style={{ alignSelf: 'flex-start', fontSize: 13, color: '#A1A1AA', cursor: 'pointer', textDecoration: 'underline' }}>
+            or choose a whole folder
+            <input id="l-folder" type="file" multiple style={{ display: 'none' }} {...({ webkitdirectory: '' } as Record<string, string>)} onChange={(e) => { if (e.target.files?.length) void addDropped(fromFileList(e.target.files)); e.target.value = ''; }} />
+          </label>
+          {(report.length > 0 || warns.length > 0) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 14px', background: '#0E0E11', border: '1px solid #2A2A33', borderRadius: 12 }}>
+              {report.map((r) => <span key={r} style={{ fontSize: 13, color: '#86EFAC', lineHeight: 1.5 }}>✓ {r}</span>)}
+              {warns.map((w) => <span key={w} style={{ fontSize: 13, color: '#FCD34D', lineHeight: 1.5 }}>! {w}</span>)}
+            </div>
+          )}
 
           {pieces.length > 0 && (
             <>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <label className="btn-secondary" htmlFor="l-csv" style={{ minHeight: 38, padding: '0 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <FileSpreadsheet size={14} /> Import traits from a CSV
-                  <input id="l-csv" type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
+                  <FileSpreadsheet size={14} /> Add a traits file (CSV or JSON)
+                  <input id="l-csv" type="file" multiple accept=".csv,.json,text/csv,application/json" style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.length) void addDropped(fromFileList(e.target.files)); e.target.value = ''; }} />
                 </label>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   <input style={{ ...small, width: 120 }} value={bulkType} onChange={(e) => setBulkType(e.target.value)} placeholder="Trait (e.g. Mood)" maxLength={40} />
@@ -262,10 +276,11 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
                 </div>
                 <button type="button" onClick={clearAll} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#A1A1AA', fontSize: 12, cursor: 'pointer', display: 'inline-flex', gap: 6, alignItems: 'center' }}><Trash2 size={13} /> Remove all</button>
               </div>
-              <span style={hint}>A CSV needs a header row: the first column is <code>token</code> (the piece number, or the picture's file name), a <code>name</code> column is optional, and every other column becomes a trait. One row per piece.</span>
+              <span style={hint}>
+                CSV: a header row, the first column <code>token</code> (the piece number or the picture's file name), an optional <code>name</code> column, and every other column a trait. JSON: one file per piece (like 7.json, with <code>attributes</code>), or one file holding a list or an object of pieces.
+              </span>
             </>
           )}
-          {note && <div style={{ fontSize: 13, color: '#FCD34D', lineHeight: 1.5 }}>{note}</div>}
 
           {pieces.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
