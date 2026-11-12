@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Rocket, PenLine, Layers, Sparkles, ArrowRight, Wallet, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Rocket, PenLine, Layers, Sparkles, ArrowRight, Wallet, ImagePlus, FileSpreadsheet, Trash2, X, Plus } from 'lucide-react';
 import type { Page } from '../types';
 import type { LiveCollection } from '../chain';
 import { launchDeposit, nearToYocto, slugTaken } from '../chain';
-import { SITE } from '../deployments';
+import { MAX_PIECES, MAX_TRAITS, applyTraitsCsv, makePieces, uploadArt } from '../launchArt';
+import type { Piece } from '../launchArt';
 
 interface LaunchPageProps {
   onNavigate: (page: Page) => void;
@@ -19,10 +20,11 @@ interface LaunchPageProps {
 const card: React.CSSProperties = { background: '#15151B', border: '1px solid #2A2A33', borderRadius: 20, padding: 22, boxSizing: 'border-box' };
 const label: React.CSSProperties = { fontSize: 12, color: '#A1A1AA', fontWeight: 600, marginBottom: 6, display: 'block' };
 const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: 12, padding: '12px 14px', color: '#F4F4F5', fontSize: 15, fontFamily: 'inherit' };
+const small: React.CSSProperties = { ...input, padding: '7px 10px', fontSize: 12, borderRadius: 9 };
 const hint: React.CSSProperties = { fontSize: 12, color: '#71717A', marginTop: 6, lineHeight: 1.5 };
 
 const STEPS = [
-  { icon: PenLine, title: 'Design it', text: 'Choose a name, how many pieces, and the price of one mint.' },
+  { icon: PenLine, title: 'Design it', text: 'Choose a name, add your pictures with their names and traits, and set the price of one mint.' },
   { icon: Layers, title: 'It gets its own home', text: 'Every collection gets its own NFTs, its own DAO and its own treasury. Nothing is shared with other collections, and none of them has an admin key.' },
   { icon: Sparkles, title: 'Holders mint and vote', text: 'Half of every mint goes to the collection treasury. The other half backs the piece. One piece, one vote.' },
 ];
@@ -36,42 +38,39 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
   const [slug, setSlug] = useState('');
   const [slugEdited, setSlugEdited] = useState(false);
   const [description, setDescription] = useState('');
-  const [supply, setSupply] = useState('20');
   const [price, setPrice] = useState('1');
   const [royalty, setRoyalty] = useState('5');
   const [mintDays, setMintDays] = useState('30');
   const [quick, setQuick] = useState(true);
-  const [showArt, setShowArt] = useState(false);
-  const [metaUrl, setMetaUrl] = useState('');
-  const [mediaUrl, setMediaUrl] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
+  const [pieces, setPieces] = useState<Piece[]>([]);
+  const [cover, setCover] = useState<File | null>(null);
+  const [avatar, setAvatar] = useState<File | null>(null);
+  const [bulkType, setBulkType] = useState('');
+  const [bulkValue, setBulkValue] = useState('');
+  const [note, setNote] = useState<string | null>(null);
   const [deposit, setDeposit] = useState<bigint | null>(null);
   const [taken, setTaken] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [drag, setDrag] = useState(false);
+  const piecesRef = useRef<Piece[]>([]);
+  piecesRef.current = pieces;
 
-  const supplyN = Math.max(0, Math.floor(Number(supply) || 0));
+  const supplyN = pieces.length;
   const priceN = Math.max(0, Number(price) || 0);
   const raised = supplyN * priceN;
   const slugOk = /^[a-z0-9](?:[a-z0-9-]{1,14})[a-z0-9]$/.test(slug) && !slug.includes('--');
-  const valid = name.trim().length > 1 && symbol.trim().length > 1 && slugOk && taken === false && supplyN > 0 && supplyN <= 500 && priceN > 0 && Number(royalty) >= 0 && Number(royalty) <= 90 && Number(mintDays) >= 1;
-
-  // Art links default to this site, under the collection's address name (that is where the OEN test art lives).
-  const links = useMemo(() => ({
-    metadata_base_url: metaUrl.trim() || `${SITE}/m/${slug}`,
-    media_base_url: mediaUrl.trim() || `${SITE}/media/${slug}`,
-    cover_url: coverUrl.trim() || `${SITE}/images/${slug}-cover.jpg`,
-    avatar_url: avatarUrl.trim() || `${SITE}/images/${slug}-avatar.png`,
-  }), [metaUrl, mediaUrl, coverUrl, avatarUrl, slug]);
+  const valid = name.trim().length > 1 && symbol.trim().length > 1 && slugOk && taken === false && supplyN >= 1 && supplyN <= MAX_PIECES && priceN > 0 && Number(royalty) >= 0 && Number(royalty) <= 90 && Number(mintDays) >= 1;
 
   useEffect(() => { if (!slugEdited) setSlug(toSlug(name)); }, [name, slugEdited]);
+  useEffect(() => () => { piecesRef.current.forEach((p) => URL.revokeObjectURL(p.preview)); }, []);
 
   // What the launch costs: the factory computes it (three accounts' storage plus a little per piece).
   useEffect(() => {
     let alive = true;
-    if (supplyN < 1 || supplyN > 500) { setDeposit(null); return; }
-    launchDeposit(supplyN).then((d) => { if (alive) setDeposit(d); }).catch(() => { if (alive) setDeposit(null); });
+    const n = Math.min(Math.max(supplyN, 1), 500);
+    launchDeposit(n).then((d) => { if (alive) setDeposit(d); }).catch(() => { if (alive) setDeposit(null); });
     return () => { alive = false; };
   }, [supplyN]);
 
@@ -84,20 +83,56 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
     return () => { alive = false; clearTimeout(t); };
   }, [slug, slugOk]);
 
+  const addFiles = async (list: FileList | File[]) => {
+    setNote(null);
+    const { pieces: added, skipped } = await makePieces(Array.from(list), pieces.length);
+    setPieces((cur) => [...cur, ...added]);
+    if (skipped.length) setNote(`Skipped: ${skipped.slice(0, 4).join('; ')}${skipped.length > 4 ? ` and ${skipped.length - 4} more` : ''}`);
+  };
+  const removePiece = (key: number) => setPieces((cur) => { const p = cur.find((x) => x.key === key); if (p) URL.revokeObjectURL(p.preview); return cur.filter((x) => x.key !== key); });
+  const clearAll = () => { pieces.forEach((p) => URL.revokeObjectURL(p.preview)); setPieces([]); setNote(null); };
+  const patch = (key: number, f: (p: Piece) => Piece) => setPieces((cur) => cur.map((p) => (p.key === key ? f(p) : p)));
+
+  const importCsv = async (file: File) => {
+    setNote(null);
+    try {
+      const { next, matched } = applyTraitsCsv(await file.text(), pieces);
+      setPieces(next);
+      setNote(`Imported traits for ${matched} of ${pieces.length} pieces from ${file.name}.`);
+    } catch (e: any) { setNote(String(e?.message || e)); }
+  };
+  const addToAll = () => {
+    if (!bulkType.trim() || !bulkValue.trim()) return;
+    setPieces((cur) => cur.map((p) => (p.traits.length >= MAX_TRAITS ? p : { ...p, traits: [...p.traits.filter((t) => t.type !== bulkType.trim()), { type: bulkType.trim().slice(0, 40), value: bulkValue.trim().slice(0, 40) }] })));
+    setBulkType(''); setBulkValue('');
+  };
+
+  const problems = useMemo(() => {
+    const out: string[] = [];
+    if (!supplyN) out.push('Add at least one picture.');
+    if (pieces.some((p) => p.name.length > 60)) out.push('A piece name is longer than 60 characters.');
+    return out;
+  }, [pieces, supplyN]);
+
   const launch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!account) { onConnect(); return; }
-    if (!valid || deposit === null) return;
+    if (!valid || deposit === null || problems.length) return;
     setBusy(true);
     try {
+      setProgress('Uploading your art…');
+      const links = await uploadArt(slug, name, description.trim(), pieces, cover, avatar, (d, t) => setProgress(`Uploading your art ${d} of ${t}…`));
+      setProgress('Waiting for your wallet…');
       const ok = await onLaunch({
         name: name.trim(), symbol: symbol.trim().toUpperCase(), slug, description: description.trim(),
         supply: supplyN, price_near: nearToYocto(price), royalty_bps: Math.round((Number(royalty) || 0) * 100),
         mint_days: Math.floor(Number(mintDays)), quick_votes: quick, ...links,
       }, (deposit + 2n * 10n ** 23n).toString()); // a little extra; the factory returns anything above the required amount
-      if (!ok) setError('The launch did not complete. Nothing was created; check the message above and try again.');
-    } finally { setBusy(false); }
+      if (!ok) setError('The launch did not complete. Nothing was created; your art is saved, so you can press Launch again.');
+    } catch (err: any) {
+      setError(String(err?.message || err));
+    } finally { setBusy(false); setProgress(null); }
   };
 
   return (
@@ -108,7 +143,7 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
           <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700 }}>Launch a collection</h1>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 15, lineHeight: 1.6, color: '#A1A1AA', maxWidth: 680 }}>
-          Create an NFT collection where every piece holds real value and every holder gets a vote. Fill the form, press Launch, approve one transaction in your wallet, and your collection is live.
+          Bring your own art. Add your pictures, name them, give them traits, set a price, press Launch and approve one transaction in your wallet. Your collection goes live on NEAR testnet and anyone can mint it.
         </p>
       </div>
 
@@ -125,102 +160,165 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, alignItems: 'start' }}>
-        <form style={{ ...card, display: 'flex', flexDirection: 'column', gap: 16 }} onSubmit={launch}>
-          <strong style={{ fontSize: 18 }}>Your collection</strong>
-          <div>
-            <label style={label} htmlFor="l-name">Name</label>
-            <input id="l-name" style={input} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Amber Tides" maxLength={40} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <form style={{ display: 'flex', flexDirection: 'column', gap: 16 }} onSubmit={launch}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, alignItems: 'start' }}>
+          <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <strong style={{ fontSize: 18 }}>1. Your collection</strong>
             <div>
-              <label style={label} htmlFor="l-sym">Short name</label>
-              <input id="l-sym" style={input} value={symbol} onChange={(e) => setSymbol(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())} placeholder="AMBER" maxLength={8} />
+              <label style={label} htmlFor="l-name">Name</label>
+              <input id="l-name" style={input} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Amber Tides" maxLength={40} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={label} htmlFor="l-sym">Short name</label>
+                <input id="l-sym" style={input} value={symbol} onChange={(e) => setSymbol(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())} placeholder="AMBER" maxLength={8} />
+              </div>
+              <div>
+                <label style={label} htmlFor="l-slug">Address name</label>
+                <input id="l-slug" style={input} value={slug} onChange={(e) => { setSlugEdited(true); setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); }} placeholder="amber-tides" maxLength={16} />
+              </div>
+            </div>
+            <div style={{ ...hint, marginTop: -8 }}>
+              {!slug ? 'Your collection lives at <address name>.launch.qrmx-founder1.testnet' : !slugOk ? 'Use 3 to 16 lowercase letters, digits or hyphens.' : taken === true ? 'That address name is taken, pick another.' : taken === false ? `Free: ${slug}.launch.qrmx-founder1.testnet` : 'Checking…'}
             </div>
             <div>
-              <label style={label} htmlFor="l-slug">Address name</label>
-              <input id="l-slug" style={input} value={slug} onChange={(e) => { setSlugEdited(true); setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); }} placeholder="amber-tides" maxLength={16} />
+              <label style={label} htmlFor="l-desc">What is it about? (shown on the collection page)</label>
+              <textarea id="l-desc" style={{ ...input, minHeight: 78, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short story or description of your collection" maxLength={300} />
             </div>
-          </div>
-          <div style={{ ...hint, marginTop: -8 }}>
-            {!slug ? 'Your collection lives at <address name>.launch.qrmx-founder1.testnet' : !slugOk ? 'Use 3 to 16 lowercase letters, digits or hyphens.' : taken === true ? 'That address name is taken, pick another.' : taken === false ? `Free: ${slug}.launch.qrmx-founder1.testnet` : 'Checking…'}
-          </div>
-          <div>
-            <label style={label} htmlFor="l-desc">What is it about? (shown on the collection page)</label>
-            <textarea id="l-desc" style={{ ...input, minHeight: 78, resize: 'vertical' }} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="A short story or description of your collection" maxLength={300} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={label} htmlFor="l-sup">How many pieces</label>
-              <input id="l-sup" style={input} type="number" min="1" max="500" value={supply} onChange={(e) => setSupply(e.target.value)} />
-            </div>
-            <div>
-              <label style={label} htmlFor="l-price">Price of one mint (NEAR)</label>
-              <input id="l-price" style={input} type="number" min="0" step="0.1" value={price} onChange={(e) => setPrice(e.target.value)} />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={label} htmlFor="l-roy">Your fee on resales (%)</label>
-              <input id="l-roy" style={input} type="number" min="0" max="90" step="0.5" value={royalty} onChange={(e) => setRoyalty(e.target.value)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={label} htmlFor="l-price">Price of one mint (NEAR)</label>
+                <input id="l-price" style={input} type="number" min="0" step="0.1" value={price} onChange={(e) => setPrice(e.target.value)} />
+              </div>
+              <div>
+                <label style={label} htmlFor="l-roy">Your fee on resales (%)</label>
+                <input id="l-roy" style={input} type="number" min="0" max="90" step="0.5" value={royalty} onChange={(e) => setRoyalty(e.target.value)} />
+              </div>
             </div>
             <div>
               <label style={label} htmlFor="l-days">Mint stays open (days)</label>
               <input id="l-days" style={input} type="number" min="1" max="365" value={mintDays} onChange={(e) => setMintDays(e.target.value)} />
             </div>
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, color: '#A1A1AA', cursor: 'pointer' }}>
+              <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} style={{ marginTop: 3 }} />
+              <span>Short votes for testing (10 minutes). Untick for the standard 3 to 5 days. Either way, at least half of all pieces must vote for anything to pass.</span>
+            </label>
           </div>
-          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, color: '#A1A1AA', cursor: 'pointer' }}>
-            <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} style={{ marginTop: 3 }} />
-            <span>Short votes for testing (10 minutes). Untick for the standard 3 to 5 days. Either way, at least half of all pieces must vote for anything to pass.</span>
+
+          <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <strong style={{ fontSize: 18 }}>What it costs you</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
+              <Row k="Paid now, once" v={deposit === null ? '…' : `${near2(deposit)} NEAR`} accent />
+              <span style={{ fontSize: 12, lineHeight: 1.6, color: '#71717A' }}>
+                This is NEAR's storage rent for the three accounts that hold your collection (1 NEAR per 100 KB of contract code). They have no keys, so it stays locked inside them. It is not a fee to Quorum. Anything you attach above the amount is returned.
+              </span>
+            </div>
+            <div style={{ height: 1, background: '#2A2A33' }} />
+            <strong style={{ fontSize: 18 }}>Where each mint goes</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
+              <Row k="One mint costs" v={`${priceN.toFixed(2)} NEAR`} />
+              <Row k="Goes to the treasury (holders vote on it)" v={`${(priceN / 2).toFixed(2)} NEAR`} accent />
+              <Row k="Backs the piece in its own vault" v={`${(priceN / 2).toFixed(2)} NEAR`} accent />
+              <div style={{ height: 1, background: '#2A2A33' }} />
+              <Row k={`If all ${supplyN || 0} pieces mint`} v={`${raised.toFixed(2)} NEAR`} />
+              <Row k="Treasury would hold" v={`${(raised / 2).toFixed(2)} NEAR`} />
+            </div>
+            <span style={{ fontSize: 12, lineHeight: 1.6, color: '#71717A' }}>
+              Anyone can burn a piece to get 90% of its vault back, so the value behind every piece is real. You receive the resale fee ({Number(royalty) || 0}%) on every sale.
+            </span>
+          </div>
+        </div>
+
+        <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <strong style={{ fontSize: 18 }}>2. Your art</strong>
+            <span style={{ fontSize: 13, color: '#A1A1AA' }}>{supplyN} {supplyN === 1 ? 'piece' : 'pieces'} (the collection size is the number of pictures, up to {MAX_PIECES})</span>
+          </div>
+
+          <label
+            htmlFor="l-files"
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files?.length) void addFiles(e.dataTransfer.files); }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '28px 16px', textAlign: 'center', borderRadius: 16, cursor: 'pointer', border: `2px dashed ${drag ? '#F5A524' : '#3A3A45'}`, background: drag ? 'rgba(245,165,36,0.06)' : '#0E0E11' }}
+          >
+            <ImagePlus size={26} color="#F5A524" />
+            <strong style={{ fontSize: 15 }}>Drop your pictures here, or click to choose them</strong>
+            <span style={{ fontSize: 12, color: '#71717A', lineHeight: 1.6 }}>PNG, JPG, WEBP or GIF, up to 3 MB each (bigger ones are shrunk for you). They are numbered in file-name order: 1.png, 2.png, 10.png.</span>
+            <input id="l-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.length) void addFiles(e.target.files); e.target.value = ''; }} />
           </label>
 
-          <button type="button" onClick={() => setShowArt((v) => !v)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#A1A1AA', fontSize: 13, display: 'inline-flex', gap: 6, alignItems: 'center', cursor: 'pointer', padding: 0 }}>
-            Where is your art? {showArt ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          {showArt && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, background: '#0E0E11', border: '1px solid #2A2A33', borderRadius: 14 }}>
-              <span style={{ fontSize: 12, lineHeight: 1.6, color: '#A1A1AA' }}>
-                Leave these empty if your art is on this site under your address name (that is where the OEN test art is). Otherwise paste links (https only) to where your files are hosted.
-              </span>
-              <div><label style={label} htmlFor="l-m">Metadata folder (holds metadata/1.json, 2.json ...)</label><input id="l-m" style={input} value={metaUrl} onChange={(e) => setMetaUrl(e.target.value)} placeholder={links.metadata_base_url} /></div>
-              <div><label style={label} htmlFor="l-i">Pictures folder (piece N is at .../N)</label><input id="l-i" style={input} value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} placeholder={links.media_base_url} /></div>
-              <div><label style={label} htmlFor="l-c">Cover picture link</label><input id="l-c" style={input} value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder={links.cover_url} /></div>
-              <div><label style={label} htmlFor="l-a">Avatar picture link</label><input id="l-a" style={input} value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder={links.avatar_url} /></div>
+          {pieces.length > 0 && (
+            <>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <label className="btn-secondary" htmlFor="l-csv" style={{ minHeight: 38, padding: '0 14px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <FileSpreadsheet size={14} /> Import traits from a CSV
+                  <input id="l-csv" type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCsv(f); e.target.value = ''; }} />
+                </label>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input style={{ ...small, width: 120 }} value={bulkType} onChange={(e) => setBulkType(e.target.value)} placeholder="Trait (e.g. Mood)" maxLength={40} />
+                  <input style={{ ...small, width: 120 }} value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} placeholder="Value (e.g. Calm)" maxLength={40} />
+                  <button type="button" className="btn-secondary" style={{ minHeight: 34, padding: '0 12px', fontSize: 12 }} onClick={addToAll}>Add to every piece</button>
+                </div>
+                <button type="button" onClick={clearAll} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#A1A1AA', fontSize: 12, cursor: 'pointer', display: 'inline-flex', gap: 6, alignItems: 'center' }}><Trash2 size={13} /> Remove all</button>
+              </div>
+              <span style={hint}>A CSV needs a header row: the first column is <code>token</code> (the piece number, or the picture's file name), a <code>name</code> column is optional, and every other column becomes a trait. One row per piece.</span>
+            </>
+          )}
+          {note && <div style={{ fontSize: 13, color: '#FCD34D', lineHeight: 1.5 }}>{note}</div>}
+
+          {pieces.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
+              {pieces.map((p, i) => (
+                <div key={p.key} style={{ background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: 14, padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ position: 'relative' }}>
+                    <img src={p.preview} alt="" style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', borderRadius: 10, display: 'block' }} />
+                    <span style={{ position: 'absolute', left: 6, top: 6, background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 8px' }}>#{i + 1}</span>
+                    <button type="button" aria-label={`Remove piece ${i + 1}`} onClick={() => removePiece(p.key)} style={{ position: 'absolute', right: 6, top: 6, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.65)', color: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={13} /></button>
+                  </div>
+                  <input style={small} value={p.name} onChange={(e) => patch(p.key, (x) => ({ ...x, name: e.target.value.slice(0, 60) }))} placeholder={`${name.trim() || 'Name'} #${i + 1}`} aria-label={`Name of piece ${i + 1}`} />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {p.traits.map((t, ti) => (
+                      <span key={ti} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, background: 'rgba(245,165,36,0.12)', border: '1px solid rgba(245,165,36,0.3)', color: '#FCD34D', borderRadius: 999, padding: '2px 4px 2px 8px' }}>
+                        {t.type}: {t.value}
+                        <button type="button" aria-label="Remove trait" onClick={() => patch(p.key, (x) => ({ ...x, traits: x.traits.filter((_, k) => k !== ti) }))} style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0 }}><X size={11} /></button>
+                      </span>
+                    ))}
+                  </div>
+                  <TraitAdder disabled={p.traits.length >= MAX_TRAITS} onAdd={(t) => patch(p.key, (x) => ({ ...x, traits: [...x.traits, t] }))} />
+                </div>
+              ))}
             </div>
           )}
 
+          {pieces.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              <div>
+                <label style={label} htmlFor="l-cover">Cover picture (wide banner, optional)</label>
+                <input id="l-cover" type="file" accept="image/png,image/jpeg,image/webp" style={{ ...small, padding: 6 }} onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+                <div style={hint}>{cover ? cover.name : 'Not chosen: your first picture is used.'}</div>
+              </div>
+              <div>
+                <label style={label} htmlFor="l-avatar">Avatar picture (square, optional)</label>
+                <input id="l-avatar" type="file" accept="image/png,image/jpeg,image/webp" style={{ ...small, padding: 6 }} onChange={(e) => setAvatar(e.target.files?.[0] ?? null)} />
+                <div style={hint}>{avatar ? avatar.name : 'Not chosen: your first picture is used.'}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {problems.map((p) => <div key={p} style={{ fontSize: 13, color: '#FCD34D' }}>{p}</div>)}
+          {progress && <div style={{ fontSize: 14, color: '#A1A1AA' }}>{progress}</div>}
           {error && <div style={{ fontSize: 13, color: '#FCA5A5', lineHeight: 1.5 }}>{error}</div>}
-          <button type="submit" className="btn-primary" disabled={busy || (!!account && !valid)} style={{ minHeight: 48, fontSize: 15, fontWeight: 600, opacity: busy || (!!account && !valid) ? 0.5 : 1 }}>
-            {busy ? 'Launching… approve it in your wallet' : account ? <>Launch {name.trim() || 'my collection'} <ArrowRight size={16} /></> : <><Wallet size={16} /> Connect wallet to launch</>}
+          <button type="submit" className="btn-primary" disabled={busy || (!!account && (!valid || problems.length > 0))} style={{ minHeight: 50, fontSize: 16, fontWeight: 600, opacity: busy || (!!account && (!valid || problems.length > 0)) ? 0.5 : 1 }}>
+            {busy ? (progress ?? 'Launching…') : account ? <>Launch {name.trim() || 'my collection'} <ArrowRight size={16} /></> : <><Wallet size={16} /> Connect wallet to launch</>}
           </button>
           <span style={hint}>
-            One transaction creates your three contracts (NFTs, DAO, treasury), registers the collection on the market and opens the mint. It pays for their storage with the amount shown on the right.
-          </span>
-        </form>
-
-        <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <strong style={{ fontSize: 18 }}>What it costs you</strong>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
-            <Row k="Paid now, once" v={deposit === null ? '…' : `${near2(deposit)} NEAR`} accent />
-            <span style={{ fontSize: 12, lineHeight: 1.6, color: '#71717A' }}>
-              This pays for the three accounts that will hold your collection (they cannot be deleted or changed by anyone). It stays inside them. Anything you attach above the amount is returned.
-            </span>
-          </div>
-          <div style={{ height: 1, background: '#2A2A33' }} />
-          <strong style={{ fontSize: 18 }}>Where each mint goes</strong>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14 }}>
-            <Row k="One mint costs" v={`${priceN.toFixed(2)} NEAR`} />
-            <Row k="Goes to the treasury (holders vote on it)" v={`${(priceN / 2).toFixed(2)} NEAR`} accent />
-            <Row k="Backs the piece in its own vault" v={`${(priceN / 2).toFixed(2)} NEAR`} accent />
-            <div style={{ height: 1, background: '#2A2A33' }} />
-            <Row k={`If all ${supplyN || 0} pieces mint`} v={`${raised.toFixed(2)} NEAR`} />
-            <Row k="Treasury would hold" v={`${(raised / 2).toFixed(2)} NEAR`} />
-          </div>
-          <span style={{ fontSize: 12, lineHeight: 1.6, color: '#71717A' }}>
-            Anyone can burn a piece to get 90% of its vault back, so the value behind every piece is real. You receive the resale fee ({Number(royalty) || 0}%) on every sale.
+            Pressing Launch uploads your pictures and metadata to public storage, then asks your wallet to approve ONE transaction. That transaction creates your three contracts (NFTs, DAO, treasury), registers the collection on the market and opens the mint. Once launched, the art for this address name can never be replaced.
           </span>
         </div>
-      </div>
+      </form>
 
       {collections.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -243,6 +341,19 @@ export const LaunchPage: React.FC<LaunchPageProps> = ({ onNavigate, collections,
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const TraitAdder: React.FC<{ disabled: boolean; onAdd: (t: { type: string; value: string }) => void }> = ({ disabled, onAdd }) => {
+  const [t, setT] = useState('');
+  const [v, setV] = useState('');
+  const add = () => { if (t.trim() && v.trim()) { onAdd({ type: t.trim().slice(0, 40), value: v.trim().slice(0, 40) }); setT(''); setV(''); } };
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      <input style={{ ...small, minWidth: 0, flex: 1 }} value={t} onChange={(e) => setT(e.target.value)} placeholder="Trait" disabled={disabled} aria-label="Trait name" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+      <input style={{ ...small, minWidth: 0, flex: 1 }} value={v} onChange={(e) => setV(e.target.value)} placeholder="Value" disabled={disabled} aria-label="Trait value" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+      <button type="button" aria-label="Add trait" onClick={add} disabled={disabled} className="btn-secondary" style={{ minHeight: 0, padding: '0 8px', borderRadius: 9 }}><Plus size={13} /></button>
     </div>
   );
 };

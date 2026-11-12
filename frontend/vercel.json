@@ -3,7 +3,6 @@
   "rewrites": [
     { "source": "/media/molten/:id", "destination": "/images/molten-0.jpg" },
     { "source": "/media/tide/:id", "destination": "/images/tidewater-0.jpg" },
-    { "source": "/media/feather/:id", "destination": "/images/feather-avatar.jpg" },
-    { "source": "/media/oen/:id", "destination": "/images/oen/:id.jpg" }
+    { "source": "/media/feather/:id", "destination": "/images/feather-avatar.jpg" }
   ]
 }

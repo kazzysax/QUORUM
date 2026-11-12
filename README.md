@@ -318,6 +318,17 @@ node scripts/e2e/acceptance-1.mjs && node scripts/e2e/acceptance-1b.mjs && node 
 
 ---
 
+## 🧑‍🎨 Launch Your Own Collection (testnet, no help needed)
+
+Anyone can launch a collection from the **Launch** page, with their own art, on NEAR testnet:
+
+1. **Add your pictures** (PNG, JPG, WEBP or GIF, up to 100). They are numbered in file-name order, and the collection size is the number of pictures.
+2. **Name them and give them traits**: type them in, add a trait to every piece at once, or import a CSV (first column `token`, optional `name`, every other column becomes a trait).
+3. Set the **name, price, creator fee and how long the mint stays open**, then press **Launch** and approve **one** transaction in your wallet.
+
+What happens: the app uploads the pictures and metadata to public storage, then the wallet calls the collection factory once. It creates the NFT, DAO and treasury as **keyless** accounts (nobody can change them), registers the collection on the market and opens the mint. The collection then appears in the app for everyone, with each piece's own picture and traits. A launch costs the creator NEAR's storage rent for the three accounts (about 9.4 NEAR for 20 pieces, locked inside them; it is not a fee to Quorum). Once a collection name is launched its art is closed and can never be replaced.
+
+---
 ## 🚀 From Testnet to Mainnet
 
 The contracts are the same on both networks. What changes is configuration.
@@ -424,7 +435,7 @@ GET   /gated/members                   # Token-gated member directory
   - Web app reading 100% from chain, plus an optional Neardata indexer and NEP-413 API
 - [ ] **Phase 2: Mainnet & self-serve**
   - Mainnet launch with keys removed and Rhea settlement
-  - Collection factory is live: anyone can launch from the Launch page with one wallet transaction (testnet)
+  - Collection factory is live: anyone can launch their own collection, with their own art and traits, from the Launch page with one wallet transaction (testnet)
   - Keeper bots for permissionless vault crediting
   - Dutch and English auctions, delayed reveals with provenance
 - [ ] **Phase 3: Privacy & advanced liquidity**
