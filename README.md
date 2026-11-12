@@ -309,6 +309,7 @@ node scripts/e2e/dao-standards.mjs  # list_proposals, 30-day cap, 50% spend cap
 node scripts/e2e/verify-votes.mjs   # every tally matches the per-NFT vote records
 node scripts/e2e/settle-open.mjs    # a wNEAR collection settles with no vote; anyone fills the vaults
 node scripts/e2e/founder-locked.mjs # the founder cannot pause a mint or change the vault code
+node scripts/e2e/acceptance-1.mjs && node scripts/e2e/acceptance-1b.mjs && node scripts/e2e/acceptance-2.mjs   # sales, offers, DAO rules, distributions, burns on the live collections
 ```
 
 ---

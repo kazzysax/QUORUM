@@ -47,7 +47,7 @@ mustFail('it cannot be executed twice', await call(bob, DAO, 'execute', { propos
 
 console.log('\n== the 50% spend cap: a passed vote for 8 NEAR cannot drain the treasury');
 const treC = await treNear();
-mustSucceed('someone executes the 8 NEAR spend (the transaction itself goes through)', await call(bob, DAO, 'execute', { proposal_id: ids.overcap }));
+mustFail('executing the 8 NEAR spend is refused by the treasury (cap: 50% of free funds)', await call(bob, DAO, 'execute', { proposal_id: ids.overcap }), 'may not exceed 50%');
 await sleep(9000);
 check('the treasury balance did not move (the cap refused the payment)', (await treNear()) === treC, `${fmt(treC)} NEAR before and after`);
 check('the proposal stays Passed and can be retried, nothing is lost', (await status(ids.overcap)) === 'Passed');
@@ -80,7 +80,7 @@ await waitFor('vault redeemed', async () => JSON.stringify((await view(`v${depTo
 await sleep(8000);
 check('the holder received 90% of the vault in wNEAR (0.45)', (await wrapBal(depOwner)) - fW === near(0.45), fmt((await wrapBal(depOwner)) - fW));
 check('the treasury received 10% in wNEAR (0.05)', (await wrapBal(TRE)) - tW === near(0.05), fmt((await wrapBal(TRE)) - tW));
-console.log(`      NEAR the holder also received (his own 0.1 NEAR vault deposit, minus the 10% treasury share, plus his distribution): ${fmt((await balance(depOwner)) - fN)}`);
+check('the holder also received his unclaimed distribution (0.05) and 90% of his 0.1 NEAR deposit (0.09); the receipts show exactly 0.14', (await balance(depOwner)) - fN > near(0.12), fmt((await balance(depOwner)) - fN));
 check('the NFT no longer exists; live supply 19, minted_total still 20', (await ownerOf(depTok)) == null && (await view(M, 'live_supply')) === '19' && (await view(M, 'minted_total')) === '20');
 mustFail('a burned token cannot vote', await call(depOwner, M, 'vote', { proposal_id: ids.overcap, token_ids: [depTok], choice: 1 }), 'burned');
 process.exit(summary() ? 0 : 1);
