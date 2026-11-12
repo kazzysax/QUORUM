@@ -25,6 +25,9 @@ const GAS_CB: Gas = Gas::from_tgas(20);
 const DAY_MS: u64 = 86_400_000;
 /// A voting period longer than this is refused: a proposal must resolve in a reasonable time.
 const MAX_VOTING_PERIOD_MS: u64 = 30 * DAY_MS;
+/// At least half of all NFTs (the supply when the proposal opened) must vote for any result to count.
+/// A floor in the code, not a setting: no proposal and no founder bound can go lower.
+const MIN_QUORUM_BPS: u16 = 5_000;
 /// A passed proposal must be executed within this window after its timelock. Older ones expire,
 /// so a stale approval cannot be fired against a treasury that has changed since the vote.
 const EXECUTION_WINDOW_MS: u64 = 14 * DAY_MS;
@@ -128,7 +131,7 @@ pub fn default_bounds() -> Vec<Bounds> {
         min_period_ms: U64(days * DAY_MS), min_quorum_bps: quorum, min_pass_bps: pass, min_timelock_ms: U64(lock_days * DAY_MS),
     };
     // Order matches Kind::slot: spend, distribute, parameter change, text.
-    vec![b(3, 1000, 5000, 2), b(3, 1000, 5000, 1), b(5, 1500, 6000, 3), b(2, 500, 5000, 0)]
+    vec![b(3, 5000, 5000, 2), b(3, 5000, 5000, 1), b(5, 5000, 6000, 3), b(2, 5000, 5000, 0)]
 }
 
 #[near]
@@ -160,7 +163,7 @@ impl Dao {
         let b = &self.bounds[kind.slot()];
         require!(voting_period_ms.0 >= b.min_period_ms.0, "Voting period below the founder minimum");
         require!(voting_period_ms.0 <= MAX_VOTING_PERIOD_MS, "Voting period longer than 30 days");
-        require!(quorum_bps >= b.min_quorum_bps && quorum_bps <= 10_000, "Quorum below the founder minimum");
+        require!(quorum_bps >= b.min_quorum_bps.max(MIN_QUORUM_BPS) && quorum_bps <= 10_000, "Quorum below the minimum: at least 50% of all NFTs must vote");
         require!(pass_bps >= b.min_pass_bps && pass_bps < 10_000, "Pass threshold below the founder minimum");
         require!(timelock_ms.0 >= b.min_timelock_ms.0, "Timelock below the founder minimum");
         let now = env::block_timestamp_ms();
@@ -265,7 +268,8 @@ impl Dao {
         if p.executed { return Status::Executed; }
         if env::block_timestamp_ms() < p.voting_end_ms.0 { return Status::Voting; }
         let turnout = (p.yes.0 + p.no.0 + p.abstain.0) as u128 * 10_000;
-        let quorum_met = turnout >= p.supply.0 as u128 * p.quorum_bps as u128;
+        // The 50% floor also applies to proposals opened before it existed.
+        let quorum_met = turnout >= p.supply.0 as u128 * p.quorum_bps.max(MIN_QUORUM_BPS) as u128;
         // Strictly more than the threshold: ties fail. Abstain counts for quorum only.
         let passed = p.yes.0 as u128 * 10_000 > (p.yes.0 + p.no.0) as u128 * p.pass_bps as u128;
         if !(quorum_met && passed) { return Status::Failed; }

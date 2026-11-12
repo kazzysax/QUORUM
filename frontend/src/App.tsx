@@ -385,7 +385,7 @@ export function App() {
         kind,
         purpose: propData.title || 'Untitled proposal',
         voting_period_ms: b.min_period_ms,
-        quorum_bps: b.min_quorum_bps,
+        quorum_bps: Math.max(b.min_quorum_bps, 5000), // the DAO requires at least half of all NFTs to vote
         pass_bps: b.min_pass_bps,
         timelock_ms: b.min_timelock_ms,
       }, '0', GAS.propose),
@@ -433,6 +433,7 @@ export function App() {
         <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         {syncBanner}
 
+        <div key={currentPage} className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {currentPage === 'marketplace' && (
           <MarketplacePage
             collections={collections}
@@ -522,6 +523,7 @@ export function App() {
             onCancelListing={handleCancelListing}
           />
         )}
+        </div>
       </main>
 
       <WalletModal

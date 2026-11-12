@@ -221,3 +221,80 @@ input::placeholder, textarea::placeholder {
   background: var(--bg-card-hover);
   border-color: #3F3F46;
 }
+
+/* ------------------------------------------------------------------ finishing touches */
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgba(245, 165, 36, 0.35);
+  color: #FFFFFF;
+}
+
+/* Thin dark scrollbars in Firefox too */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2A2A33 transparent;
+}
+
+/* Figures line up when they update */
+strong, td, th, .gold-badge, .success-badge, .neutral-badge {
+  font-variant-numeric: tabular-nums;
+}
+
+img {
+  -webkit-user-drag: none;
+}
+
+/* Visible keyboard focus, in the brand colour */
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--gold-border) !important;
+  box-shadow: 0 0 0 3px var(--gold-glow);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(245, 165, 36, 0.25);
+}
+
+.btn-primary:active,
+.btn-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary:hover {
+  color: #FFFFFF;
+}
+
+/* Pages ease in when you switch between them */
+.page-enter {
+  animation: fadeIn 0.22s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

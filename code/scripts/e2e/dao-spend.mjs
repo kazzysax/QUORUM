@@ -1,6 +1,6 @@
 // Pays out of each collection's treasury through its DAO, following the rules: a holder proposes a
 // Spend, holders vote, the vote and timelock must pass, then anyone executes. One spend may not
-// exceed 25% of the treasury's free funds.
+// exceed 50% of the treasury's free funds.
 // Usage: node scripts/e2e/dao-spend.mjs <recipient> [purpose]
 import { call, check, mustSucceed, summary, view, balance, F, near, fmt, sleep, waitFor } from './lib.mjs';
 
@@ -20,7 +20,7 @@ for (const c of COLS) {
   const spendable = BigInt(await view(c.tre, 'native_balance'));
   const reserved = BigInt(await view(c.tre, 'reserved_for', { asset: 'near' }));
   const free = spendable > reserved ? spendable - reserved : 0n;
-  const amount = (free * 24n / 100n / near(0.01)) * near(0.01);   // just under the 25% cap, in 0.01 steps
+  const amount = (free * 49n / 100n / near(0.01)) * near(0.01);   // just under the 50% cap, in 0.01 steps
   if (amount < near(0.05)) { console.log(`${c.n}: only ${fmt(free)} NEAR free, skipping`); continue; }
   const tokens = await view(c.nft, 'nft_tokens', { from_index: '0', limit: 100 });
   const mineTokens = MINE.map((a) => [a, tokens.filter((t) => t.owner_id === a).map((t) => t.token_id)]).filter(([, ids]) => ids.length);

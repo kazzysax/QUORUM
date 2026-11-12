@@ -23,12 +23,17 @@ fn spend() -> Kind { Kind::Spend { recipient: acc("vendor.near"), asset: "near".
 /// Opens a 10-NFT spend proposal at block 100 with the minimum parameters.
 fn open(d: &mut Dao) -> u64 {
     testing_env!(ctx("nft.near", T0, 100).build());
-    d.create_proposal(acc("alice.near"), spend(), "Pay the venue".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10))
+    d.create_proposal(acc("alice.near"), spend(), "Pay the venue".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10))
 }
 
 fn vote(d: &mut Dao, id: u64, token: &str, last: u64, choice: u8, ms: u64) {
     testing_env!(ctx("nft.near", ms, 150).build());
     d.record_vote(id, acc("voter.near"), token.into(), U64(last), choice);
+}
+
+/// Half of the 10-NFT supply votes yes: the least turnout that can pass anything.
+fn half_vote_yes(d: &mut Dao, id: u64) {
+    for i in 1..=5u64 { vote(d, id, &i.to_string(), 10, 1, T0 + i); }
 }
 
 const AFTER_VOTE: u64 = T0 + 3 * DAY_MS;
@@ -39,10 +44,10 @@ fn proposer_bounds_are_enforced_per_kind() {
     let mut d = dao();
     testing_env!(ctx("nft.near", T0, 100).build());
     for (period, quorum, pass, lock, why) in [
-        (DAY_MS, 1000, 5000, 2 * DAY_MS, "Voting period"),
+        (DAY_MS, 5000, 5000, 2 * DAY_MS, "Voting period"),
         (3 * DAY_MS, 100, 5000, 2 * DAY_MS, "Quorum"),
-        (3 * DAY_MS, 1000, 4000, 2 * DAY_MS, "Pass threshold"),
-        (3 * DAY_MS, 1000, 5000, 1, "Timelock"),
+        (3 * DAY_MS, 5000, 4000, 2 * DAY_MS, "Pass threshold"),
+        (3 * DAY_MS, 5000, 5000, 1, "Timelock"),
     ] {
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             d.create_proposal(acc("a.near"), spend(), "p".into(), U64(period), quorum, pass, U64(lock), U64(10))
@@ -57,7 +62,7 @@ fn proposer_bounds_are_enforced_per_kind() {
 fn spend_needs_a_purpose() {
     let mut d = dao();
     testing_env!(ctx("nft.near", T0, 100).build());
-    d.create_proposal(acc("a.near"), spend(), "  ".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+    d.create_proposal(acc("a.near"), spend(), "  ".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
 }
 
 #[test]
@@ -65,7 +70,7 @@ fn spend_needs_a_purpose() {
 fn only_the_nft_contract_can_create_or_vote() {
     let mut d = dao();
     testing_env!(ctx("anyone.near", T0, 100).build());
-    d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+    d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
 }
 
 #[test]
@@ -103,35 +108,42 @@ fn no_votes_after_the_window() {
 }
 
 #[test]
-fn quorum_not_met_fails() {
+fn half_of_all_nfts_must_vote() {
     let mut d = dao();
     let id = open(&mut d);
-    vote(&mut d, id, "1", 10, 1, T0 + 1); // 1 of 10 = 10%... exactly quorum
+    half_vote_yes(&mut d, id); // 5 of 10 = exactly 50%
     assert_eq!(d.status_of(id), Status::Voting);
     testing_env!(ctx("x.near", AFTER_VOTE, 200).build());
     assert_eq!(d.status_of(id), Status::Passed);
-    // A second proposal with zero votes fails on quorum.
+    // 4 of 10 (40%) is not enough, even if every vote is yes.
     testing_env!(ctx("nft.near", T0, 100).build());
-    let id2 = d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 2000, 5000, U64(2 * DAY_MS), U64(10));
-    vote(&mut d, id2, "1", 10, 1, T0 + 1); // 10% < 20%
+    let id2 = d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
+    for i in 1..=4u64 { vote(&mut d, id2, &i.to_string(), 10, 1, T0 + i); }
     testing_env!(ctx("x.near", AFTER_VOTE, 200).build());
     assert_eq!(d.status_of(id2), Status::Failed);
+}
+
+#[test]
+#[should_panic(expected = "at least 50% of all NFTs must vote")]
+fn a_proposal_cannot_ask_for_less_than_half_turnout() {
+    let mut d = dao();
+    testing_env!(ctx("nft.near", T0, 100).build());
+    d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 4999, 5000, U64(2 * DAY_MS), U64(10));
 }
 
 #[test]
 fn ties_fail_and_abstain_counts_only_for_quorum() {
     let mut d = dao();
     let id = open(&mut d);
-    vote(&mut d, id, "1", 10, 1, T0 + 1);
-    vote(&mut d, id, "2", 10, 0, T0 + 2);
+    for i in 1..=3u64 { vote(&mut d, id, &i.to_string(), 10, 1, T0 + i); }
+    for i in 4..=6u64 { vote(&mut d, id, &i.to_string(), 10, 0, T0 + i); }
     testing_env!(ctx("x.near", AFTER_VOTE, 200).build());
-    assert_eq!(d.status_of(id), Status::Failed, "1 yes vs 1 no is a tie");
+    assert_eq!(d.status_of(id), Status::Failed, "3 yes vs 3 no is a tie");
 
     testing_env!(ctx("nft.near", T0, 100).build());
-    let id2 = d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+    let id2 = d.create_proposal(acc("a.near"), spend(), "p".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
     vote(&mut d, id2, "1", 10, 1, T0 + 1);
-    vote(&mut d, id2, "2", 10, 2, T0 + 2);
-    vote(&mut d, id2, "3", 10, 2, T0 + 3);
+    for i in 2..=5u64 { vote(&mut d, id2, &i.to_string(), 10, 2, T0 + i); }
     testing_env!(ctx("x.near", AFTER_VOTE, 200).build());
     assert_eq!(d.status_of(id2), Status::Passed, "abstentions do not count against");
 }
@@ -150,7 +162,7 @@ fn failed_proposal_cannot_be_executed() {
 fn passed_proposal_waits_for_timelock() {
     let mut d = dao();
     let id = open(&mut d);
-    vote(&mut d, id, "1", 10, 1, T0 + 1);
+    half_vote_yes(&mut d, id);
     testing_env!(ctx("x.near", AFTER_VOTE + 1, 200).build());
     let _ = d.execute(id);
 }
@@ -159,7 +171,7 @@ fn passed_proposal_waits_for_timelock() {
 fn execute_is_permissionless_once_and_retryable_on_failure() {
     let mut d = dao();
     let id = open(&mut d);
-    vote(&mut d, id, "1", 10, 1, T0 + 1);
+    half_vote_yes(&mut d, id);
     testing_env!(ctx("stranger.near", AFTER_LOCK, 200).build());
     let _ = d.execute(id);
     assert_eq!(d.status_of(id), Status::Executed, "marked before the outbound call");
@@ -174,7 +186,7 @@ fn execute_is_permissionless_once_and_retryable_on_failure() {
 fn no_double_execution() {
     let mut d = dao();
     let id = open(&mut d);
-    vote(&mut d, id, "1", 10, 1, T0 + 1);
+    half_vote_yes(&mut d, id);
     testing_env!(ctx("stranger.near", AFTER_LOCK, 200).build());
     let _ = d.execute(id);
     let _ = d.execute(id);
@@ -191,15 +203,15 @@ fn settle_and_swap_proposals_need_a_minimum_output_and_the_spend_bounds() {
     testing_env!(ctx("nft.near", T0, 100).build());
     let settle = |min: u128| Kind::Settle { group: 0, hops: vec![hop()], min_out: U128(min) };
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        d.create_proposal(acc("a.near"), settle(0), "settle".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10))
+        d.create_proposal(acc("a.near"), settle(0), "settle".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10))
     }));
     assert!(format!("{:?}", r.err().and_then(|e| e.downcast_ref::<String>().cloned())).contains("minimum output"));
     // Same floor as spending: a short voting period is refused.
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        d.create_proposal(acc("a.near"), settle(5), "settle".into(), U64(DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10))
+        d.create_proposal(acc("a.near"), settle(5), "settle".into(), U64(DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10))
     }));
     assert!(format!("{:?}", r.err().and_then(|e| e.downcast_ref::<String>().cloned())).contains("Voting period"));
-    let id = d.create_proposal(acc("a.near"), settle(5), "settle".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+    let id = d.create_proposal(acc("a.near"), settle(5), "settle".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
     assert_eq!(id, 1);
 }
 
@@ -207,8 +219,8 @@ fn settle_and_swap_proposals_need_a_minimum_output_and_the_spend_bounds() {
 fn a_passed_settle_proposal_executes_once() {
     let mut d = dao();
     testing_env!(ctx("nft.near", T0, 100).build());
-    let id = d.create_proposal(acc("a.near"), Kind::Settle { group: 0, hops: vec![hop()], min_out: U128(5) }, "settle".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
-    vote(&mut d, id, "1", 10, 1, T0 + 1);
+    let id = d.create_proposal(acc("a.near"), Kind::Settle { group: 0, hops: vec![hop()], min_out: U128(5) }, "settle".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
+    half_vote_yes(&mut d, id);
     testing_env!(ctx("stranger.near", AFTER_LOCK, 200).build());
     let _ = d.execute(id);
     assert_eq!(d.status_of(id), Status::Executed);
@@ -228,7 +240,7 @@ fn a_spend_proposal_with_a_non_canonical_asset_is_refused() {
     let mut d = dao();
     testing_env!(ctx("nft.near", T0, 100).build());
     let kind = Kind::Spend { recipient: acc("vendor.near"), asset: "NEAR".into(), amount: U128(5) };
-    d.create_proposal(acc("alice.near"), kind, "Pay".into(), U64(3 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+    d.create_proposal(acc("alice.near"), kind, "Pay".into(), U64(3 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
 }
 
 #[test]
@@ -262,14 +274,14 @@ fn one_ineligible_token_fails_the_whole_batch() {
 fn a_voting_period_over_30_days_is_refused() {
     let mut d = dao();
     testing_env!(ctx("nft.near", T0, 100).build());
-    d.create_proposal(acc("alice.near"), spend(), "Pay".into(), U64(31 * DAY_MS), 1000, 5000, U64(2 * DAY_MS), U64(10));
+    d.create_proposal(acc("alice.near"), spend(), "Pay".into(), U64(31 * DAY_MS), 5000, 5000, U64(2 * DAY_MS), U64(10));
 }
 
 #[test]
 fn a_passed_proposal_expires_after_the_execution_window() {
     let mut d = dao();
     let id = open(&mut d);
-    for (i, t) in ["1", "2", "3"].iter().enumerate() { vote(&mut d, id, t, 10, 1, T0 + 1_000 + i as u64); }
+    half_vote_yes(&mut d, id);
     testing_env!(ctx("anyone.near", AFTER_LOCK, 200).build());
     assert_eq!(d.status_of(id), Status::Passed);
     testing_env!(ctx("anyone.near", AFTER_LOCK + 15 * DAY_MS, 200).build());

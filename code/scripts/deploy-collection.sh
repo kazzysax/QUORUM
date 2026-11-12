@@ -16,7 +16,7 @@ SITE=${SITE:-https://quorumio.vercel.app}
 DEX=${DEX:-v2.ref-finance.testnet}; WRAP=${WRAP:-wrap.testnet}
 ASSET_PLAN=${ASSET_PLAN:-$WRAP:1}
 SETTLE_GRACE_DAYS=${SETTLE_GRACE_DAYS:-0.05}   # ~72 min, the contract minimum is 60 min
-BOUNDS=${DAO_BOUNDS:-'[{"min_period_ms":"600000","min_quorum_bps":1000,"min_pass_bps":5000,"min_timelock_ms":"60000"},{"min_period_ms":"600000","min_quorum_bps":1000,"min_pass_bps":5000,"min_timelock_ms":"60000"},{"min_period_ms":"900000","min_quorum_bps":1500,"min_pass_bps":6000,"min_timelock_ms":"120000"},{"min_period_ms":"300000","min_quorum_bps":500,"min_pass_bps":5000,"min_timelock_ms":"0"}]'}
+BOUNDS=${DAO_BOUNDS:-'[{"min_period_ms":"600000","min_quorum_bps":5000,"min_pass_bps":5000,"min_timelock_ms":"60000"},{"min_period_ms":"600000","min_quorum_bps":5000,"min_pass_bps":5000,"min_timelock_ms":"60000"},{"min_period_ms":"900000","min_quorum_bps":5000,"min_pass_bps":6000,"min_timelock_ms":"120000"},{"min_period_ms":"300000","min_quorum_bps":5000,"min_pass_bps":5000,"min_timelock_ms":"0"}]'}
 R=res
 HASH=${HASH:?precompute with node scripts/code-hash.mjs res/quorum_vault_opt.wasm (node is not in WSL)}
 SIGN="network-config testnet sign-with-legacy-keychain send"

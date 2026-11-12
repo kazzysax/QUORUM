@@ -9,12 +9,12 @@ const mk = (kind, purpose, ms, q = 1000, p = 5000, lock = '60000') => ({ kind, p
 const sp = (a) => ({ Spend: { recipient: carol, asset: 'near', amount: a.toString() } });
 mustFail('a voting period over 30 days is refused', await call(bob, NFT, 'propose', mk(sp(near(0.1)), 'too long', String(31 * 86400000))), 'longer than 30 days');
 
-// A spend bigger than 25% of the treasury's free funds can pass a vote but cannot execute.
+// A spend bigger than 50% of the treasury's free funds can pass a vote but cannot execute.
 const free = BigInt(await view(TRE, 'native_balance'));
-const big = free / 2n;
-console.log(`treasury free ${fmt(free)}; proposing a spend of ${fmt(big)} (50%)`);
+const big = free * 3n / 4n;
+console.log(`treasury free ${fmt(free)}; proposing a spend of ${fmt(big)} (75%)`);
 const n0 = Number(await view(DAO, 'proposal_count'));
-mustSucceed('bob proposes a 50% spend', await call(bob, NFT, 'propose', mk(sp(big), 'Oversized spend (should be capped)', '600000')));
+mustSucceed('bob proposes a 75% spend', await call(bob, NFT, 'propose', mk(sp(big), 'Oversized spend (should be capped)', '600000')));
 await waitFor('proposal', async () => (await view(DAO, 'proposal_count')) === n0 + 1);
 const id = n0 + 1;
 mustSucceed('bob votes yes', await call(bob, NFT, 'vote', { proposal_id: id, token_ids: ['3', '4'], choice: 1 }));
@@ -27,7 +27,7 @@ check('the oversized spend PASSED the vote', (await view(DAO, 'status_of', { pro
 const treB = BigInt(await view(TRE, 'native_balance'));
 const r = await call(alice, DAO, 'execute', { proposal_id: id });
 await sleep(6000);
-check('executing it fails on the treasury spend cap (25%)', !r.ok && r.failures.join(' ').includes('25%'), r.failures[0]?.slice(0, 140));
+check('executing it fails on the treasury spend cap (50%)', !r.ok && r.failures.join(' ').includes('50%'), r.failures[0]?.slice(0, 140));
 check('treasury funds are untouched', BigInt(await view(TRE, 'native_balance')) === treB);
 check('the proposal is retryable (not marked executed)', (await view(DAO, 'status_of', { proposal_id: id })) === 'Passed');
 process.exit(summary() ? 0 : 1);

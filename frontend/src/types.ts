@@ -117,6 +117,7 @@ export interface ProposalItem {
   my_tokens?: number;
   my_voted?: number;
   votable_tokens?: string[];
+  supply?: number;
 }
 
 export interface ActiveListing {

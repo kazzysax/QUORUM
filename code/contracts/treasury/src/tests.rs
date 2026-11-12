@@ -156,19 +156,19 @@ fn spend_cannot_touch_reserved_funds() {
 }
 
 #[test]
-#[should_panic(expected = "25%")]
-fn one_spend_cannot_exceed_a_quarter_of_the_free_funds() {
+#[should_panic(expected = "50%")]
+fn one_spend_cannot_exceed_half_of_the_free_funds() {
     let mut t = treasury();
     with_results("treasury.near", vec![json_ok(U128(1_000))]);
-    // 1000 free: 250 is the most one spend may take.
-    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(251), "too big".into());
+    // 1000 free: 500 is the most one spend may take.
+    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(501), "too big".into());
 }
 
 #[test]
-fn a_quarter_of_the_free_funds_is_allowed() {
+fn half_of_the_free_funds_is_allowed() {
     let mut t = treasury();
     with_results("treasury.near", vec![json_ok(U128(1_000))]);
-    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(250), "limit".into());
+    let _ = t.on_spend_funds(Ok(U128(1_000)), acc("x.near"), USDC.into(), U128(500), "limit".into());
 }
 
 #[test]

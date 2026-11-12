@@ -32,9 +32,9 @@ const GAS_CB: Gas = Gas::from_tgas(30);
 const YOCTO: NearToken = NearToken::from_yoctonear(1);
 /// NEAR kept for storage so the pool account can never be starved.
 const NEAR_RESERVE: NearToken = NearToken::from_near(1);
-/// One spend may take at most this share of the treasury's free funds (25%). A captured vote
+/// One spend may take at most this share of the treasury's free funds (50%). A captured vote
 /// can then never empty the treasury in one transaction.
-const SPEND_CAP_BPS: u128 = 2_500;
+const SPEND_CAP_BPS: u128 = 5_000;
 
 #[ext_contract(ext_nft_supply)]
 pub trait NftSupply {
@@ -102,7 +102,7 @@ impl Treasury {
         let have = bal.unwrap_or_else(|_| quorum_common::fail("Balance check failed")).0;
         let free = have.saturating_sub(self.reserved_of(&asset));
         require!(free >= amount.0, "Insufficient unreserved funds");
-        require!(amount.0.saturating_mul(10_000) <= free.saturating_mul(SPEND_CAP_BPS), "A single spend may not exceed 25% of the treasury's free funds");
+        require!(amount.0.saturating_mul(10_000) <= free.saturating_mul(SPEND_CAP_BPS), "A single spend may not exceed 50% of the treasury's free funds");
         emit("treasury_spend", json!({ "recipient": recipient, "asset": asset, "amount": amount, "purpose": purpose }));
         self.send(&asset, &recipient, amount.0)
     }

@@ -59,7 +59,7 @@ console.log('\n== E. governance rules');
 const sp = (a) => ({ Spend: { recipient: carol, asset: 'near', amount: a.toString() } });
 const mk = (kind, purpose, ms = '600000', q = 1000, p = 5000, lock = '60000') => ({ kind, purpose, voting_period_ms: ms, quorum_bps: q, pass_bps: p, timelock_ms: lock });
 mustFail('voting period below the floor', await call(alice, NFT, 'propose', mk(sp(near(0.2)), 'short', '300000')), 'Voting period below');
-mustFail('quorum below the floor', await call(alice, NFT, 'propose', mk(sp(near(0.2)), 'quorum', '600000', 500)), 'Quorum below');
+mustFail('quorum below the 50% floor', await call(alice, NFT, 'propose', mk(sp(near(0.2)), 'quorum', '600000', 4000)), 'Quorum below');
 mustFail('timelock below the floor', await call(alice, NFT, 'propose', mk(sp(near(0.2)), 'lock', '600000', 1000, 5000, '0')), 'Timelock below');
 mustFail('pass threshold below the floor', await call(alice, NFT, 'propose', mk(sp(near(0.2)), 'pass', '600000', 1000, 4000)), 'Pass threshold below');
 mustFail('non-canonical asset refused', await call(alice, NFT, 'propose', mk({ Spend: { recipient: carol, asset: 'NEAR', amount: '1' } }, 'asset')), 'Asset must be');

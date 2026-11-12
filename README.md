@@ -267,7 +267,7 @@ Every collection is three contracts that are bound to each other when they are i
 
 DAO voting periods on these demo deployments are **10 minutes** so a proposal can be watched from creation to execution. Production collections should keep the default 3-5 day bounds.
 
-DAO safeguards enforced in the contracts: founder-set floors on voting period, quorum, pass threshold and timelock; one vote per token; a token that changed hands after a proposal opened cannot vote on it; voting periods are capped at 30 days; a passed proposal expires if not executed within 14 days of its timelock; a single treasury spend may not exceed 25% of its free funds; amounts reserved for holder distributions can never be spent.
+DAO safeguards enforced in the contracts: at least 50% of all NFTs must vote and more than half of the votes must be yes for anything to pass; founder-set floors on voting period, pass threshold and timelock; one vote per token; a token that changed hands after a proposal opened cannot vote on it; voting periods are capped at 30 days; a passed proposal expires if not executed within 14 days of its timelock; a single treasury spend may not exceed 50% of its free funds; amounts reserved for holder distributions can never be spent.
 
 ---
 
