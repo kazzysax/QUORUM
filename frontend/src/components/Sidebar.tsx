@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { page: 'launch' as Page, label: 'Launch', icon: Rocket },
     { page: 'governance' as Page, label: 'Votings', icon: CheckSquare },
     { page: 'offers' as Page, label: 'Offers', icon: Tag },
-    { page: 'sells' as Page, label: 'Sells', icon: ArrowUpRight },
+    { page: 'sells' as Page, label: 'Sales', icon: ArrowUpRight },
   ];
 
   return (

@@ -216,7 +216,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
                   <Tag size={28} color="#F5A524" />
                   <strong style={{ fontSize: '16px', color: '#F4F4F5' }}>No Active Offers on Listed NFTs</strong>
                   <span style={{ maxWidth: '440px', lineHeight: 1.6 }}>
-                    Offers are strictly received for pieces you have actively listed for sale. List one of your held NFTs in your Sells tab to receive collector offers.
+                    Offers are strictly received for pieces you have actively listed for sale. List one of your held NFTs on your Sales page to receive collector offers.
                   </span>
                   <button
                     type="button"
@@ -224,7 +224,7 @@ export const OffersPage: React.FC<OffersPageProps> = ({
                     className="btn-primary"
                     style={{ minHeight: '38px', padding: '0 20px', fontSize: '13px', marginTop: '4px' }}
                   >
-                    Go to Your Sells <ArrowRight size={14} style={{ marginLeft: '4px' }} />
+                    Go to Your Sales <ArrowRight size={14} style={{ marginLeft: '4px' }} />
                   </button>
                 </>
               ) : (

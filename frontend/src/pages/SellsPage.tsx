@@ -49,7 +49,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Sells</h1>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Sales</h1>
         </div>
         <div
           style={{
@@ -104,7 +104,7 @@ export const SellsPage: React.FC<SellsPageProps> = ({
       {/* Page Title */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Sells & Listings</h1>
+          <h1 style={{ margin: 0, fontSize: '30px', fontWeight: 700 }}>Your Sales & Listings</h1>
           {walletAccountId && <span className="neutral-badge">{walletAccountId}</span>}
         </div>
       </div>

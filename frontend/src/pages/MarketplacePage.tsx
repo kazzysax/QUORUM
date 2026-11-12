@@ -133,6 +133,16 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       return l.collection === collectionFilter;
     });
 
+  // What a listed NFT is worth: the listing price covers the art AND the assets in its vault (the vault travels with the NFT).
+  const nearIn = (s: string) => [...s.matchAll(/([d.]+)s*NEAR/gi)].reduce((a, x) => a + parseFloat(x[1]), 0);
+  const worth = (t: TokenItem) => {
+    const price = parseFloat(t.price || '0');
+    const vault = Math.min(price, nearIn(t.backing));
+    return { price, vault, art: Math.max(0, price - vault) };
+  };
+  const floorPiece = (pieces ?? []).filter((t) => t.price).sort((a, b) => parseFloat(a.price!) - parseFloat(b.price!))[0];
+  const floorWorth = floorPiece ? worth(floorPiece) : null;
+
   // Every NFT of the selected collection (listed or not), filtered and sorted for the Items tab
   const itemCards = (pieces ?? [])
     .filter((token) => {
@@ -639,6 +649,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             <strong style={{ display: 'block', fontSize: '18px', fontFamily: 'Space Grotesk', marginTop: '2px', color: '#F4F4F5' }}>
               {stats.floorPrice}
             </strong>
+            {floorWorth && (
+              <span style={{ display: 'block', fontSize: '11px', color: '#A1A1AA', marginTop: '2px' }}>
+                {floorWorth.vault.toFixed(2)} in vault + {floorWorth.art.toFixed(2)} art
+              </span>
+            )}
           </div>
           <div>
             <span style={{ fontSize: '11px', color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>TOP OFFER</span>
@@ -839,6 +854,11 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                           {token.price ? `${token.price} NEAR` : 'Not for sale'}
                         </span>
                       </div>
+                      {token.price && (
+                        <div style={{ fontSize: '11px', color: '#71717A' }}>
+                          {worth(token).art.toFixed(2)} art + {worth(token).vault.toFixed(2)} in vault
+                        </div>
+                      )}
                       <div style={{ fontSize: '12px', color: '#A1A1AA' }}>
                         {token.owner_id === walletAccountId ? 'Owned by you' : `Owner: ${token.owner_id}`}
                       </div>
@@ -1819,7 +1839,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Top Collections</h2>
-              <span style={{ fontSize: '12px', color: '#A1A1AA' }}>24h Volume</span>
+              <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Floor · volume</span>
             </div>
 
             <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1856,7 +1876,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     <span style={{ fontSize: '12px', color: '#A1A1AA' }}>Floor: {col.floor_price_near} NEAR</span>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <strong style={{ display: 'block', fontSize: '13px', color: '#86EFAC' }}>{col.change_24h}</strong>
+                    <strong style={{ display: 'block', fontSize: '13px', color: '#86EFAC' }}>{col.stats?.totalVolume ?? '—'}</strong>
                     <span style={{ fontSize: '11px', color: '#71717A' }}>{col.supply} pieces</span>
                   </div>
                 </li>

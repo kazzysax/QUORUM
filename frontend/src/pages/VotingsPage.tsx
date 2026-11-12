@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { ProposalItem, TokenItem, CollectionItem } from '../types';
-import { Check, X, Minus, Vote, Clock, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, X, Minus, Vote, Clock, Plus, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { EXPLORER } from '../deployments';
 
 interface VotingsPageProps {
   proposals: ProposalItem[];
@@ -12,6 +13,12 @@ interface VotingsPageProps {
 }
 
 type Kind = 'Spend' | 'Distribute' | 'Settle' | 'Text';
+
+const verifyLink = (dao?: string) => dao ? (
+  <a href={`${EXPLORER}/address/${dao}`} target="_blank" rel="noreferrer" title="Open this DAO contract on the explorer: its votes, proposals and transactions are all public" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#71717A', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+    Verify <ExternalLink size={10} />
+  </a>
+) : null;
 
 const panel: React.CSSProperties = { background: '#15151B', border: '1px solid #2A2A33', borderRadius: 22, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 };
 const field: React.CSSProperties = { background: '#1D1D25', border: '1px solid #2A2A33', borderRadius: 10, padding: '10px 12px', color: '#F4F4F5', fontSize: 13, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
@@ -152,7 +159,7 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({ proposals, userNfts, c
                         <span className="neutral-badge" style={{ height: 22, fontSize: 11 }}>#{p.chain_id ?? p.id} · {p.kind}</span>
                         <strong style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</strong>
                       </div>
-                      <span className="gold-badge" style={{ height: 24, fontSize: 11, gap: 4 }}><Clock size={12} /> {p.time_remaining} left</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{verifyLink(p.dao)}<span className="gold-badge" style={{ height: 24, fontSize: 11, gap: 4 }}><Clock size={12} /> {p.time_remaining} left</span></span>
                     </div>
                     {p.description && <span style={{ fontSize: 13, color: '#A1A1AA' }}>{p.description}</span>}
 
@@ -197,9 +204,10 @@ export const VotingsPage: React.FC<VotingsPageProps> = ({ proposals, userNfts, c
                 {showPast[col.name] && past.map((p) => {
                   const o = outcome(p);
                   return (
-                    <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: '#1D1D25', fontSize: 13 }}>
+                    <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: '#1D1D25', fontSize: 13 }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><span style={{ color: '#71717A' }}>#{p.chain_id ?? p.id}</span> {p.title}</span>
                       <span style={{ color: '#A1A1AA', whiteSpace: 'nowrap' }}>{p.votes_yes} yes · {p.votes_no} no</span>
+                      {verifyLink(p.dao)}
                       {p.can_execute && onExecute ? (
                         <button type="button" className="btn-primary" style={{ minHeight: 30, padding: '0 12px', fontSize: 12 }} onClick={() => onExecute(p.id)}>Carry out</button>
                       ) : (
