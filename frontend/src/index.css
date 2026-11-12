@@ -1,3 +1,6 @@
+/* The design reads best at 80% browser zoom, so desktop screens open at that scale and visitors never need to zoom out. */
+:root { --ui-zoom: 1; }
+@media (min-width: 1100px) { :root { --ui-zoom: 0.8; } html { zoom: var(--ui-zoom); } }
 :root {
   --bg-dark: #0A0A0D;
   --bg-deep: #08080A;

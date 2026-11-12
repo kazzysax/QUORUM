@@ -430,7 +430,7 @@ export function App() {
   ) : null;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0A0A0D', color: '#F4F4F5', boxSizing: 'border-box', padding: '16px', paddingLeft: '0' }}>
+    <div style={{ display: 'flex', minHeight: 'calc(100vh / var(--ui-zoom, 1))', background: '#0A0A0D', color: '#F4F4F5', boxSizing: 'border-box', padding: '16px', paddingLeft: '0' }}>
       <Sidebar
         currentPage={currentPage}
         onNavigate={handleNavigate}

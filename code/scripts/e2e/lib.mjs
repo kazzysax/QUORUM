@@ -73,7 +73,18 @@ function failures(outcome) {
 }
 
 /** Sends a function call and waits for FINAL. Returns { ok, failures, hash }. Never throws on contract failure. */
-export async function call(accountId, contract, method, args = {}, { deposit = 0n, gas = 300n * TGAS } = {}) {
+export async function call(accountId, contract, method, args = {}, opts = {}) {
+  // A rate-limited RPC (HTTP/JSON-RPC 429) rejects the request before it reaches the chain, so it is safe to retry.
+  let r;
+  for (let i = 0; i < 5; i++) {
+    r = await callOnce(accountId, contract, method, args, opts);
+    if (r.ok || !/429|Rate limit/i.test(r.failures.join(' '))) return r;
+    await sleep(2500 * (i + 1));
+  }
+  return r;
+}
+
+async function callOnce(accountId, contract, method, args = {}, { deposit = 0n, gas = 300n * TGAS } = {}) {
   const acc = account(accountId);
   try {
     const outcome = await acc.callFunctionRaw({ contractId: contract, methodName: method, args, gas, deposit });

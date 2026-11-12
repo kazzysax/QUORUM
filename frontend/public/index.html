@@ -11,6 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+/* The design reads best at 80% browser zoom, so desktop screens open at that scale and visitors never need to zoom out. */
+:root { --ui-zoom: 1; }
+@media (min-width: 1100px) { :root { --ui-zoom: 0.8; } html { zoom: var(--ui-zoom); } }
+
 html{scroll-behavior:smooth}
 body{margin:0;background:#08080A}
 a{color:#F4F4F5}a:hover{color:#FFFFFF}
@@ -19,7 +23,7 @@ a{color:#F4F4F5}a:hover{color:#FFFFFF}
 <body>
 <div style="font-family: Inter, system-ui, sans-serif; color: #F4F4F5; background: #08080A">
 
-<section style="position: relative; min-height: 56.25rem; overflow: hidden; display: flex; flex-direction: column">
+<section style="position: relative; min-height: max(40rem, calc(100vh / var(--ui-zoom))); overflow: hidden; display: flex; flex-direction: column">
 <svg aria-hidden="true" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMax slice" style="position: absolute; inset: 0; width: 100%; height: 100%">
 <defs>
 <linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050506"></stop><stop offset="0.62" stop-color="#18181B"></stop><stop offset="0.8" stop-color="#3F3F46"></stop><stop offset="1" stop-color="#0B0B0D"></stop></linearGradient>
