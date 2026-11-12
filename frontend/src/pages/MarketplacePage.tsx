@@ -1127,9 +1127,6 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
           const activeTreasuryAccount = daoBalances?.treasuryAccount || colDaoAccounts.treasuryAccount;
           const activeDaoAccount = daoBalances?.daoAccount || colDaoAccounts.daoAccount;
           const treasuryNear = Number(activeCollection.treasuryNear);
-          // Most the mint can ever route to the treasury: half of every mint price at full supply.
-          const treasuryCapacity = Math.max(0.01, (activeCollection.supply * Number(activeCollection.price_near)) / 2);
-          const fillPercent = Math.min(100, Math.round((treasuryNear / treasuryCapacity) * 100));
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
@@ -1156,9 +1153,8 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                     height: '320px',
                     borderRadius: '50%',
                     overflow: 'hidden',
-                    boxShadow:
-                      '0 0 60px rgba(168, 85, 247, 0.45), 0 0 120px rgba(139, 92, 246, 0.25), inset 0 0 50px rgba(255, 255, 255, 0.35), inset 0 -25px 45px rgba(124, 58, 237, 0.5)',
-                    border: '2px solid rgba(255, 255, 255, 0.4)',
+                    boxShadow: '0 0 70px rgba(245, 165, 36, 0.45), 0 0 140px rgba(245, 165, 36, 0.22)',
+                    border: '2px solid rgba(255, 214, 120, 0.55)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -1177,132 +1173,21 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
-                      filter: 'brightness(0.92) contrast(1.15)',
-                      transform: 'scale(1.05)',
                     }}
                   />
 
-                  {/* Soft Glass Specular Sheen & Radial Depth */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background:
-                        'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.06) 50%, rgba(139,92,246,0.4) 100%)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-
-                  {/* Dynamic Asset Liquid Level Across Bottom Hemisphere */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: `${fillPercent}%`,
-                      background:
-                        'linear-gradient(180deg, rgba(168, 85, 247, 0.35) 0%, rgba(139, 92, 246, 0.75) 100%)',
-                      backdropFilter: 'blur(3px)',
-                      borderTop: '2px solid rgba(255, 255, 255, 0.55)',
-                      boxShadow: '0 0 25px rgba(168, 85, 247, 0.5)',
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      justifyContent: 'center',
-                      paddingBottom: '12px',
-                      boxSizing: 'border-box',
-                      transition: 'height 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                        color: '#FFFFFF',
-                        textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                        background: 'rgba(10,10,13,0.65)',
-                        padding: '4px 14px',
-                        borderRadius: '999px',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                      }}
-                    >
-                      Ⓝ {treasuryNear.toFixed(2)} NEAR • {fillPercent}% Filled
-                    </span>
-                  </div>
-
-                  {/* Central Asset Badge HUD Inside the Orb */}
-                  <div
-                    style={{
-                      position: 'relative',
-                      zIndex: 2,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '4px',
-                      background: 'rgba(10, 10, 14, 0.72)',
-                      backdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      borderRadius: '22px',
-                      padding: '14px 22px',
-                      boxShadow: '0 12px 36px rgba(0,0,0,0.65)',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div
-                        style={{
-                          width: '22px',
-                          height: '22px',
-                          borderRadius: '50%',
-                          background: '#000000',
-                          border: '1px solid rgba(255,255,255,0.3)',
-                          display: 'grid',
-                          placeItems: 'center',
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          color: '#86EFAC',
-                        }}
-                      >
-                        Ⓝ
-                      </div>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#F4F4F5', letterSpacing: '0.05em' }}>
-                        NEAR TREASURY
-                      </span>
-                      <span className="success-badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                        Live On-Chain
-                      </span>
+                  {/* The NEAR the treasury actually holds, written across the orb */}
+                  <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', color: '#3A2606', padding: '0 20px' }}>
+                    <div style={{ fontSize: '50px', fontWeight: 800, fontFamily: 'Space Grotesk', lineHeight: 1, letterSpacing: '-0.02em', textShadow: '0 2px 16px rgba(255, 240, 190, 0.85)' }}>
+                      {treasuryNear.toFixed(2)}
                     </div>
-
-                    <strong
-                      style={{
-                        fontSize: '28px',
-                        fontWeight: 800,
-                        fontFamily: 'Space Grotesk',
-                        color: '#FFFFFF',
-                        letterSpacing: '-0.02em',
-                        marginTop: '2px',
-                      }}
-                    >
-                      {treasuryNear.toFixed(2)} NEAR
-                    </strong>
-
-                    <span style={{ fontSize: '12px', color: '#D4D4D8' }}>
-                      testnet NEAR · read from the treasury contract
-                    </span>
-
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        color: '#D8B4FE',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.07em',
-                      }}
-                    >
-                      {activeTreasuryAccount} • Real-Time RPC
-                    </span>
+                    <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '0.2em', marginTop: '6px' }}>NEAR</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '8px', opacity: 0.8 }}>
+                      in the {activeCollection.name} treasury
+                    </div>
+                    {activeCollection.treasuryWrapped > 0n && (
+                      <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '4px' }}>+ {fmtNear(activeCollection.treasuryWrapped, 2)} wNEAR</div>
+                    )}
                   </div>
                 </div>
 
