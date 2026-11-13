@@ -128,7 +128,7 @@ What is off-chain: pictures and metadata files. The three launch collections' ar
 ## 🔎 Verify It Yourself
 
 **In the browser (2 minutes):**
-1. Open **[quorumio.vercel.app/app](https://quorumio.vercel.app/app)** and connect a NEAR testnet wallet (Meteor, HOT, MyNearWallet and others).
+1. Open **[quorumio.vercel.app/app](https://quorumio.vercel.app/app)** and connect a NEAR testnet wallet (Meteor{CONFIRMED} or others).
 2. Open any collection, click **NearBlocks** on its header, and compare supply, owners and balances.
 3. Open the **DAO** tab and compare the treasury figure with the treasury account on NearBlocks.
 4. Buy a listed NFT, make an offer, or list one of yours. Every action is a real testnet transaction.
