@@ -190,6 +190,7 @@ The live collections: three launched by the team on 12 Nov 2026 with 20 pieces e
 - **Spend cap:** a single treasury spend may not exceed **50% of the treasury's free funds**. Amounts reserved for holder distributions can never be spent.
 - **One vote per token:** a token that changed hands after a proposal opened cannot vote on it, which stops flash-loan voting.
 - **Timing:** founder-set floors on voting period, pass threshold and timelock. The voting period is capped at 30 days, and a passed proposal expires if it is not executed within 14 days of its timelock.
+- **VTOING RIGHT; SELL AN NFT AND VOTING RIGHTS MOVE WITH THE NFT, ENFORCED IN CONTRACTS.
 
 DAO voting periods on these demo deployments are **10 minutes**, so a judge can watch a proposal go from creation to execution. Production collections should use 3–5 day periods. Proposals executed before the 50% turnout rule was added keep their recorded outcome. Those that had passed but were not yet executed (Molten #1 and #2) now read as failed.
 
