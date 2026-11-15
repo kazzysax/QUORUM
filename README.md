@@ -29,7 +29,7 @@ Submitted to the **NEAR Hackathon 2026** (Track: *NFTs That Do Something*).
 
 ## 📌 Executive Summary
 
-Every Quorum NFT is three things at once:
+Quorum is an NFT launchpad and marketplace on near, where every Quorum NFT is three things at once:
 1. **Art:** a NEP-171 token with NEP-177 metadata.
 2. **A Vault:** its own keyless NEAR sub-account (`v<id>.<collection>`) that holds real backing assets. The holder can burn the NFT at any time and receive 90% of what the vault holds.
 3. **A Vote:** exactly one vote in the DAO of that collection, which controls that collection's own treasury.
